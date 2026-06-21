@@ -605,6 +605,11 @@
     box-shadow: 0 0 4px rgba(80,120,200,0.4);
     z-index: 3;
   }
+  /* 2026-06-16 — REWORK V3 T2b (B4): custo VERDE quando dá pra pagar, VERMELHO quando falta mana */
+  .card[data-cost] .card-cost { color: #9ad080; background: rgba(18,40,18,0.82);
+    border-color: rgba(120,200,80,0.45); box-shadow: 0 0 4px rgba(96,160,72,0.4); }
+  .card.cant-afford .card-cost { color: #f08484; background: rgba(48,16,16,0.82);
+    border-color: rgba(220,90,90,0.5); box-shadow: 0 0 4px rgba(200,60,60,0.4); }
   .card .card-charge {
     position: absolute;
     top: 3px; right: 5px;
@@ -5051,14 +5056,15 @@
       inset 0 -2px 0 rgba(0,0,0,0.45);
     transition: width 0.4s ease;
   }
+  /* 2026-06-16 — REWORK V3 T2b: barra de chefe SEGMENTADA (divisórias escuras nítidas) */
   .boss-hp-fill::after {
     content: "";
     position: absolute;
     inset: 0;
     background: repeating-linear-gradient(
       90deg,
-      rgba(255,255,255,0.08) 0 2px,
-      transparent 2px 8px
+      transparent 0 27px,
+      rgba(10,4,16,0.55) 27px 30px
     );
     pointer-events: none;
   }
@@ -62133,6 +62139,12 @@ function updateHUD() {
   else hpBarEl.classList.remove("critical");
   manaTxtEl.textContent = Math.floor(k.mana) + "/" + k.maxMana;
   manaBarEl.style.width = (Math.max(0, k.mana / k.maxMana) * 100) + "%";
+  // 2026-06-16 — REWORK V3 T2b (B4): custo da carta verde/vermelho conforme a mana ATUAL (live)
+  try {
+    const _mana = k.mana || 0;
+    const _cc = document.querySelectorAll("#cards .card[data-cost]");
+    for (let _i = 0; _i < _cc.length; _i++) { const _e = _cc[_i]; _e.classList.toggle("cant-afford", _mana < (+_e.dataset.cost || 0)); }
+  } catch (e) {}
   coinsTxtEl.textContent = progress.coins;
   const s = Math.floor(game.runTime);
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
@@ -63171,6 +63183,7 @@ function renderSpellBar() {
       costEl.className = "card-cost";
       costEl.textContent = "◆" + cost;
       div.appendChild(costEl);
+      div.dataset.cost = String(cost);  // 2026-06-16 REWORK V3 T2b: pra colorir o custo por mana (B4)
     }
     if (charges != null && charges > 0) {
       const chargeEl = document.createElement("div");
