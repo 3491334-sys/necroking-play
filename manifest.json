@@ -1,0 +1,55 @@
+{
+  "name": "NecroKing — Necromante das Sombras",
+  "short_name": "NecroKing",
+  "description": "Top-down roguelite: comande mortos-vivos contra 6 bosses em 6 biomas. Coleta relíquias, sobe NG+.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0a0810",
+  "theme_color": "#d4a637",
+  "lang": "pt-BR",
+  "categories": ["games", "action", "entertainment"],
+  "icons": [
+    {
+      "src": "icons/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "label": "NecroKing pixel art"
+    }
+  ],
+  "prefer_related_applications": false
+}
