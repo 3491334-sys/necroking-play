@@ -13145,12 +13145,14 @@ function spawnExtraPOIs() {
   // - Aumentado minDistLair 300 → 380
   // - Aumentado minDistSpawn 240 → 320
   // - Mais attempts (200 → 350) pra ainda achar slots válidos com restrições mais duras
-  const targetCount = 6;
-  const minDist = 540;
-  const minDistLair = 380;
-  const minDistSpawn = 320;
+  // 2026-06-16 — MAIS pontos de interesse (baús): 6→12. Mapa cresceu (WORLD_RADIUS 4400),
+  // então cabem mais; reduzi um pouco o espaçamento e dobrei as tentativas pra preencher.
+  const targetCount = 12;
+  const minDist = 440;
+  const minDistLair = 340;
+  const minDistSpawn = 300;
   let placed = 0, attempts = 0;
-  while (placed < targetCount && attempts < 350) {
+  while (placed < targetCount && attempts < 700) {
     attempts++;
     const a = rng() * Math.PI * 2;
     const maxR = (typeof worldEdgeRadiusFor === "function")
@@ -13652,7 +13654,7 @@ function spawnCaravan() {
    bioma com uma pequena escolta. Cada chefe só pode ser invocado uma vez.
    Função chamada por updateLairs() — NÃO mais por ondas. */
 const LAIR_TRIGGER_RADIUS = 220;  // ETAPA H: aumentado de 180 → 220 pra acompanhar covis maiores (scale 2.4x)
-const LAIR_SIZE = 28;
+const LAIR_SIZE = 42;   // 2026-06-16 — construções de chefe maiores (visual 1.6×)
 
 function spawnLairs() {
   // Uma entrada em game.lairs por bioma, posicionada no core correspondente.
@@ -13802,7 +13804,7 @@ function updateLairs(dt) {
       // Detecta REI atacando: se king está perto do covil (raio melee), "soca" cada 350ms
       if (k && isAlive(k)) {
         const d = Math.hypot(lair.x - k.x, lair.y - k.y);
-        if (d <= 32) {
+        if (d <= 46) {   // 2026-06-16 — alcance maior (construção maior)
           lair._kingHitCd = (lair._kingHitCd || 0) - dt;
           if (lair._kingHitCd <= 0) {
             lair._kingHitCd = 350;
@@ -13814,7 +13816,7 @@ function updateLairs(dt) {
       for (const u of game.units) {
         if (!isAlive(u) || u.faction !== "ally" || u.type === "king") continue;
         const d = Math.hypot(lair.x - u.x, lair.y - u.y);
-        if (d <= 24) {
+        if (d <= 36) {
           u._lairHitCd = (u._lairHitCd || 0) - dt;
           if (u._lairHitCd <= 0) {
             u._lairHitCd = 600;
@@ -41009,22 +41011,30 @@ function drawLair(sx, sy, lair) {
   // grosseiro). Cada drawLair* agora desenha em ~50px de altura (era 22px) com mais
   // facetas, sombras, detalhes pra parecer Full HD.
   const biomeId = lair.biomeId;
+  // 2026-06-16 — CONSTRUÇÕES DE CHEFE MAIORES: escala 1.6× ao redor da âncora do covil.
+  // (os drawLair*HD desenham relativos a (sx,sy); transladando+escalando e chamando com (0,0)
+  // ampliamos a construção inteira sem reescrever cada função). Rótulos/hints ficam fora (sem escala).
+  const LS = 1.6;
+  offCtx.save();
+  offCtx.translate(sx, sy);
+  offCtx.scale(LS, LS);
   if (biomeId === "deserto") {
-    drawLairDesertoHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairDesertoHD(0, 0, lair, col, colD, glow, pulse);
   } else if (biomeId === "gelo") {
-    drawLairGeloHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairGeloHD(0, 0, lair, col, colD, glow, pulse);
   } else if (biomeId === "inferno") {
-    drawLairInfernoHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairInfernoHD(0, 0, lair, col, colD, glow, pulse);
   } else if (biomeId === "pantano") {
-    drawLairPantanoHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairPantanoHD(0, 0, lair, col, colD, glow, pulse);
   } else if (biomeId === "cogumelo") {
-    drawLairCogumeloHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairCogumeloHD(0, 0, lair, col, colD, glow, pulse);
   } else if (biomeId === "catedral") {
     // COMBO 15 — Catedral: campanário branco com cruz dourada e vitrais vermelhos
-    drawLairCatedralHD(sx, sy, lair, col, colD, glow, pulse);
+    drawLairCatedralHD(0, 0, lair, col, colD, glow, pulse);
   } else {
-    drawLairGeneric(sx, sy, lair, col, colD, glow, pulse);
+    drawLairGeneric(0, 0, lair, col, colD, glow, pulse);
   }
+  offCtx.restore();
 
   // Rótulo acima quando o rei está perto o bastante pra ver, e ainda dormente
   if (lair.state === "dormant" && game.king) {
@@ -59828,20 +59838,22 @@ function unitVisualTopY(u, sx, sy) {
 
 // Largura da HP bar baseada no tamanho da unidade.
 function unitHpBarWidth(u) {
-  if (u.unitClass === "bossNecroKing") return 40;
-  if (u.isBoss) return 32;
-  if (HD_UNIT_CLASSES.has(u.unitClass)) return 22;
-  if (u.scale && u.scale >= 1.4) return 16;
-  if (u.scale && u.scale >= 1.1) return 12;
-  return 10;
+  // 2026-06-16 — barras mais ESTREITAS (menos poluição visual com exército grande)
+  if (u.unitClass === "bossNecroKing") return 34;
+  if (u.isBoss) return 27;
+  if (HD_UNIT_CLASSES.has(u.unitClass)) return 18;
+  if (u.scale && u.scale >= 1.4) return 13;
+  if (u.scale && u.scale >= 1.1) return 9;
+  return 8;
 }
 
 function drawHpBar(cx, cy, hp, maxHp, factionTag, width) {
-  const w = width || 10;
+  const w = width || 8;
   const h = 2;
   const pct = Math.max(0, hp / maxHp);
+  // 2026-06-16 — moldura mais FINA (3px no total, era 4) pra reduzir a grossura
   offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - w / 2 - 1, cy - 1, w + 2, h + 2);
+  offCtx.fillRect(cx - w / 2 - 1, cy - 1, w + 2, h + 1);
   offCtx.fillStyle = "#300808";
   offCtx.fillRect(cx - w / 2, cy, w, h);
   let color = "#4ae04a";
