@@ -8039,11 +8039,12 @@ function isBiomeUnlocked(id) {
   return false;
 }
 function refreshWorldUnlocks() {
-  // Só filtra no Endless. Na Campanha, biomeAt já é sobrescrito (bioma único do corredor).
-  if (game.campaignMode) { _worldUnlockFilter = false; return; }
-  _unlockedSet = {}; let any = false;
-  for (const s of BIOME_SEEDS) { if (isBiomeUnlocked(s.id)) { _unlockedSet[s.id] = true; any = true; } }
-  _worldUnlockFilter = any;   // segurança: se nada liberado, não filtra (deserto sempre passa, então 'any' é true)
+  // 2026-06-16 — ENDLESS agora é o MUNDO COMPLETO: TODOS os 7 biomas sempre aparecem (catedral e
+  // aquático inclusos, no anel externo). A progressão por bioma é exclusiva da CAMPANHA; o gating
+  // antigo (liberar biomas do Endless ao avançar a campanha) escondia catedral/aquático demais.
+  _worldUnlockFilter = false;
+  _unlockedSet = {};
+  for (const s of BIOME_SEEDS) _unlockedSet[s.id] = true;
   try { __biomeMiniCache = null; if (typeof _biomePairCache !== "undefined") _biomePairCache.clear(); } catch (e) {}
 }
 
