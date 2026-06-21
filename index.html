@@ -5275,6 +5275,19 @@
   /* Esconder quando menu/overlay aberto */
   html.is-mobile body.menu-active .mobile-only { display: none; }
 
+  /* 2026-06-16 — REWORK V3 T2: DICAS DE CONTROLE no DESKTOP (sem joystick). Visíveis só no
+     modo desktop (html.is-desktop) e fora de menus. */
+  #desktopHints { position: fixed; left: 12px; bottom: 12px; z-index: 22; display: none;
+    flex-direction: column; gap: 5px; pointer-events: none; }
+  html.is-desktop #desktopHints { display: flex; }
+  html.is-desktop body.menu-active #desktopHints { display: none; }
+  .dh-chip { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #9d99b6;
+    background: rgba(10,8,22,0.62); border: 1.5px solid #0a0410;
+    box-shadow: 0 0 0 1px rgba(212,166,55,0.28); border-radius: 7px; padding: 5px 8px; letter-spacing: 0.5px; }
+  .dh-chip b { color: #e8e4f0; }
+  .dh-chip.necro { box-shadow: 0 0 0 1px rgba(192,96,255,0.35); }
+  .dh-chip.necro b { color: #e8b0ff; }
+
   /* Joystick virtual — bottom-left, 130px diâmetro */
   #mobileJoystick {
     position: fixed;
@@ -5652,6 +5665,13 @@
       <rect x="14" y="5" width="4" height="14" rx="1" fill="#f7d96f"/>
     </svg>
   </button>
+  <!-- 2026-06-16 — REWORK V3 T2: dicas de controle no DESKTOP (sem joystick) -->
+  <div id="desktopHints">
+    <div class="dh-chip"><b>WASD</b> MOVER</div>
+    <div class="dh-chip"><b>🖱 ESQ</b> MIRAR &amp; LANÇAR</div>
+    <div class="dh-chip necro"><b>🖱 DIR</b> RESSUSCITAR</div>
+    <div class="dh-chip"><b>1–3</b> CARTAS</div>
+  </div>
   <!-- Overlay rotacionar dispositivo (portrait warning) -->
   <div id="rotateOverlay">
     <div class="rotate-icon">📱</div>
@@ -6108,6 +6128,12 @@
         <button class="small" id="controlsSchemeBtn" type="button">WASD</button>
         <span class="value" style="font-size:8px;" data-i18n="settings.controlsHint">movimento do rei</span>
       </div>
+      <!-- 2026-06-16 — REWORK V3 T2: modo de input (auto / desktop / celular) -->
+      <div class="settings-row">
+        <span>MODO DE INPUT</span>
+        <button class="small" id="controlsModeBtn" type="button">AUTO</button>
+        <span class="value" style="font-size:8px;">desktop (mouse) / celular (joystick)</span>
+      </div>
       <div class="menu-buttons" style="margin-top: 28px;">
         <button class="menu-btn secondary" data-menu-action="clear-save" data-i18n="menu.clearSaves">APAGAR TODOS OS SAVES</button>
         <button class="menu-btn secondary" data-menu-action="back-from-settings" data-i18n="menu.back">VOLTAR</button>
@@ -6280,6 +6306,33 @@ function corridorCenterY(wx) {
   if (env <= 0) return 0;
   return (Math.sin(x * 0.00220) * 150 + Math.sin(x * 0.00097 + 1.3) * 58) * env;
 }
+
+// ============================================================================
+// 2026-06-16 — REWORK VISUAL V3 · TAREFA 1: SISTEMA VISUAL (rampas canônicas)
+// Fonte da verdade de cor pra a ARTE NOVA (Bruxo Ancião = Tarefa 3, VFX = Tarefa 5).
+// Cada material = contorno + escuro(d) → médio(m) → claro(l) → especular(s).
+// ADITIVO: nada aqui recolore sprite existente. O PAL.OUTLINE do jogo (#0d0810) NÃO muda;
+// o contorno HD #0a0410 (HD_OUTLINE) é exclusivo da arte nova. Espelha o objeto `R` do
+// mockup "01 Sistema Visual.dc.html".
+// ============================================================================
+const RAMP = {
+  bone:  { d: "#6b6452", m: "#b8b09a", l: "#e8e4d4", s: "#ffffff" },
+  gold:  { d: "#8a5a1a", m: "#d4a637", l: "#f7d96f", s: "#fff6c8" },
+  purp:  { d: "#5a1880", m: "#9a30c0", l: "#c060ff", s: "#e8b0ff" },
+  red:   { d: "#6a1018", m: "#b02030", l: "#e04050", s: "#ff8090" },
+  stone: { d: "#2a2438", m: "#4a4458", l: "#6a6478", s: "#8a8498" },
+  skin:  { d: "#8a7a86", m: "#b8a8b4", l: "#e0d4dc", s: "#f4ecf2" },
+  steel: { d: "#3a4a5a", m: "#6a8098", l: "#a8c0d4", s: "#e0f0ff" },
+  ice:   { d: "#2a5a90", m: "#5a90c0", l: "#a0d8f0", s: "#e8f8ff" },
+  pois:  { d: "#2a5a1a", m: "#60a048", l: "#9ad060", s: "#d0ff90" },
+  scorp: { d: "#7a4a18", m: "#b87830", l: "#e0a850", s: "#ffd880" },
+  wolf:  { d: "#4a5a6a", m: "#7a8a9a", l: "#b0c4d8", s: "#eaf4ff" },
+};
+// Contorno/accents canônicos da ARTE NOVA (ouro já existe em PAL.KING_GOLD/_L).
+const HD_OUTLINE = "#0a0410";                                  // contorno só da arte nova
+const ACCENT_GOLD = "#d4a637", ACCENT_GOLD_L = "#f7d96f";      // molduras/UI
+const ACCENT_PURPLE = "#c060ff";                               // magia / necromancia / morte
+const NIGHT_BG_0 = "#07081a", NIGHT_BG_1 = "#1a1d3a";          // fundo noite
 
 const PAL = {
   // Forest floor — mossy dirt with leaf litter
@@ -9292,6 +9345,7 @@ const DEFAULT_PROGRESS = {
   colorblindMode: false,
   // COMBO 11 H2 — Controles remapáveis
   controlsScheme: "wasd",  // "wasd" (default) | "arrows" | "ijkl"
+  controlsMode: "auto",    // 2026-06-16 REWORK V3 T2: "auto" | "desktop" | "mobile" (joystick vs mouse)
   // COMBO 13 F1 — Boss Rush leaderboard
   bossRushBestTime: 0,    // segundos do melhor clear (0 = nunca terminou)
   bossRushAttempts: 0,    // total de tentativas
@@ -9465,7 +9519,7 @@ function _validateProgress(p) {
     if (typeof p[num] === "number" && !isNaN(p[num])) out[num] = p[num];
   }
   // Strings
-  for (const s of ["activeCompanion", "controlsScheme", "activeKingSkin"]) {
+  for (const s of ["activeCompanion", "controlsScheme", "activeKingSkin", "controlsMode"]) {
     if (typeof p[s] === "string") out[s] = p[s];
   }
   // Objects (maps)
@@ -10868,10 +10922,27 @@ function isMobileDevice() {
   return window._isMobileCache;
 }
 
-// Atualiza body class pra CSS poder reagir
-if (isMobileDevice()) {
-  try { document.documentElement.classList.add("is-mobile"); } catch(e) {}
+// 2026-06-16 — REWORK V3 T2: MODO DE CONTROLE (auto/desktop/mobile). A classe `is-mobile`
+// passa a refletir o MODO EFETIVO (não só o device): assim o toggle em Config funciona e o
+// joystick + dicas reagem. AUTO = detecta por UA mobile + matchMedia(pointer:fine).
+function effectiveControlsMode() {
+  const m = (typeof progress !== "undefined" && progress && progress.controlsMode) || "auto";
+  if (m === "desktop" || m === "mobile") return m;
+  const ua = navigator.userAgent || "";
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return "mobile";
+  const fine = !!(window.matchMedia && window.matchMedia("(pointer: fine)").matches);
+  if (fine) return "desktop";
+  return isMobileDevice() ? "mobile" : "desktop";
 }
+function applyControlsMode() {
+  try {
+    const mobile = effectiveControlsMode() === "mobile";
+    const de = document.documentElement;
+    de.classList.toggle("is-mobile", mobile);
+    de.classList.toggle("is-desktop", !mobile);
+  } catch (e) {}
+}
+applyControlsMode();
 
 const _touchState = {
   startX: 0, startY: 0,
@@ -10993,7 +11064,11 @@ canvas.addEventListener("touchcancel", (e) => {
 // 2026-05-11 MOBILE CONTROLS — Virtual Joystick + Pause + Necromancy
 // ============================================================
 (function setupMobileControls() {
-  if (!isMobileDevice()) return;
+  // 2026-06-16 — REWORK V3 T2: instala os handlers do joystick se o aparelho TEM toque (inclui
+  // notebooks touch) — a VISIBILIDADE é controlada pela classe is-mobile (modo efetivo). Assim o
+  // toggle AUTO/DESKTOP/CELULAR funciona sem reload.
+  const _hasTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+  if (!_hasTouch && effectiveControlsMode() !== "mobile") return;
 
   // ----- VIRTUAL JOYSTICK (movement → input.keys.w/a/s/d) -----
   const joy = document.getElementById("mobileJoystick");
@@ -71757,6 +71832,11 @@ function refreshSettingsMenu() {
     const sch = progress.controlsScheme || "wasd";
     csBtn.textContent = sch === "wasd" ? "WASD" : (sch === "arrows" ? "SETAS" : "IJKL");
   }
+  const cmBtn = document.getElementById("controlsModeBtn");
+  if (cmBtn) {
+    const md = progress.controlsMode || "auto";
+    cmBtn.textContent = md === "auto" ? ("AUTO (" + (effectiveControlsMode() === "mobile" ? "CELULAR" : "DESKTOP") + ")") : (md === "desktop" ? "DESKTOP" : "CELULAR");
+  }
   document.getElementById("settingsInfo").textContent = "";
   // 2026-05-11 — Atualiza label do botao IDIOMA com a lingua atual
   try {
@@ -71873,6 +71953,18 @@ if (_csBtn) {
     const next = cur === "wasd" ? "arrows" : (cur === "arrows" ? "ijkl" : "wasd");
     progress.controlsScheme = next;
     try { saveProgress(); } catch(e) {}
+    refreshSettingsMenu();
+  });
+}
+// 2026-06-16 — REWORK V3 T2: toggle do MODO DE INPUT (auto → desktop → celular)
+const _cmBtn = document.getElementById("controlsModeBtn");
+if (_cmBtn) {
+  _cmBtn.addEventListener("click", () => {
+    const cur = progress.controlsMode || "auto";
+    const next = cur === "auto" ? "desktop" : (cur === "desktop" ? "mobile" : "auto");
+    progress.controlsMode = next;
+    try { saveProgress(); } catch(e) {}
+    if (typeof applyControlsMode === "function") applyControlsMode();
     refreshSettingsMenu();
   });
 }
