@@ -9231,6 +9231,9 @@ const DEFAULT_PROGRESS = {
   bossesDefeatedTotal: 0,  // contador agregado entre runs (pra achievements)
   totalKills: 0,        // kills agregadas entre runs
   totalRuns: 0,         // runs iniciadas
+  // 2026-06-16 — desbloqueio por atividade das cartas CARNIFICINA / OSSÁRIO
+  knockbacksApplied: 0, // empurrões em inimigos (agregado) → desbloqueia OSSÁRIO
+  carnageUnlocked: false, ossuaryUnlocked: false,
   // Etapa ZF: set de bioma→true das cartas de boss desbloqueadas PERMANENTEMENTE
   // no slot. Ex: { inferno: true, gelo: false }. Só é setado quando o jogador
   // derrota o boss daquele bioma NESSE slot. Persiste entre runs do mesmo slot
@@ -15868,6 +15871,7 @@ function doBossSweep(u) {
       const ang = Math.atan2(dyh, dxh);
       t.vx += Math.cos(ang) * 250;
       t.vy += Math.sin(ang) * 250;
+      _kbCount(t);
     }
   }
   try { if (typeof showToast === "function") showToast("⚠ " + theme.name + "!", 1500, "danger"); } catch(e) {}
@@ -18959,6 +18963,7 @@ function doTitanSlam(u) {
       const ang = Math.atan2(t.y - u.y, t.x - u.x);
       t.vx += Math.cos(ang) * 200;
       t.vy += Math.sin(ang) * 200;
+      _kbCount(t);
     }
   }
 }
@@ -21743,7 +21748,14 @@ function update(dt) {
         moveTowardPoint(u, u.movePoint.x, u.movePoint.y, dt);
         setState(u, "walking");
       } else if (d > u.attackRange + u.target.radius) {
-        moveToward(u, u.target, dt);
+        // 2026-06-16 — FORMAÇÃO POR CLASSE (suave): tank na frente, bruiser atrás dele, ranged
+        // recuado; + leque lateral pra não virar blob. Companions/Rei seguem direto ao alvo.
+        if (u.faction === "ally" && !u.isCompanion && u.type !== "king") {
+          const ft = allyFormationTarget(u, u.target);
+          moveTowardPoint(u, ft.x, ft.y, dt);
+        } else {
+          moveToward(u, u.target, dt);
+        }
         setState(u, "walking");
       } else {
         setState(u, "attacking");
@@ -22546,6 +22558,63 @@ function findNearest(from, pool, maxRange = 9999) {
     if (d < bestD) { bestD = d; best = u; }
   }
   return best;
+}
+
+// 2026-06-16 — CLASSES/PAPÉIS das tropas: deriva o papel de combate a partir dos stats da classe.
+function roleOf(unitClass) {
+  const c = CLASSES[unitClass];
+  if (!c) return "bruiser";
+  if (c.ranged && (c.range || 0) > 70) return "ranged";
+  if (c.shield || c.taunts || (c.armorBlock || 0) >= 32) return "tank";
+  return "bruiser";
+}
+// Distância desejada do inimigo por papel (standoff): ranged longe, tank colado, bruiser no meio.
+function _roleStandoff(u, role, enemy) {
+  const ar = u.attackRange || 16;
+  const er = (enemy && enemy.radius) || 6;
+  if (role === "ranged") return Math.max(ar * 0.82, 60) + er;
+  if (role === "tank")   return ar * 0.45 + er;
+  return ar * 0.72 + er;  // bruiser fica levemente atrás da linha do tank
+}
+// Ponto de FORMAÇÃO de uma tropa: standoff por papel + leque lateral estável (anti-blob). Suave —
+// a tropa só TENTA chegar nesse ponto; quando entra no alcance ela ataca normalmente.
+function allyFormationTarget(u, enemy) {
+  const role = roleOf(u.unitClass);
+  const dx = u.x - enemy.x, dy = u.y - enemy.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const nx = dx / d, ny = dy / d;                 // do inimigo em direção à tropa
+  const standoff = _roleStandoff(u, role, enemy);
+  let tx = enemy.x + nx * standoff;
+  let ty = enemy.y + ny * standoff;
+  // leque lateral (perpendicular) estável por tropa → o exército vira linha/arco, não um ponto
+  if (u._lane === undefined) u._lane = Math.random();
+  const px = -ny, py = nx;
+  const lane = (u._lane - 0.5) * 44;
+  tx += px * lane; ty += py * lane;
+  return { x: tx, y: ty, role };
+}
+// 2026-06-16 — INDICADOR DE CLASSE acima da cabeça (placeholder funcional; arte final = Claude design).
+// tank=escudo dourado · bruiser=losango laranja · ranged=seta verde · support=cruz roxa.
+function drawClassIndicator(sx, y, role) {
+  let col, col2;
+  if (role === "tank")        { col = "#e8c860"; col2 = "#3a2a08"; }
+  else if (role === "ranged") { col = "#7fe0a0"; col2 = "#0e2a18"; }
+  else if (role === "support"){ col = "#c060ff"; col2 = "#260a40"; }
+  else                        { col = "#ff7048"; col2 = "#2a0e06"; }  // bruiser
+  const x = sx - 2;
+  offCtx.globalAlpha = 0.9;
+  offCtx.fillStyle = col2; offCtx.fillRect(x - 1, y - 1, 7, 6);   // contorno escuro comum
+  offCtx.fillStyle = col;
+  if (role === "tank") {            // escudo
+    offCtx.fillRect(x, y, 4, 3); offCtx.fillRect(x + 1, y + 3, 2, 1);
+  } else if (role === "ranged") {   // chevron (seta pra cima)
+    offCtx.fillRect(x + 1, y, 2, 1); offCtx.fillRect(x, y + 1, 4, 1); offCtx.fillRect(x - 1, y + 2, 6, 1);
+  } else if (role === "support") {  // cruz
+    offCtx.fillRect(x + 1, y, 2, 4); offCtx.fillRect(x - 1, y + 1, 6, 2);
+  } else {                          // bruiser: losango
+    offCtx.fillRect(x + 1, y, 2, 1); offCtx.fillRect(x, y + 1, 4, 2); offCtx.fillRect(x + 1, y + 3, 2, 1);
+  }
+  offCtx.globalAlpha = 1;
 }
 
 function moveToward(u, target, dt) {
@@ -26162,6 +26231,17 @@ const ACHIEVEMENTS = [
 function checkAchievements(ctx) {
   if (!progress) return;
   progress.achievements = progress.achievements || {};
+  // 2026-06-16 — DESBLOQUEIO POR ATIVIDADE das cartas CARNIFICINA / OSSÁRIO
+  if (!progress.carnageUnlocked && (progress.totalKills || 0) >= 300) {
+    progress.carnageUnlocked = true;
+    showToast("🩸 CARNIFICINA DESBLOQUEADA (carta)", 3200, "magic");
+    if (typeof saveProgress === "function") saveProgress();
+  }
+  if (!progress.ossuaryUnlocked && ((progress.knockbacksApplied || 0) >= 150 || (progress.totalKills || 0) >= 700)) {
+    progress.ossuaryUnlocked = true;
+    showToast("🦴 OSSÁRIO DESBLOQUEADO (carta)", 3200, "magic");
+    if (typeof saveProgress === "function") saveProgress();
+  }
   for (const a of ACHIEVEMENTS) {
     if (progress.achievements[a.id]) continue;  // já desbloqueado
     try {
@@ -27208,6 +27288,26 @@ const SPELL_DATA = [
       const extra = Math.min(6, (game.bonuses && game.bonuses.explosiveSkullsCountBonus) || 0);
       launchExplosiveSkulls(wx, wy, 3 + extra);
     },
+  },
+  {
+    // 2026-06-16 — CARNIFICINA (desbloqueia por atividade: 300 abates). Detona cadáveres inimigos.
+    id: "carnage",
+    name: "Carnificina",
+    icon: "🩸",
+    key: "",
+    cost: 45, cd: 11000,
+    unlocked: () => !!(progress && progress.carnageUnlocked),
+    cast(wx, wy) { castCarnage(wx, wy); },
+  },
+  {
+    // 2026-06-16 — OSSÁRIO (desbloqueia por atividade: empurrar inimigos). Muro de ossos sólido.
+    id: "ossuary",
+    name: "Ossário",
+    icon: "🦴",
+    key: "",
+    cost: 35, cd: 12000,
+    unlocked: () => !!(progress && progress.ossuaryUnlocked),
+    cast(wx, wy) { castOssuary(wx, wy); },
   },
   {
     id: "fireball",
@@ -29660,6 +29760,81 @@ function launchExplosiveSkulls(wx, wy, count) {
   }
 }
 
+// 2026-06-16 — empurrão padronizado + CONTADOR (desbloqueia OSSÁRIO ao empurrar inimigos).
+function _kbCount(t) { if (t && t.faction === "enemy" && progress) progress.knockbacksApplied = (progress.knockbacksApplied || 0) + 1; }
+function applyKnockback(t, ang, force) {
+  if (!t) return;
+  t.vx = (t.vx || 0) + Math.cos(ang) * force;
+  t.vy = (t.vy || 0) + Math.sin(ang) * force;
+  _kbCount(t);
+}
+
+// 2026-06-16 — CARNIFICINA: detona cada CADÁVER inimigo num raio do ponto mirado (nova necrótica).
+function explodeCorpse(cx, cy, dmg, radius) {
+  game.effects.push({ type: "ring", x: cx, y: cy, radius: 4, lifetime: 300, maxLifetime: 300, color: "#c060ff", update(dt){ this.radius += dt * 0.06; } });
+  game.effects.push({ type: "ring", x: cx, y: cy, radius: 3, lifetime: 380, maxLifetime: 380, color: "#7a30c0", update(dt){ this.radius += dt * 0.04; } });
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; game.effects.push({ type: "spark", color: i % 2 ? "#d080ff" : "#9040c0", x: cx, y: cy, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, lifetime: 320, maxLifetime: 320, size: 1 }); }
+  for (const u of game.units) {
+    if (!isAlive(u) || u.faction === "ally" || u.type === "king" || u.isWagon) continue;
+    const d = Math.hypot(u.x - cx, u.y - cy);
+    if (d <= radius) {
+      applyDamage(game.king, u, dmg * (1 - (d / radius) * 0.4), { type: "magic" });
+      u.burning = Math.max(u.burning || 0, 3000);
+      if ((u.burnDmgTimer || 0) <= 0) u.burnDmgTimer = 350;
+    }
+  }
+}
+function castCarnage(wx, wy) {
+  try { if (typeof Sfx !== "undefined" && Sfx.necromance) Sfx.necromance(); } catch (e) {}
+  const R = 160;
+  let n = 0;
+  for (const c of game.corpses) {
+    if (!c || c.faction !== "enemy") continue;
+    if (Math.hypot(c.x - wx, c.y - wy) > R) continue;
+    const boss = !!c.isBossCorpse;
+    explodeCorpse(c.x, c.y, boss ? 170 : 50, boss ? 90 : 45);
+    c._consumed = true; n++;
+  }
+  if (n > 0) {
+    game.corpses = game.corpses.filter(x => !x._consumed);
+    if (typeof flashScreen === "function") flashScreen(0.12, 150, "#c060ff");
+    if (typeof doShake === "function") doShake(2.5, 220);
+  } else if (typeof showToast === "function") {
+    showToast("Sem cadáveres por perto", 1400, "info");
+  }
+}
+
+// 2026-06-16 — OSSÁRIO: muro de ossos sólido perpendicular à mira do Rei (funil; aliados/Rei passam).
+function castOssuary(wx, wy) {
+  const k = game.king; if (!k) return;
+  try { if (typeof Sfx !== "undefined" && Sfx.necromance) Sfx.necromance(); } catch (e) {}
+  const ang = Math.atan2(wy - k.y, wx - k.x);
+  const perp = ang + Math.PI / 2, half = 75;
+  const x1 = wx + Math.cos(perp) * half, y1 = wy + Math.sin(perp) * half;
+  const x2 = wx - Math.cos(perp) * half, y2 = wy - Math.sin(perp) * half;
+  game.hazards.push({ type: "boneWall", x: wx, y: wy, x1, y1, x2, y2, thickness: 8, hp: 240, maxHp: 240, age: 0, totalLife: 8000, tickTimer: 0, _broken: false });
+  for (let i = 0; i <= 10; i++) { const t = i / 10; game.effects.push({ type: "spark", color: "#d8c8b0", x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t, vx: 0, vy: -30, lifetime: 360, maxLifetime: 360, size: 2 }); }
+  if (typeof doShake === "function") doShake(2, 180);
+}
+function breakBoneWall(h) {
+  const dx = h.x2 - h.x1, dy = h.y2 - h.y1, lenSq = dx * dx + dy * dy || 1;
+  for (const u of game.units) {
+    if (!isAlive(u) || u.faction === "ally" || u.type === "king" || u.isWagon) continue;
+    let t = ((u.x - h.x1) * dx + (u.y - h.y1) * dy) / lenSq; t = Math.max(0, Math.min(1, t));
+    const cxp = h.x1 + t * dx, cyp = h.y1 + t * dy;
+    if (Math.hypot(u.x - cxp, u.y - cyp) <= 70) {
+      const a = Math.atan2(u.y - cyp, u.x - cxp) || 0;
+      applyKnockback(u, a, 120);
+      if (!u.isBoss) applyDamage(game.king, u, 18, { type: "physical" });
+    }
+  }
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5, ox = h.x1 + dx * t, oy = h.y1 + dy * t;
+    game.effects.push({ type: "spark", color: "#e8d8c0", x: ox, y: oy, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 60, lifetime: 500, maxLifetime: 500, size: 2 });
+  }
+  if (typeof doShake === "function") doShake(2.5, 200);
+}
+
 function explodeFireball(p) {
   Sfx.fireExplode();
   spawnFireExplosion(p.x, p.y, p.explodeRadius);
@@ -32072,6 +32247,34 @@ function updateHazards(dt) {
       }
       continue;
     }
+    // 2026-06-16 — OSSÁRIO: muro de ossos sólido. Empurra inimigos não-boss pra fora do segmento
+    // (correção posicional, não vira knockback infinito); aliados/Rei atravessam. Erode ao toque.
+    if (h.type === "boneWall") {
+      const dx = h.x2 - h.x1, dy = h.y2 - h.y1, lenSq = dx * dx + dy * dy || 1;
+      h.tickTimer -= dt;
+      const erode = h.tickTimer <= 0;
+      if (erode) h.tickTimer = 250;
+      for (const u of game.units) {
+        if (!isAlive(u) || u.isWagon || u.faction === "ally" || u.type === "king" || u.isBoss) continue;
+        let t = ((u.x - h.x1) * dx + (u.y - h.y1) * dy) / lenSq; t = Math.max(0, Math.min(1, t));
+        const cxp = h.x1 + t * dx, cyp = h.y1 + t * dy;
+        const dd = Math.hypot(u.x - cxp, u.y - cyp);
+        const reach = (h.thickness || 8) + (u.radius || 6);
+        if (dd < reach) {
+          const a = Math.atan2(u.y - cyp, u.x - cxp) || (Math.random() * Math.PI * 2);
+          const push = reach - dd;
+          u.x += Math.cos(a) * push; u.y += Math.sin(a) * push;
+          u.vx = (u.vx || 0) * 0.4; u.vy = (u.vy || 0) * 0.4;
+          if (erode) { h.hp -= 10; _kbCount(u); }
+        }
+      }
+      if ((h.hp <= 0 || h.age >= h.totalLife) && !h._broken) {
+        h._broken = true;
+        breakBoneWall(h);
+        h.age = h.totalLife;   // marca pra remoção no filtro de fim de frame
+      }
+      continue;
+    }
     // --- Default: poisonCone (feitiço veneno do rei) ---
     if (h.length < h.maxLength) {
       h.length = Math.min(h.maxLength, h.length + (h.maxLength / h.extendMs) * dt);
@@ -32378,6 +32581,29 @@ function renderHazards(camX, camY) {
       offCtx.beginPath(); offCtx.ellipse(sx, sy, h.radius * 0.6, h.radius * 0.36, 0, 0, Math.PI * 2); offCtx.fill();
       offCtx.globalAlpha = 0.42 * fade * pulse; offCtx.strokeStyle = "#fff0a8"; offCtx.lineWidth = 1;
       offCtx.beginPath(); offCtx.ellipse(sx, sy, h.radius * 0.86, h.radius * 0.5, 0, 0, Math.PI * 2); offCtx.stroke();
+      offCtx.globalAlpha = 1;
+      continue;
+    }
+    // 2026-06-16 — OSSÁRIO: muro de ossos (segmento) + vértebras + barra de HP da barreira
+    if (h.type === "boneWall") {
+      const remaining = h.totalLife - h.age;
+      const fade = Math.min(1, remaining / 800) * Math.min(1, h.age / 120);
+      const sx1 = Math.round(h.x1 - camX + BASE_W / 2), sy1 = Math.round(h.y1 - camY + BASE_H / 2);
+      const sx2 = Math.round(h.x2 - camX + BASE_W / 2), sy2 = Math.round(h.y2 - camY + BASE_H / 2);
+      const pulse = 0.7 + 0.3 * Math.sin(h.age / 220);
+      const th = h.thickness || 8;
+      offCtx.globalAlpha = 0.22 * fade * pulse; offCtx.strokeStyle = "#d4a637"; offCtx.lineWidth = th + 5;
+      offCtx.beginPath(); offCtx.moveTo(sx1, sy1); offCtx.lineTo(sx2, sy2); offCtx.stroke();
+      offCtx.globalAlpha = 0.85 * fade; offCtx.strokeStyle = "#4a3828"; offCtx.lineWidth = th + 1;
+      offCtx.beginPath(); offCtx.moveTo(sx1, sy1); offCtx.lineTo(sx2, sy2); offCtx.stroke();
+      offCtx.globalAlpha = 0.95 * fade; offCtx.strokeStyle = "#e8dcc4"; offCtx.lineWidth = Math.max(2, th - 3);
+      offCtx.beginPath(); offCtx.moveTo(sx1, sy1); offCtx.lineTo(sx2, sy2); offCtx.stroke();
+      offCtx.fillStyle = "#c8b89c"; offCtx.globalAlpha = 0.9 * fade;
+      for (let i = 0; i <= 6; i++) { const tt = i / 6, nx = sx1 + (sx2 - sx1) * tt, ny = sy1 + (sy2 - sy1) * tt; offCtx.fillRect(Math.round(nx) - 1, Math.round(ny) - 1, 3, 3); }
+      const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2;
+      const hpR = Math.max(0, (h.hp || 0) / (h.maxHp || 1));
+      offCtx.globalAlpha = 0.85 * fade; offCtx.fillStyle = "#1a1410"; offCtx.fillRect(mx - 12, my - 14, 24, 2);
+      offCtx.fillStyle = hpR > 0.5 ? "#9ad060" : (hpR > 0.25 ? "#d0a040" : "#d05040"); offCtx.fillRect(mx - 12, my - 14, 24 * hpR, 2);
       offCtx.globalAlpha = 1;
       continue;
     }
@@ -45403,6 +45629,10 @@ function drawUnit(u, camX, camY) {
     }
   }
 
+  // 2026-06-16 — INDICADOR DE CLASSE acima das tropas aliadas (não no Rei/carroças)
+  if (u.faction === "ally" && u.type !== "king" && !u.isWagon && (!game.settings || game.settings.classIndicators !== false)) {
+    drawClassIndicator(sx, unitVisualTopY(u, sx, sy) - 6, roleOf(u.unitClass));
+  }
   // Frozen overlay (cobre a unidade toda quando congelada)
   if (u.frozen > 0) drawFrozenOverlay(sx, sy, 10);
   // Etapa A3: aura de status no ch\u00e3o (anel pulsante por status ativo)
@@ -61095,6 +61325,14 @@ function drawArmedSpellPreview(x, y) {
       // Explosive Skulls — caveiras teleguiadas miram os inimigos perto do ponto: retículo necro
       col = "#c060ff"; colDark = "#5a1e80";
       radius = 26 * 2; kind = "summonRing";
+    } else if (c.spellId === "carnage") {
+      // Carnificina — coleta de cadáveres num raio (160)
+      col = "#c060ff"; colDark = "#5a1e80";
+      radius = 160 * 2; kind = "areaFill";
+    } else if (c.spellId === "ossuary") {
+      // Ossário — MURO de ossos perpendicular à mira (linha, não círculo)
+      col = "#e8dcc4"; colDark = "#7a6a50";
+      radius = 75 * 2; kind = "wallLine";
     }
   }
 
@@ -61270,6 +61508,22 @@ function drawArmedSpellPreview(x, y) {
     offCtx.setLineDash([]); offCtx.globalAlpha = 1;
     offCtx.fillStyle = colDark; offCtx.fillRect(x - 1, y - 1, 3, 3);
     offCtx.fillStyle = col; offCtx.fillRect(x, y, 1, 1);
+    offCtx.restore();
+  } else if (kind === "wallLine") {
+    // MURO (Ossário): segmento perpendicular à mira (Rei ~centro da tela → cursor)
+    offCtx.save();
+    const half = (radius / 2) || 75;
+    const aim = Math.atan2(y - BASE_H / 2, x - BASE_W / 2);
+    const perp = aim + Math.PI / 2;
+    const ex = Math.cos(perp) * half, ey = Math.sin(perp) * half;
+    const pulse = 0.6 + Math.sin(t / 200) * 0.3;
+    offCtx.globalAlpha = 0.5 * pulse; offCtx.strokeStyle = colDark; offCtx.lineWidth = 5;
+    offCtx.beginPath(); offCtx.moveTo(x - ex, y - ey); offCtx.lineTo(x + ex, y + ey); offCtx.stroke();
+    offCtx.globalAlpha = 0.85 * pulse; offCtx.strokeStyle = col; offCtx.lineWidth = 2;
+    offCtx.setLineDash([4, 3]); offCtx.lineDashOffset = -(t / 50) % 7;
+    offCtx.beginPath(); offCtx.moveTo(x - ex, y - ey); offCtx.lineTo(x + ex, y + ey); offCtx.stroke();
+    offCtx.setLineDash([]);
+    offCtx.globalAlpha = 1; offCtx.fillStyle = col; offCtx.fillRect(x - 1, y - 1, 2, 2);
     offCtx.restore();
   } else if (kind === "maelstromPreview") {
     // Anel de dano preenchido + anel externo de SUCÇÃO + pontos espiralando pra dentro.
@@ -62692,6 +62946,8 @@ const CARD_ICONS = {
   summonSpider: "cardSpider", summonAngel: "cardAngel",
   // 2026-06-16 — carta de loja
   explosiveSkulls: "explosiveSkull",
+  // 2026-06-16 — cartas de desbloqueio por atividade
+  carnage: "carnage", ossuary: "ossuary",
 };
 // 2026-05-11 — Helper i18n pra nome de carta (usa T se disponivel)
 function getCardName(spellId) {
@@ -62710,6 +62966,7 @@ const CARD_NAMES = {
   summonGolem: "GUARDIÃO", summonScarabs: "PRAGA",
   summonSpider: "VIÚVA", summonAngel: "SERAFIM",
   explosiveSkulls: "EXPLOSIVE SKULLS",
+  carnage: "CARNIFICINA", ossuary: "OSSÁRIO",
 };
 
 // 2026-05-04: Descrições COMPLETAS de cada carta — usadas em tooltip + codex.
@@ -62737,6 +62994,8 @@ const CARD_DESCRIPTIONS = {
   summonScarabs: "Invoca uma PRAGA de 8-12 escaravelhos (HP baixo, dmg em massa). Saturação rápida.",
   summonSpider:  "Invoca 3 ARANHAS VENENOSAS. Hits envenenam. Bom contra hordas tanky.",  summonAngel:   "Invoca 1 SERAFIM dourado (T4, voador, ranged). Joia rara — vale o custo alto.",
   explosiveSkulls: "Lança 3-9 caveiras teleguiadas nos inimigos mais próximos; cada uma explode em AoE pequena (24 dano). Quantidade sobe com upgrades na loja.",
+  carnage: "Detona TODOS os cadáveres inimigos num raio de 160px — cada um explode onde morreu (50 dano/45px; chefe 170/90px) + queima. Os corpos somem (não dá pra ressuscitar). Desbloqueia: 300 abates.",
+  ossuary: "Ergue um MURO DE OSSOS sólido (150px) que represa a horda — inimigos batem e são empurrados; suas tropas e o Rei atravessam. Ao quebrar: empurrão + estilhaços. Desbloqueia: empurrar inimigos.",
 };
 // Fase 18.2: classe CSS temática por spellId — casa com as cores da pick screen.
 // Etapa ZF: boss cards usam classes `card-boss-*` com visual especial (moldura
@@ -62744,6 +63003,7 @@ const CARD_DESCRIPTIONS = {
 const CARD_CLASSES = {
   necromancia: "card-necro",
   explosiveSkulls: "card-necro",  // 2026-06-16 — reusa o estilo necro (roxo/osso)
+  carnage: "card-necro", ossuary: "card-necro",
   fireball:    "card-fire",
   ice:         "card-ice",
   lightning:   "card-bolt",
@@ -65357,6 +65617,32 @@ function drawShopIcon(canvas, kind) {
       // mandíbula + dentes
       p(11,15,bo,10,1); p(12,16,bo,8,2);
       p(13,16,K,1,2); p(15,16,K,1,2); p(17,16,K,1,2); p(19,16,K,1,2);
+      break;
+    }
+    case "carnage": {
+      // crânio rachado explodindo em estilhaços + nova roxa/sangue
+      const bo = "#d8c8b0", bd = "#8a7a60", pu = "#c060ff", pd = "#7a30c0", bl = "#c83048";
+      p(15,3,pu,2,1); p(4,6,pd,2,2); p(26,6,pd,2,2); p(3,16,pu,1,2); p(28,16,pu,1,2); p(5,26,pd,2,2); p(25,26,pd,2,2);
+      p(11,9,K,10,1); p(10,10,K,1,8); p(21,10,K,1,8); p(11,18,K,10,1);
+      p(11,10,bo,10,8);
+      p(16,10,K,1,8);                 // rachadura central
+      p(12,12,K,3,3); p(17,12,K,3,3); // órbitas
+      p(13,13,bl,1,1); p(18,13,bl,1,1);
+      p(7,8,bo,2,1); p(24,9,bo,2,1); p(8,22,bd,2,1); p(23,21,bd,2,1);  // estilhaços
+      p(14,21,bl,3,2);                // respingo
+      break;
+    }
+    case "ossuary": {
+      // muro de ossos: 3 hastes longas empilhadas com nós, brilho dourado nas pontas
+      const bo = "#e8dcc4", bm = "#c8b89c", bd = "#8a7a60", go = "#d4a637";
+      for (let cx2 = 9; cx2 <= 21; cx2 += 6) {
+        p(cx2 - 1, 5, K, 5, 1); p(cx2 - 1, 26, K, 5, 1);
+        p(cx2, 5, bo, 3, 22);
+        p(cx2 - 1, 5, bm, 1, 22); p(cx2 + 3, 5, bd, 1, 22);
+        p(cx2 - 1, 7, bo, 5, 2); p(cx2 - 1, 15, bo, 5, 2); p(cx2 - 1, 23, bo, 5, 2);
+        p(cx2 - 1, 7, K, 1, 2); p(cx2 + 3, 7, K, 1, 2);
+      }
+      p(8, 4, go, 16, 1); p(8, 27, go, 16, 1);
       break;
     }
     case "heart": {
