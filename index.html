@@ -23242,6 +23242,10 @@ function applyDamage(attacker, target, amount, opts) {
   if (target.maxHp > 0 && dmg > target.maxHp * 0.20 && dmg >= 10 && !opts.noShockwave) {
     _spawnHitShockwave(target, type, opts.crit);
   }
+  // 2026-06-16 — REWORK V3 T5: estrela de IMPACTO em hits significativos (perf-gated p/ não spammar)
+  if (dmg >= 14 && !game.perfMode && !game._autoQualityLow && typeof fxHitStar === "function") {
+    fxHitStar(target.x, target.y - 4, !!opts.crit);
+  }
   // === FX 2026-05-04: vignette quando Rei toma dano ===
   if (target === game.king && dmg > 0 && typeof flashKingHit === "function") {
     flashKingHit(dmg);
@@ -25924,6 +25928,7 @@ function dropCoin(x, y, value) {
 
 function collectCoin(c) {
   c.collected = true;
+  if (typeof fxGold === "function") fxGold(c.x, c.y);   // 2026-06-16 REWORK V3 T5
   Sfx.coinPick();
   game.coinsThisRun += c.value;
   progress.coins += c.value;
@@ -25939,6 +25944,7 @@ function collectCoin(c) {
 // ETAPA H — Versão sem floating "+N" (já é mostrado pela moeda voando + pulse no contador)
 function collectCoinValue(c) {
   c.collected = true;
+  if (typeof fxGold === "function") fxGold(c.x, c.y);   // 2026-06-16 REWORK V3 T5
   Sfx.coinPick();
   game.coinsThisRun += c.value;
   progress.coins += c.value;
@@ -26889,6 +26895,39 @@ function necromanceCostForTier(tier) {
   return Math.max(1, raw - disc);
 }
 
+// 2026-06-16 — REWORK V3 TAREFA 5: VFX refinados (necromancia, impacto, recompensa). Replica
+// fx_necro/fx_hit/fx_gold do mockup "05 VFX" via game.effects (ring/spark + update). ADITIVO —
+// não toca em fogo/gelo/raio/veneno. Respeita perfMode/reducedMotion (menos partículas).
+function fxNecro(x, y) {
+  const low = !!(game.reducedMotion || game.perfMode || game._autoQualityLow);
+  // runa roxa pulsando no chão (anel) — a "alma" sobe num feixe vertical roxo
+  game.effects.push({ type: "ring", x, y, radius: 5, lifetime: 600, maxLifetime: 600, color: "#c060ff", update(dt) { this.radius += dt * 0.03; } });
+  if (!low) game.effects.push({ type: "ring", x, y, radius: 3, lifetime: 700, maxLifetime: 700, color: "#9a30c0", update(dt) { this.radius += dt * 0.02; } });
+  const beam = low ? 4 : 10;
+  for (let i = 0; i < beam; i++) {
+    game.effects.push({ type: "spark", color: i % 2 ? "#c060ff" : "#e8b0ff", x: x + (Math.random() - 0.5) * 3, y: y - 4 - i * 3, vx: 0, vy: -26 - Math.random() * 18, lifetime: 380 + i * 28, maxLifetime: 720, size: 1, update(dt) { this.y += this.vy * dt / 1000; } });
+  }
+  // alma subindo (disco roxo claro)
+  game.effects.push({ type: "spark", color: "#e8b0ff", x, y: y - 8, vx: 0, vy: -48, lifetime: 820, maxLifetime: 820, size: low ? 2 : 3, update(dt) { this.y += this.vy * dt / 1000; this.vy *= 0.985; } });
+}
+function fxHitStar(x, y, crit) {
+  // estrela 4-pontas branca/dourada de IMPACTO (curta ~150ms)
+  const gold = "#fff6c8", core = crit ? "#ffffff" : "#f7d96f";
+  for (const d of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    game.effects.push({ type: "spark", color: gold, x, y, vx: d[0] * (crit ? 120 : 90), vy: d[1] * (crit ? 120 : 90), lifetime: 150, maxLifetime: 150, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.88; this.vy *= 0.88; } });
+  }
+  for (const d of [[0.7, -0.7], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]]) {
+    game.effects.push({ type: "spark", color: core, x, y, vx: d[0] * 58, vy: d[1] * 58, lifetime: 130, maxLifetime: 130, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; } });
+  }
+}
+function fxGold(x, y) {
+  const low = !!(game.reducedMotion || game.perfMode || game._autoQualityLow);
+  // anel dourado que expande + faíscas-estrela douradas com gravidade
+  game.effects.push({ type: "ring", x, y: y - 2, radius: 3, lifetime: 460, maxLifetime: 460, color: "#f7d96f", update(dt) { this.radius += dt * 0.03; } });
+  const n = low ? 4 : 7;
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; game.effects.push({ type: "spark", color: i % 2 ? "#f7d96f" : "#fff6c8", x, y, vx: Math.cos(a) * 48, vy: Math.sin(a) * 48 - 28, lifetime: 460, maxLifetime: 460, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 70 * dt / 1000; this.vx *= 0.96; } }); }
+}
+
 function tryNecromance(wx, wy) {
   const b = game.bonuses;
   const range = 60 + b.necroRangeBonus;
@@ -26934,6 +26973,7 @@ function tryNecromance(wx, wy) {
   }
 
   toNecro.sort((a, b) => Math.hypot(a.x - wx, a.y - wy) - Math.hypot(b.x - wx, b.y - wy));
+  if (typeof fxNecro === "function") fxNecro(wx, wy);   // 2026-06-16 REWORK V3 T5
   let converted = 0;
   let capacity = Math.min(perCastCap, maxAllies - currentAllies);
   // 2026-05-02 COMBO 53 (Audit Fase 4 #1): marca _consumed em vez de filter por iteração.
