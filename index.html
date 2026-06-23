@@ -5317,7 +5317,20 @@
   #objectivePill .op-flag { color: #f7d96f; font-size: 11px; line-height: 1; }
   #objectivePill .op-text { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #cbc7dd; }
   #objectivePill .op-count { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #9ad080; }
-  html.is-mobile #objectivePill { top: 88px; }
+  /* ============================================================
+     CELULAR — HUD a ~50% (2026-06-23, pedido do user "reduza a HUD em 50%").
+     SEPARADO DO PC: só aplica com html.is-mobile (modo de controle celular).
+     O PC (html.is-desktop) mantém o layout cheio do Rework V3 T1. Estas regras
+     têm especificidade html.is-mobile + !important → são a FONTE ÚNICA do
+     dimensionamento/posição do HUD no celular (vencem as @media). */
+  html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
+  html.is-mobile #objectivePill { top: 48px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
+  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; transform: scale(0.23) !important; transform-origin: top right !important; }
+  html.is-mobile #topright { top: 70px !important; right: 6px !important; transform: scale(0.43) !important; transform-origin: top right !important; }
+  html.is-mobile #comboCount { font-size: 16px !important; }
+  /* o canto superior-direito agora é o minimapa → pause vai pro lado ESQUERDO dele */
+  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 78px !important; bottom: auto !important; width: 48px !important; height: 48px !important; }
+  /* ============================================================ */
   body.menu-active #objectivePill { display: none !important; }
 
   /* Joystick virtual — bottom-left, 130px diâmetro */
@@ -11215,12 +11228,13 @@ canvas.addEventListener("touchcancel", (e) => {
     const _doNecro = (e) => {
       if (e) e.preventDefault();
       if (_hasFullScreenOverlay && _hasFullScreenOverlay()) return;
-      // Dispara como right-click (necromancia) na posição atual do cursor/touch
-      input.rightDown = true;
-      input.rightClicked = true;
+      // 2026-06-23 — CELULAR: um ÚNICO botão revive TODOS os aliados numa ÁREA ao redor
+      // do REI (raio 130), sem usar a posição do cursor/touch. PC continua usando o mouse
+      // (botão direito) pra reviver no cursor — paths separados de propósito (não mexe em
+      // input.rightClicked, que é exclusivo do PC).
+      if (!game.runActive || game.gameOver || !game.king || game.king.hp <= 0) return;
       try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
-      // Solta logo (one-shot)
-      setTimeout(() => { input.rightDown = false; }, 60);
+      if (typeof tryNecromance === "function") tryNecromance(game.king.x, game.king.y, 130);
     };
     necroBtn.addEventListener("touchstart", _doNecro, { passive: false });
     necroBtn.addEventListener("click", _doNecro);  // fallback desktop hybrid
@@ -27002,9 +27016,11 @@ function fxGold(x, y) {
   for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; game.effects.push({ type: "spark", color: i % 2 ? "#f7d96f" : "#fff6c8", x, y, vx: Math.cos(a) * 48, vy: Math.sin(a) * 48 - 28, lifetime: 460, maxLifetime: 460, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 70 * dt / 1000; this.vx *= 0.96; } }); }
 }
 
-function tryNecromance(wx, wy) {
+function tryNecromance(wx, wy, rangeOverride) {
   const b = game.bonuses;
-  const range = 60 + b.necroRangeBonus;
+  // rangeOverride: CELULAR usa um raio MAIOR centrado no Rei (botão único = revive-tudo-na-área).
+  // PC (mouse, botão direito) passa undefined → raio padrão 60 no ponto do cursor.
+  const range = (typeof rangeOverride === "number" ? rangeOverride : 60) + b.necroRangeBonus;
   const maxAllies = 50 + b.maxAlliesBonus;  // 2026-06-15: exército base 25→50 (até 150 c/ upgrades)
   // Etapa 4: combina bonus de upgrade + buffs perma de baú (cap 12 absoluto)
   const buffCap = (game.permaBuffs && game.permaBuffs.necroCapBonus) || 0;
