@@ -122,21 +122,24 @@
      =================================================================== */
 
   /* COMBO COUNTER — aparece no canto top-right durante combos (3+ kills em <3s) */
+  /* 2026-06-23 — Rework V3 T1: combo no MEIO-ESQUERDA (igual ao mockup) */
   #comboCounter {
     position: fixed;
-    top: 80px;
-    right: 14px;
+    top: 50%;
+    left: 14px;
+    right: auto;
     z-index: 18;
     pointer-events: none;
     display: none;
-    text-align: center;
-    transform: scale(0);
+    text-align: left;
+    transform: translateY(-50%) scale(0);
+    transform-origin: left center;
     transition: transform 200ms cubic-bezier(.3,1.5,.4,1);
     text-shadow: 2px 2px 0 #000, 0 0 8px rgba(255, 80, 32, 0.6);
   }
   #comboCounter.visible {
     display: block;
-    transform: scale(1);
+    transform: translateY(-50%) scale(1);
   }
   #comboCounter.bump {
     animation: comboBump 240ms cubic-bezier(.3,1.6,.4,1);
@@ -165,9 +168,9 @@
     animation: comboLegendaryPulse 600ms ease-in-out infinite;
   }
   @keyframes comboBump {
-    0%   { transform: scale(1); }
-    40%  { transform: scale(1.4); }
-    100% { transform: scale(1); }
+    0%   { transform: translateY(-50%) scale(1); }
+    40%  { transform: translateY(-50%) scale(1.4); }
+    100% { transform: translateY(-50%) scale(1); }
   }
   @keyframes comboLegendaryPulse {
     0%, 100% { filter: brightness(1) saturate(1); }
@@ -209,77 +212,81 @@
     touch-action: none;            /* canvas também bloqueia gestures */
   }
 
-  /* ============ HUD (bottom-center) ============ */
+  /* ============ HUD (top-left, Rework V3 T1 — vitals compactos com avatar) ============ */
   #hud {
     position: fixed;
-    bottom: 136px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 14px;
+    left: 14px;
+    transform: none;
     font-size: 10px;
     letter-spacing: 1px;
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000, 0 0 6px rgba(0,0,0,0.9);
     pointer-events: none;
     z-index: 10;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    background:
+      radial-gradient(ellipse at top left, rgba(80,40,80,0.18), transparent 70%),
+      linear-gradient(180deg, rgba(20,10,30,0.88) 0%, rgba(10,5,15,0.93) 100%);
+    border: 2px solid #8a6038;
+    border-radius: 8px;
+    padding: 7px 11px 7px 7px;
+    box-shadow:
+      0 4px 14px rgba(0,0,0,0.85),
+      inset 0 0 0 1px rgba(212,166,55,0.30),
+      inset 0 1px 0 rgba(255,224,160,0.16);
   }
-  /* 2026-04-27 TASK C: HUD bars-row com ornamento gótico + glow */
+  /* avatar do Rei (rosto encapuzado + coroa) à esquerda das barras */
+  .vitals-avatar {
+    width: 44px; height: 44px; flex: none;
+    border: 2px solid #2a1a08; border-radius: 6px;
+    background: #160f28; image-rendering: pixelated;
+    box-shadow: inset 0 0 0 1px rgba(212,166,55,0.3);
+  }
+  .vitals-body { display: flex; flex-direction: column; min-width: 158px; }
+  /* 2026-06-23 — Rework V3 T1: bars-row VERTICAL compacto (HP em cima, Mana embaixo).
+     O painel/moldura agora vive no #hud (card top-left); a bars-row é só o stack. */
   #hud .bars-row {
     display: flex;
-    gap: 22px;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
     justify-content: center;
-    padding: 10px 22px;
-    background:
-      radial-gradient(ellipse at top, rgba(80,40,80,0.18), transparent 70%),
-      linear-gradient(180deg, rgba(20,10,30,0.92) 0%, rgba(10,5,15,0.96) 100%);
-    border: 2px solid #8a6038;
-    border-radius: 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
     position: relative;
-    box-shadow:
-      0 4px 14px rgba(0,0,0,0.9),
-      inset 0 0 0 1px rgba(212,166,55,0.30),
-      inset 0 1px 0 rgba(255,224,160,0.18),
-      inset 0 -1px 0 rgba(0,0,0,0.6);
+    box-shadow: none;
   }
-  /* Ornamentos góticos nos cantos da barra (cravos dourados) */
+  /* cravos góticos antigos eram pra barra larga embaixo — ocultos no layout compacto */
   #hud .bars-row::before,
-  #hud .bars-row::after {
-    content: "";
-    position: absolute;
-    top: -3px;
-    width: 12px; height: 12px;
-    background:
-      radial-gradient(ellipse at center, #ffe890 0%, #d4a637 50%, #7a5018 100%);
-    border-radius: 50%;
-    box-shadow: 0 0 4px rgba(212,166,55,0.7), inset 0 1px 0 rgba(255,255,255,0.6);
-  }
-  #hud .bars-row::before { left: -3px; }
-  #hud .bars-row::after  { right: -3px; }
+  #hud .bars-row::after { display: none; }
   .stat-row {
     display: flex;
     align-items: center;
-    gap: 8px;                        /* era 6 */
+    gap: 6px;
   }
   .stat-label {
     color: #ffd68a;
     text-transform: uppercase;
     font-weight: 700;
-    font-size: 10px;                 /* era 8 — mais legível */
+    font-size: 8px;
+    min-width: 26px;
   }
   .stat-value {
     color: #fff4c8;
     font-weight: 700;
-    font-size: 10px;                 /* era 8 */
-    min-width: 70px;                 /* era 60 */
+    font-size: 8px;
+    min-width: 48px;
     text-align: left;
   }
   /* 2026-04-27 TASK C: HUD HD bars com shimmer + glow + ornament */
   .bar {
-    width: 220px;
-    height: 22px;
+    width: 118px;
+    height: 13px;
     background: #000;
     border: 2px solid #d4a637;
     position: relative;
@@ -1066,10 +1073,14 @@
 
   /* Right-side badges */
   /* 2026-04-27 TASK C: HUD topright com ornament gótico */
+  /* 2026-06-23 — Rework V3 T1: meta (moedas/tempo/tier/exército) ABAIXO do minimapa,
+     compacto (igual ao mockup), preservando a moldura dourada. */
   #topright {
     position: fixed;
-    top: 14px;
-    right: 14px;
+    top: 142px;
+    right: 8px;
+    transform: scale(0.86);
+    transform-origin: top right;
     text-align: right;
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000, 0 0 6px rgba(0,0,0,0.9);
     z-index: 10;
@@ -1449,12 +1460,16 @@
   }
   /* Minimap — ancorado no canto superior esquerdo, dobrado (320px) */
   /* ETAPA H — MOLDURA GÓTICA NOTRE DAME pro minimap (com pináculos + arcos + rosáceas) */
+  /* 2026-06-23 — Rework V3 T1: minimapa no TOPO-DIREITA, compacto (escala uniforme
+     da moldura gótica inteira, preservando a identidade dourada). */
   #minimapContainer {
     position: fixed;
-    left: 6px;
-    top: 28px;
+    right: 6px;
+    top: 8px;
     width: 248px;
     height: 280px;
+    transform: scale(0.46);
+    transform-origin: top right;
     z-index: 10;
     pointer-events: none;
   }
@@ -4989,10 +5004,10 @@
   /* ============ BOSS FIGHT OVERLAY (Fase 12.6) ============ */
   #bossHpWrap {
     position: fixed;
-    top: 18px;
+    top: 14px;
     left: 50%;
     transform: translateX(-50%) translateY(-12px);
-    width: min(640px, 92vw);
+    width: min(340px, 84vw);   /* 2026-06-23 — Rework V3 T1: barra de chefe mais estreita (mockup ~298px) */
     pointer-events: none;
     z-index: 14;
     opacity: 0;
@@ -5149,16 +5164,16 @@
       gap: 3px !important;
       padding: 0 4px !important;
     }
-    /* HUD principal: menor + mais compacto */
+    /* HUD principal (Rework V3 T1): card top-left compacto */
     #hud {
-      bottom: 116px !important;     /* down de 136 — menos margem */
+      top: 10px !important;
+      left: 8px !important;
       font-size: 9px !important;
+      transform: scale(0.95) !important;
+      transform-origin: top left !important;
     }
-    /* Minimapa compacto: encolhe a MOLDURA (wrap) + o container JUNTOS e mantém o canvas
-       a 100% da moldura. BUG antigo (2026-06-14): só o #minimap encolhia pra 100px dentro
-       de uma moldura de 224px → o mapa aparecia num cantinho da moldura ("1/4 do mapa"). */
-    #minimapContainer { width: 116px !important; height: 132px !important; }
-    #minimapWrap { width: 104px !important; height: 104px !important; left: 6px !important; top: 18px !important; }
+    /* 2026-06-23 — minimapa agora compacta via transform:scale (default top-right);
+       não redimensiona mais a moldura aqui (evita o bug "1/4 do mapa"). */
     #minimap { width: 100% !important; height: 100% !important; }
     /* Painel de info da unidade: menor + reposicionado */
     #unitInfo {
@@ -5208,11 +5223,7 @@
       height: 96px !important;
     }
     #cards { gap: 2px !important; }
-    #hud { font-size: 8px !important; bottom: 102px !important; }
-    #minimap {
-      width: 80px !important;
-      height: 80px !important;
-    }
+    #hud { font-size: 8px !important; transform: scale(0.9) !important; transform-origin: top left !important; }
   }
 
   /* ===== 2026-06-14: HUD em CELULAR (paisagem) — enquadramento na tela =====
@@ -5225,9 +5236,9 @@
   @media (orientation: landscape) and (max-height: 540px) {
     /* minimap já é compacto e bem-enquadrado pela regra max-width:900 acima — não precisa
        mais de transform (que escalava a moldura vazia e criava o efeito "1/4 do mapa"). */
-    #topright         { transform: scale(0.58); transform-origin: top right; }
+    #topright         { transform: scale(0.6) !important; transform-origin: top right; top: 128px !important; }
     #hint             { display: none !important; }   /* legenda mouse/WASD não serve no celular */
-    #hud              { transform: translateX(-50%) scale(0.8); transform-origin: bottom center; }
+    #hud              { transform: scale(0.74) !important; transform-origin: top left; }
     #cards            { transform: translateX(-50%) scale(0.9); transform-origin: bottom center; }
   }
 
@@ -5300,7 +5311,7 @@
   .vitals-tier { font-family: 'Press Start 2P', monospace; font-size: 6px; color: #1a1004; flex: none;
     background: linear-gradient(180deg, #f7d96f, #d4a637); border: 1px solid #0a0410; border-radius: 4px; padding: 2px 5px; }
   /* pílula de OBJETIVO principal (B3) */
-  #objectivePill { position: fixed; left: 14px; top: 96px; z-index: 21; display: flex; align-items: center; gap: 6px;
+  #objectivePill { position: fixed; left: 14px; top: 88px; z-index: 21; display: flex; align-items: center; gap: 6px;
     background: rgba(10,8,22,0.62); border: 2px solid #0a0410; box-shadow: 0 0 0 1px rgba(212,166,55,0.35);
     border-radius: 8px; padding: 6px 10px; pointer-events: none; }
   #objectivePill .op-flag { color: #f7d96f; font-size: 11px; line-height: 1; }
@@ -5450,6 +5461,9 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
+    <!-- 2026-06-23 — REWORK V3 T1: avatar do Rei à esquerda + corpo (header + barras) -->
+    <canvas id="kingFace" class="vitals-avatar" width="22" height="22"></canvas>
+    <div class="vitals-body">
     <!-- 2026-06-16 — REWORK V3 T2b (B1): cabeçalho dos vitals com badge de TIER -->
     <div class="vitals-header"><span class="vitals-name">REI NECROMANTE</span><span class="vitals-tier" id="vitalsTier">TIER 1</span></div>
     <div class="bars-row">
@@ -5471,6 +5485,7 @@
       <span id="xpBar" style="display:none"></span>
       <span id="xpTxt" style="display:none"></span>
     </div>
+    </div><!-- /vitals-body -->
   </div>
   <!-- 2026-06-16 — REWORK V3 T2b (B3): pílula de OBJETIVO principal da run -->
   <div id="objectivePill" style="display:none;">
@@ -62369,8 +62384,34 @@ function renderQuestTracker() {
   }
 }
 
+// 2026-06-23 — Rework V3 T1: avatar do Rei (rosto encapuzado + coroa) no card de vitals.
+// Desenhado UMA vez no canvas #kingFace (22x22, exibido a 44px). Portado do mockup 02 HUD.
+let _kingFaceDrawn = false;
+function drawKingFaceAvatar() {
+  const cv = document.getElementById("kingFace");
+  if (!cv) return false;
+  const c = cv.getContext("2d");
+  if (!c) return false;
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, 22, 22);
+  const disc = (cx, cy, r, col) => { c.fillStyle = col; for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x*x + y*y <= r*r + r*0.6) c.fillRect(Math.round(cx+x), Math.round(cy+y), 1, 1); };
+  const px = (x, y, col, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+  const cx = 11, by = 12;
+  disc(cx, by, 8, "#5a1880");         // capuz escuro
+  disc(cx - 1, by - 1, 7, "#9a30c0"); // capuz médio
+  disc(cx, by + 1, 5, "#b8a8b4");     // rosto
+  disc(cx - 1, by, 4, "#e0d4dc");     // rosto claro
+  px(cx - 2, by, "#e8b0ff"); px(cx + 2, by, "#e8b0ff");  // olhos brilhantes (necro)
+  px(cx - 7, by - 6, "#d4a637", 14, 3);  // banda da coroa
+  px(cx - 7, by - 6, "#f7d96f", 14, 1);  // brilho da coroa
+  for (const dx of [-6, 0, 6]) { px(cx + dx - 1, by - 9, "#0a0410", 3, 4); px(cx + dx - 1, by - 8, "#f7d96f", 2, 3); }
+  px(cx - 1, by - 5, "#c060ff", 2, 2);   // gema roxa na testa
+  return true;
+}
+
 function updateHUD() {
   const k = game.king;
+  if (!_kingFaceDrawn) { try { if (drawKingFaceAvatar()) _kingFaceDrawn = true; } catch (e) {} }
   hpTxtEl.textContent = Math.max(0, Math.ceil(k.hp)) + "/" + k.maxHp;
   const hpPct = Math.max(0, k.hp / k.maxHp);
   hpBarEl.style.width = (hpPct * 100) + "%";
