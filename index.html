@@ -6331,7 +6331,17 @@ function corridorCenterY(wx) {
   const rampOut = Math.min(1, (L - x) / 520);    // últimos 520px: reto (entrada do portal)
   const env = rampIn * rampOut;
   if (env <= 0) return 0;
-  return (Math.sin(x * 0.00220) * 150 + Math.sin(x * 0.00097 + 1.3) * 58) * env;
+  // 2026-06-23 — serpenteio MUITO mais suave (amplitude 150/58 → 34/15, freq menor).
+  // A inclinação alta antes empurrava a estrada ~116px pra fora do quadro nas bordas da
+  // tela → a estrada "vazava pra fora do mapa". Agora o desvio nas bordas é ~15px.
+  return (Math.sin(x * 0.0011) * 34 + Math.sin(x * 0.0006 + 1.3) * 15) * env;
+}
+
+// 2026-06-23 — meia-altura EFETIVA do corredor: nunca maior do que cabe na tela atual,
+// pra as DUAS paredes sempre emoldurarem a estrada (senão a estrada vaza pra fora do mapa
+// quando a faixa ±152 é mais alta que a tela). Em telas grandes usa o valor cheio.
+function corridorHalf() {
+  return Math.max(72, Math.min(CAMPAIGN_CORRIDOR_HALF, (BASE_H >> 1) - 12));
 }
 
 // ============================================================================
@@ -9009,6 +9019,9 @@ function resolveClass(id) { return CLASSES[id] ? id : (CLASS_ALIASES[id] || "sol
 
 function tierUnlockedAt(t) { return TIER_UNLOCK[t] ?? 9999; }
 function highestAvailableTier() {
+  // 2026-06-23 \u2014 CAMPANHA: dificuldade por N\u00cdVEL (fixa), n\u00e3o por tempo decorrido.
+  // Endless/cl\u00e1ssico continuam escalando pelo runTime via TIER_UNLOCK.
+  if (game.campaignMode && typeof campaignDifficultyTier === "function") return campaignDifficultyTier();
   const t = game.runTime;
   // Agora vai at\u00e9 5 (Fase pos-relics)
   for (let i = 5; i >= 1; i--) if (t >= TIER_UNLOCK[i]) return i;
@@ -10629,6 +10642,14 @@ const AmbientBiome = (() => {
         // Vento de pedra (noise distante)
         _playNoise(1000, "highpass", 1500, baseG * 0.3, 0);
         break;
+      case "aquatico":
+        // 2026-06-23 — Abismo aquático: pressão grave (lowpass) + "glubs" curtos de água
+        // profunda (tons <300ms = percussão, não competem com a melodia).
+        _playNoise(1100, "lowpass", 220, baseG * 0.5, 0);
+        for (let i = 0; i < 3; i++) {
+          if (Math.random() < 0.6) _playTone(120 + Math.random() * 90, 90, "sine", baseG * 0.35, Math.random() * 1.6);
+        }
+        break;
       default:
         // Neutro: brisa + grilo (chirps curtos)
         _playNoise(900, "highpass", 1200, baseG * 0.3, 0);
@@ -12245,7 +12266,7 @@ function spawnCorridorScenery() {
   const total = entries.reduce((a, [, w]) => a + w, 0);
   const seed = (((game.campaignBiomeLevel | 0) * 131) + (((game.campaignLevel || 1) | 0) * 17) + 911) >>> 0;
   const rng = mulberry32(seed);
-  const HALF = CAMPAIGN_CORRIDOR_HALF;
+  const HALF = corridorHalf();   // 2026-06-23 — props nas margens da banda VISÍVEL
   // 1) Decos pequenas densas nas FAIXAS laterais (centro mais livre pra passagem do Rei)
   if (total > 0) {
     const N = 130;
@@ -13506,7 +13527,11 @@ function biomeEnemyPool(biomeId) {
 }
 
 function pickEnemyClass(biomeId) {
-  const t = game.runTime;
+  // 2026-06-23 — CAMPANHA: 't' sintético = janela de tempo do tier de dificuldade do NÍVEL,
+  // pra os pesos de tier refletirem o nível e não o tempo decorrido. (+90 satura o ramp.)
+  const t = game.campaignMode
+    ? ((TIER_UNLOCK[campaignDifficultyTier()] || 0) + 90)
+    : game.runTime;
   const maxTier = highestAvailableTier();   // 1..5 (dificuldade)
   const pool = biomeEnemyPool(biomeId || "neutro");
 
@@ -13556,6 +13581,14 @@ function currentSpawnInterval() {
     const u = game.units[i];
     if (u && u.faction === "ally" && u.type !== "king" && isAlive(u)) armyCount++;
   }
+  // 2026-06-23 \u2014 CAMPANHA: ritmo de spawn FIXO por N\u00cdVEL (n\u00e3o acelera com o tempo).
+  // Apenas um leve al\u00edvio quando o ex\u00e9rcito est\u00e1 pequeno, sem termo temporal.
+  if (game.campaignMode) {
+    const cdif = campaignDifficultyTier();
+    let baseMs = 4200 - cdif * 350;        // dif1\u21923850ms ... dif5\u21922450ms
+    if (armyCount < 6) baseMs *= 0.85;
+    return Math.max(1200, baseMs);
+  }
   const tier = (game.tier || 1);
   // Base: 9s no in\u00edcio \u2192 3.5s ap\u00f3s ~8min (antes 6.5\u21921.8s em 5min).
   let base = Math.max(3.5, 9.0 - t / 90);
@@ -13593,6 +13626,15 @@ function squadSize() {
   for (let i = 0, n = game.units.length; i < n; i++) {
     const u = game.units[i];
     if (u && u.faction === "ally" && u.type !== "king" && isAlive(u)) armyCount++;
+  }
+  // 2026-06-23 — CAMPANHA: tamanho do squad por NÍVEL (sem termo temporal).
+  // dif1→4-7 ... dif5→8-11. O total ainda é limitado pelo orçamento do nível.
+  if (game.campaignMode) {
+    const cdif = campaignDifficultyTier();
+    const lo = 3 + cdif, hi = lo + 3;
+    let cCap = 24;
+    if (typeof perfCapMultiplier === "function") cCap = Math.max(4, Math.floor(cCap * perfCapMultiplier()));
+    return Math.max(2, Math.min(cCap, lo + Math.floor(Math.random() * (hi - lo + 1))));
   }
   const tier = (game.tier || 1);
   // Piso por tempo (mantido): +1 a cada 60s
@@ -13941,7 +13983,7 @@ function updateLairs(dt) {
   updateNecroKingSummon(dt);
   // 2026-06-14 — CAMPANHA: níveis 1-3 são fases de combate cronometradas; ao fim de cada
   // uma, abre a intermission. No nível 4 o covil libera e vira a luta de boss.
-  if (game.campaignMode && game.campaignLevel <= 3 && !game._campaignLevelDone) {
+  if (game.campaignMode && game.campaignLevel <= 3 && !game._campaignLevelDone && !game.paused) {
     if (game.campaignLinear && game.levelGoal) {
       // 2026-06-15 — FICAR no PORTAL por 3s completa o nível (não basta chegar).
       const g = game.levelGoal;
@@ -13949,7 +13991,7 @@ function updateLairs(dt) {
       const PORTAL_HOLD = 3000;
       g.holdMax = PORTAL_HOLD;
       const inPortal = !!k && Math.abs(k.x - g.x) <= (g.standRadius || 46)
-                            && Math.abs(k.y - g.y) <= (g.standRadiusY || (CAMPAIGN_CORRIDOR_HALF - 10));
+                            && Math.abs(k.y - g.y) <= (g.standRadiusY || (corridorHalf() - 10));
       if (inPortal) {
         g.inPortal = true;
         g.standTimer = Math.min(PORTAL_HOLD, (g.standTimer || 0) + dt);
@@ -20579,6 +20621,17 @@ function campaignLevelEnemyBudget() {
   return 22 + (lvl - 1) * 12 + bIdx * 5;       // L1≈22, L2≈34, L3≈46 (+ bioma mais difícil)
 }
 
+// 2026-06-23 — CAMPANHA: dificuldade FIXA por NÍVEL (não por tempo decorrido).
+// L1→1, L2→2, L3→3, boss(L4)→4; biomas tardios somam +floor(bIdx/2) (0..3).
+// Resultado clampado a 1..5. Substitui a curva temporal (Endless segue por tempo).
+// Ex.: Deserto L1=1…boss=4; Aquático (bIdx 6) L1=4…boss=5.
+function campaignDifficultyTier() {
+  const lvl = game.campaignLevel || 1;
+  const bIdx = game.campaignBiomeLevel || 0;   // 0=deserto ... 6=aquatico
+  const base = (lvl >= 4) ? 4 : lvl;           // nível do boss já é 4
+  return Math.max(1, Math.min(5, base + Math.floor(bIdx / 2)));
+}
+
 function spawnSquadLinear() {
   const k = game.king; if (!k) return;
   // ORÇAMENTO: só spawna até esgotar o número fechado de inimigos do nível.
@@ -20590,7 +20643,8 @@ function spawnSquadLinear() {
   let cx = k.x + (BASE_W * 0.6 + 120) + Math.random() * 220;
   cx = Math.min(cx, CAMPAIGN_LEVEL_LENGTH - 80);
   const ccx = corridorCenterY(cx);                                   // centro sinuoso no ponto de spawn
-  let cy = ccx + (Math.random() * 2 - 1) * (CAMPAIGN_CORRIDOR_HALF - 40);
+  const _sH = corridorHalf();                                         // 2026-06-23 — banda visível
+  let cy = ccx + (Math.random() * 2 - 1) * Math.max(20, _sH - 30);
   const comp = pickSquadComposition(size, game.campaignBiomeId);
   let spawned = 0;
   for (let i = 0; i < comp.length; i++) {
@@ -20601,8 +20655,8 @@ function spawnSquadLinear() {
     let sx = cx + Math.cos(sub) * subR;
     let sy = cy + Math.sin(sub) * subR;
     const cc2 = corridorCenterY(sx);
-    if (sy < cc2 - CAMPAIGN_CORRIDOR_HALF) sy = cc2 - CAMPAIGN_CORRIDOR_HALF;
-    else if (sy > cc2 + CAMPAIGN_CORRIDOR_HALF) sy = cc2 + CAMPAIGN_CORRIDOR_HALF;
+    if (sy < cc2 - _sH) sy = cc2 - _sH;
+    else if (sy > cc2 + _sH) sy = cc2 + _sH;
     const e = spawnEnemyAt(sx, sy, comp[i]);
     if (e) { e._patrolCenter = { x: cx, y: cy }; e._patrolWaypoint = null; e._aggroRange = 220; spawned++; }
   }
@@ -20663,6 +20717,10 @@ function spawnSquad() {
 
 function updateWaveSystem(dt) {
   if (!game.runActive || game.gameOver) return;
+  // 2026-06-23 — CAMPANHA: sem ondas por tempo. O spawn da campanha é por ORÇAMENTO de
+  // nível (campaignLevelEnemyBudget); as ondas (que injetam squads extras escalados por
+  // tempo, ignorando o orçamento) são exclusivas do Endless/clássico.
+  if (game.campaignMode) return;
   if (game.runTime >= game.nextWaveAt) {
     game.waveIndex++;
     game.nextWaveAt = game.runTime + WAVE_INTERVAL;
@@ -22631,8 +22689,9 @@ function updateKingControl(dt) {
   if (game.campaignLinear) {
     if (k.x < 0) k.x = 0; else if (k.x > CAMPAIGN_LEVEL_LENGTH) k.x = CAMPAIGN_LEVEL_LENGTH;
     const cc = corridorCenterY(k.x);
-    if (k.y < cc - CAMPAIGN_CORRIDOR_HALF) k.y = cc - CAMPAIGN_CORRIDOR_HALF;
-    else if (k.y > cc + CAMPAIGN_CORRIDOR_HALF) k.y = cc + CAMPAIGN_CORRIDOR_HALF;
+    const kH = corridorHalf();   // 2026-06-23 — mesma banda visível das paredes
+    if (k.y < cc - kH) k.y = cc - kH;
+    else if (k.y > cc + kH) k.y = cc + kH;
   }
 }
 
@@ -31297,6 +31356,7 @@ const WEATHER_BY_BIOME = {
   inferno:  { type: "ash",       intensity: 0.9 },
   cogumelo: { type: "spores",    intensity: 0.7 },
   catedral: { type: "holyMotes", intensity: 0.7 },
+  aquatico: { type: "bubbles",   intensity: 0.9 },   // 2026-06-23 — bolhas/plâncton subindo
   neutro:   { type: null,        intensity: 0 },
 };
 function updateWeather(dt) {
@@ -31393,6 +31453,16 @@ function spawnWeatherParticle(type, k) {
       color = Math.random() < 0.5 ? "#fff080" : (Math.random() < 0.7 ? "#ffd060" : "#ffffff");
       break;
     }
+    case "bubbles": {
+      // 2026-06-23 — bolhas + plâncton ciano subindo do fundo (sensação subaquática)
+      x = k.x + (Math.random() - 0.5) * BASE_W;
+      y = k.y + halfH * 0.7 + Math.random() * 24;   // entram de baixo
+      vx = (Math.random() - 0.5) * 8;
+      vy = -26 - Math.random() * 22;                 // sobem
+      life = 3800; size = 1 + (Math.random() < 0.35 ? 1 : 0);
+      color = Math.random() < 0.55 ? "#80e8ff" : (Math.random() < 0.6 ? "#a0e0ff" : "#bff4ff");
+      break;
+    }
     default: return;
   }
   game.weatherParticles.push({
@@ -31438,6 +31508,13 @@ function drawWeather(camX, camY) {
   if (game.weatherType === "ash") {
     offCtx.globalAlpha = 0.04;
     offCtx.fillStyle = "#ff8030";
+    offCtx.fillRect(0, 0, BASE_W, BASE_H);
+    offCtx.globalAlpha = 1;
+  }
+  // 2026-06-23 — tom subaquático sutil pro bioma aquático (azul profundo)
+  if (game.weatherType === "bubbles") {
+    offCtx.globalAlpha = 0.05;
+    offCtx.fillStyle = "#1a6a9a";
     offCtx.fillRect(0, 0, BASE_W, BASE_H);
     offCtx.globalAlpha = 1;
   }
@@ -35311,7 +35388,9 @@ function render() {
     // 2026-06-15: a câmera SEGUE a linha-central SINUOSA (corridorCenterY) com folga vertical,
     // mantendo o Rei enquadrado enquanto o caminho serpenteia; as paredes onduladas emolduram.
     const cc = corridorCenterY(game.camera.x);
-    const cyc = CAMPAIGN_CORRIDOR_HALF - 46;   // folga: deixa ver um pouco da parede como moldura
+    // 2026-06-23 — folga vertical adaptada à tela: garante que as duas paredes (cc±corridorHalf)
+    // fiquem sempre enquadradas. O Rei ainda pode se aproximar das paredes (banda > folga da câmera).
+    const cyc = Math.max(0, (BASE_H >> 1) - corridorHalf() - 6);
     game.camera.y = Math.max(cc - cyc, Math.min(cc + cyc, game.camera.y));
   }
   let shakeX = 0, shakeY = 0;
@@ -36827,8 +36906,9 @@ function drawBackground(camX, camY) {
     // curva por coluna; o miolo (a ESTRADA sinuosa) fica livre. Rim dourado acompanha a curva.
     const STEP = 6;
     const colX = sx => sx + camX - BASE_W / 2;                       // x do mundo nesta coluna
-    const topAt = wx => (corridorCenterY(wx) - CAMPAIGN_CORRIDOR_HALF) - camY + BASE_H / 2;
-    const botAt = wx => (corridorCenterY(wx) + CAMPAIGN_CORRIDOR_HALF) - camY + BASE_H / 2;
+    const _cH = corridorHalf();
+    const topAt = wx => (corridorCenterY(wx) - _cH) - camY + BASE_H / 2;
+    const botAt = wx => (corridorCenterY(wx) + _cH) - camY + BASE_H / 2;
     offCtx.fillStyle = "rgba(8,5,12,0.93)";
     // parede de CIMA
     offCtx.beginPath(); offCtx.moveTo(0, 0);
@@ -36853,8 +36933,8 @@ function drawBackground(camX, camY) {
       const gcy = goal.y - camY + BASE_H / 2;
       if (gsx > -40 && gsx < BASE_W + 40) {
         // coluna do portal abrange a faixa do corredor NA POSIÇÃO do portal (centro sinuoso = goal.y)
-        const pTop = (goal.y - CAMPAIGN_CORRIDOR_HALF) - camY + BASE_H / 2;
-        const pBot = (goal.y + CAMPAIGN_CORRIDOR_HALF) - camY + BASE_H / 2;
+        const pTop = (goal.y - corridorHalf()) - camY + BASE_H / 2;
+        const pBot = (goal.y + corridorHalf()) - camY + BASE_H / 2;
         const y0 = Math.max(0, pTop), y1 = Math.min(BASE_H, pBot);
         const t = game.time || 0;
         const pulse = 0.55 + 0.45 * Math.sin(t / 200);
@@ -52455,12 +52535,17 @@ function drawHomemPeixe(cx, cy, t, u, c, pose) {
   offCtx.globalAlpha = 1;
   rect(-2, 0 + bob + sw, 1, 2, c.bodyD); rect(1, 0 + bob - sw, 1, 2, c.bodyD);
   rect(-3, 2 + bob + sw, 2, 1, c.accent); rect(1, 2 + bob - sw, 2, 1, c.accent);   // pés-nadadeira
+  // 2026-06-23 — cauda de PEIXE: nadadeira caudal bifurcada atrás (+x), ondulando com o passo
+  rect(2, 0 + bob - sw, 1, 2, c.accent); px(3, -1 + bob - sw, c.accent); px(3, 2 + bob - sw, c.accent);
   rect(-2, -4 + bob, 4, 4, c.body); rect(-2, -4 + bob, 4, 1, c.armor);
   px(-1, -2 + bob, c.armorD); px(1, -3 + bob, c.armorD);                            // escamas
   px(2, -5 + bob, c.accent); px(2, -4 + bob, c.accent); px(2, -3 + bob, c.armor);   // crista dorsal
+  px(3, -4 + bob, c.accent);                                                         // 2026-06-23 — ponta da barbatana dorsal (leque)
+  px(2, -2 + bob, c.armor); px(3, -2 + bob, c.accent);                               // 2026-06-23 — nadadeira peitoral no flanco
   rect(-4, -7 + bob, 4, 3, c.body); rect(-5, -6 + bob, 1, 1, c.bodyD);              // cabeça + focinho
   px(-3, -6 + bob, "#fff");                                                          // olho
-  px(-1, -5 + bob, c.bodyD); px(-1, -4 + bob, c.bodyD);                              // guelras
+  px(-1, -5 + bob, c.bodyD); px(-1, -4 + bob, c.bodyD); px(0, -4 + bob, c.armorD);   // guelras (2 fendas branquiais)
+  px(-5, -5 + bob, c.bodyD);                                                          // 2026-06-23 — boca de peixe na ponta do focinho
   px(-2, -8 + bob, c.accent); px(-1, -8 + bob, c.accent);                            // crista cabeça
   rect(-1, -3 + bob, 2, 1, c.bodyD);                                                 // braço
   px(-4 - atk, -5 + bob, c.weaponColor || "#50b8d0"); px(-4 - atk, -6 + bob, c.weaponColor || "#50b8d0"); // adaga
@@ -62756,7 +62841,7 @@ function drawMinimap() {
     const sX = (W - 12) / CAMPAIGN_LEVEL_LENGTH;
     const toX = wx => 6 + Math.max(0, Math.min(CAMPAIGN_LEVEL_LENGTH, wx)) * sX;
     // o corredor serpenteia, mas no minimapa-BARRA mostramos o desvio RELATIVO à linha-central
-    const toY = (wy, wx) => barY + barH / 2 + (((wy - corridorCenterY(wx || 0)) / CAMPAIGN_CORRIDOR_HALF)) * (barH / 2 - 2);
+    const toY = (wy, wx) => barY + barH / 2 + (((wy - corridorCenterY(wx || 0)) / corridorHalf())) * (barH / 2 - 2);
     if (game.levelGoal && (game.campaignLevel || 1) <= 3) {
       const gx = Math.round(toX(game.levelGoal.x));
       ctx.fillStyle = "#ffe070"; ctx.fillRect(gx - 1, barY + 2, 3, barH - 4);
@@ -69524,6 +69609,9 @@ function campaignLevelComplete() {
       continueLabel: "ENFRENTAR O BOSS",
       onContinue: () => {
         game.campaignLevel = 4;
+        // FIX 2026-06-23 — zera o portal ao entrar no nível do boss (o portal já fica
+        // desativado em nível 4 pela guarda campaignLevel<=3, mas resetamos por garantia).
+        if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
         game._campaignLevelDone = false;
         if (typeof showToast === "function") showToast("⚔ VÁ ATÉ O COVIL E DESPERTE O BOSS!", 3200, "danger");
       },
@@ -69536,6 +69624,13 @@ function campaignLevelComplete() {
       onContinue: () => {
         game.campaignLevel = lvl + 1;
         game.campaignLevelStartTime = game.runTime;
+        // FIX 2026-06-23 — ao avançar de nível, teleporta o Rei de volta à ENTRADA do
+        // corredor e ZERA o portal. Sem isso o Rei continuava parado no portal com
+        // standTimer=3000 e o próximo nível concluía no mesmo frame → dava pra pular
+        // níveis 2/3 e cair direto no boss só clicando "continuar".
+        if (game.king) { game.king.x = 120; game.king.y = corridorCenterY(120); }
+        if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
+        if (game.camera) game.camera.x = 120;
         game._campaignLevelDone = false;
         if (typeof showToast === "function") showToast("NÍVEL " + (lvl + 1) + " / 3", 2000, "magic");
       },
