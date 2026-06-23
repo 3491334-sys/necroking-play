@@ -47942,6 +47942,107 @@ function drawLavaDemonBoss(cx, cy, t, u, pose) {
 
 // ---------- BRUXO ANCIÃO (hood verde, corcunda, cajado retorcido com crânio) ----------
 function drawSwampWitchBoss(cx, cy, t, u, pose) {
+  // 2026-06-16 — REWORK V3 TAREFA 3: BRUXO ANCIÃO redesenhado — porte FIEL de `draw_bossBruxo`
+  // do mockup "03 Bestiario Sprites.dc.html". Feiticeiro encurvado, manto drapeado em camadas,
+  // capuz orgânico (não cone), cajado com orbe verde, galhos com brotos, olhos verdes e barba
+  // óssea. É o ÚNICO sprite de unidade que muda nesta tarefa. (drawSwampWitchBoss_OLD_UNUSED
+  // abaixo é o sprite antigo, mantido morto p/ referência — pode ser podado.)
+  drawBossAuraOrbs(cx, cy, t, u, {
+    auraOuter: "#80c060", auraMid: "#3a8030", auraInner: "#1a3008",
+    orbColor: "#a8ff80", orbAccent: "#3a8030",
+    particleColor: Math.random() < 0.5 ? "#a8ff80" : "#80c060", particleType: "spore",
+  });
+  const reduce = !!(game.reducedMotion || game.perfMode || game._autoQualityLow);
+  const T = (t || 0) / 555;                       // ms do jogo → ritmo do mockup (0.03/frame)
+  const bob = reduce ? 0 : Math.round(Math.sin(T * 1.1) * 0.7);
+  const F = (u.facing < 0) ? -1 : 1;
+  const c = offCtx;
+  // helpers locais em coords NATIVAS do mock (o transform abaixo posiciona/espelha/ancora)
+  const px = (x, y, col, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+  const disc = (dx, dy, r, col) => { c.fillStyle = col; for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (xx * xx + yy * yy <= r * r + r * 0.6) c.fillRect(Math.round(dx + xx), Math.round(dy + yy), 1, 1); };
+  const pole = (x0, y0, x1, y1, core, wd) => { c.lineCap = "round"; c.strokeStyle = "#0a0410"; c.lineWidth = wd + 2; c.beginPath(); c.moveTo(x0 + .5, y0 + .5); c.lineTo(x1 + .5, y1 + .5); c.stroke(); c.strokeStyle = core; c.lineWidth = wd; c.beginPath(); c.moveTo(x0 + .5, y0 + .5); c.lineTo(x1 + .5, y1 + .5); c.stroke(); };
+  const rb = { d: "#1b2b14", m: "#324c26", l: "#4c6e34", s: "#6e9446" };   // MANTO
+  const hd = { d: "#121d0e", m: "#23381b", l: "#365226" };                 // CAPUZ
+  const R = {
+    pois:    { d: "#2a5a1a", m: "#60a048", l: "#9ad060", s: "#d0ff90" },
+    bone:    { d: "#6b6452", m: "#b8b09a", l: "#e8e4d4", s: "#ffffff" },
+    gold:    { d: "#8a5a1a", m: "#d4a637", l: "#f7d96f", s: "#fff6c8" },
+    leather: { d: "#3a2a1a", m: "#5a4028", l: "#7a5838" },                 // CAJADO
+  };
+  // sombra no chão (screen-space)
+  c.save(); c.globalAlpha = 0.3; c.translate(cx, cy + 2); c.scale(1, 0.36); c.fillStyle = "#05030c"; c.beginPath(); c.arc(0, 0, 16, 0, Math.PI * 2); c.fill(); c.restore();
+  // transform: mock(25,55) → (cx,cy), espelhado por facing, escala nativa (crispness 1:1)
+  c.save();
+  c.translate(cx, cy);
+  if (F < 0) c.scale(-1, 1);
+  c.translate(-25, -55);
+  const cxm = 25, ground = 55;
+  // glow ambiente de esporos
+  c.globalAlpha = 0.28 + 0.22 * Math.sin(T * 1.5); disc(cxm, 30 + bob, 19, R.pois.l); c.globalAlpha = 1;
+  // cajado retorcido (bezier) + orbe verde no topo
+  c.strokeStyle = "#0a0410"; c.lineWidth = 4; c.lineCap = "round"; c.beginPath(); c.moveTo(cxm - 13, 53 + bob); c.quadraticCurveTo(cxm - 11, 30 + bob, cxm - 13, 8 + bob); c.stroke();
+  c.strokeStyle = R.leather.d; c.lineWidth = 2; c.beginPath(); c.moveTo(cxm - 13, 53 + bob); c.quadraticCurveTo(cxm - 11, 30 + bob, cxm - 13, 8 + bob); c.stroke();
+  px(cxm - 12, 22 + bob, R.leather.m, 2, 2); px(cxm - 11, 34 + bob, R.leather.m, 2, 1);
+  pole(cxm - 13, 9 + bob, cxm - 17, 4 + bob, R.leather.m, 1); pole(cxm - 13, 9 + bob, cxm - 9, 3 + bob, R.leather.m, 1);
+  c.globalAlpha = 0.35 + 0.4 * (0.45 + 0.45 * Math.sin(T * 2.5)); disc(cxm - 13, 8 + bob, 5, R.pois.l); c.globalAlpha = 1;
+  disc(cxm - 13, 8 + bob, 4, "#0a0410"); disc(cxm - 13, 8 + bob, 3, R.pois.d); disc(cxm - 14, 7 + bob, 2, R.pois.m); px(cxm - 14, 6 + bob, R.pois.s, 1, 1);
+  // corcunda atrás do ombro esq.
+  disc(cxm - 8, 27 + bob, 8, "#0a0410"); disc(cxm - 8, 27 + bob, 7, rb.d); disc(cxm - 9, 26 + bob, 5, rb.m);
+  // manto em camadas (linha a linha), inclinado pra frente, com dobras + bainha esfarrapada
+  const topY = 24 + bob;
+  for (let y = topY; y <= ground; y++) {
+    const f = (y - topY) / (ground - topY);
+    const lean = Math.round(f * f * 4);
+    const xc = cxm + lean - 1;
+    const half = Math.round(6 + f * 13);
+    let leftCut = 0, rightCut = 0;
+    if (y > ground - 3) { const n = (y * 7) % 5; leftCut = n < 2 ? 2 : 0; rightCut = n > 2 ? 2 : 0; }
+    px(xc - half - 1 + leftCut, y, "#0a0410", (half - leftCut) + (half - rightCut) + 2, 1);
+    px(xc - half + leftCut, y, rb.d, (half - leftCut) + (half - rightCut), 1);
+    px(xc - half + 2 + leftCut, y, rb.m, (half - leftCut) + (half - rightCut) - 4, 1);
+    px(xc - 5, y, rb.d, 1, 1); px(xc + 4, y, rb.d, 1, 1);
+    px(xc - 9, y, rb.l, 1, 1); px(xc + 7, y, rb.l, 1, 1);
+    if (y % 6 === 0) px(xc - half + 2, y, rb.s, 2, 1);
+  }
+  // cinto de vinha + fivela dourada
+  px(cxm - 7, 33 + bob, "#0a0410", 16, 3); px(cxm - 6, 33 + bob, R.leather.m, 14, 1);
+  px(cxm - 1, 33 + bob, "#0a0410", 4, 4); px(cxm, 34 + bob, R.gold.m, 2, 2); px(cxm, 34 + bob, R.gold.l, 1, 1);
+  // xale de ombro drapeado + pontas franjadas
+  for (let x = -11; x <= 10; x++) { const yy = 23 + bob + Math.round((x * x) / 22); px(cxm + x, yy, "#0a0410", 1, 4); px(cxm + x, yy + 1, hd.l, 1, 2); }
+  for (const fx of [-10, -6, -1, 4, 9]) { const yy = 26 + bob + Math.round((fx * fx) / 26); px(cxm + fx, yy, hd.d, 1, 3); px(cxm + fx, yy + 3, hd.d, 1, 1); }
+  // manga esq. agarra o cajado (mão óssea)
+  px(cxm - 14, 30 + bob, "#0a0410", 6, 9); px(cxm - 13, 31 + bob, rb.m, 4, 7); px(cxm - 13, 31 + bob, rb.l, 4, 1);
+  px(cxm - 13, 38 + bob, "#0a0410", 3, 3); for (const dx of [0, 1]) px(cxm - 13 + dx, 38 + bob, R.bone.l, 1, 3);
+  // manga dir. conjurando + mão óssea com glow verde
+  px(cxm + 7, 30 + bob, "#0a0410", 6, 8); px(cxm + 8, 31 + bob, rb.m, 4, 6); px(cxm + 11, 31 + bob, rb.d, 1, 6);
+  const hx = cxm + 12, hy = 31 + bob;
+  px(hx, hy, "#0a0410", 4, 4); px(hx, hy, R.bone.m, 3, 3); px(hx, hy, R.bone.l, 2, 1);
+  for (const dd of [[0, -3], [2, -3], [4, -2], [4, 1]]) { px(hx + dd[0], hy + dd[1], "#0a0410", 1, 3); px(hx + dd[0], hy + dd[1], R.bone.l, 1, 2); }
+  c.globalAlpha = 0.4 + 0.5 * Math.sin(T * 3); disc(hx + 2, hy - 4, 3, R.pois.l); c.globalAlpha = 1; px(hx + 1, hy - 5, R.pois.s, 1, 1);
+  // capuz orgânico (disco + pico puxado + laterais caindo)
+  const hcx = cxm + 2, hcy = 14 + bob;
+  disc(hcx, hcy, 9, "#0a0410"); disc(hcx, hcy, 8, hd.d); disc(hcx - 1, hcy - 1, 7, hd.m);
+  px(hcx - 2, hcy - 11, "#0a0410", 5, 5); px(hcx - 1, hcy - 10, hd.m, 3, 4); px(hcx - 1, hcy - 10, hd.l, 1, 3);
+  px(hcx - 9, hcy, "#0a0410", 3, 12); px(hcx - 8, hcy + 1, hd.m, 2, 10);
+  px(hcx + 7, hcy, "#0a0410", 3, 12); px(hcx + 7, hcy + 1, hd.d, 2, 10);
+  px(hcx - 7, hcy - 2, hd.l, 2, 2);
+  disc(hcx, hcy + 2, 4, "#0a0410");
+  const eg = 0.6 + 0.4 * Math.sin(T * 2.6);
+  c.globalAlpha = eg; disc(hcx - 2, hcy + 1, 1, R.pois.s); disc(hcx + 2, hcy + 1, 1, R.pois.s);
+  c.globalAlpha = 0.5 * eg; disc(hcx - 2, hcy + 1, 2, R.pois.l); disc(hcx + 2, hcy + 1, 2, R.pois.l); c.globalAlpha = 1;
+  px(hcx, hcy + 2, R.bone.d, 1, 3); px(hcx, hcy + 5, R.bone.d, 2, 1);   // nariz adunco
+  for (const bd of [[-3, 9], [-1, 13], [1, 11], [3, 8]]) { const wob = reduce ? 0 : Math.round(Math.sin(T * 1.6 + bd[0]) * 1); px(hcx + bd[0] + wob, hcy + 6, "#0a0410", 1, bd[1]); px(hcx + bd[0] + wob, hcy + 6, R.bone.l, 1, bd[1] - 1); }
+  px(hcx - 3, hcy + 6, R.bone.m, 7, 1);   // base do bigode
+  // galhos de graveto saindo do capuz (com brotos verdes)
+  pole(hcx - 4, hcy - 6, cxm - 9, 1 + bob, R.leather.m, 1); pole(cxm - 6, 4 + bob, cxm - 10, 3 + bob, R.leather.m, 1);
+  pole(hcx + 5, hcy - 6, cxm + 11, 0 + bob, R.leather.m, 1); pole(cxm + 8, 4 + bob, cxm + 12, 4 + bob, R.leather.m, 1);
+  px(cxm + 11, 1 + bob, R.pois.m, 1, 1); px(cxm - 9, 1 + bob, R.pois.m, 1, 1);
+  // esporos flutuantes (só sem reduce/perf)
+  if (!reduce) for (let i = 0; i < 6; i++) { const p = (T * 0.35 + i / 6) % 1; c.globalAlpha = 0.7 * (1 - p); px(cxm - 14 + i * 6 + Math.sin(p * 6 + i) * 2, 36 - p * 30, R.pois.l, i % 2 ? 2 : 1, i % 2 ? 2 : 1); c.globalAlpha = 1; }
+  c.restore();
+}
+
+function drawSwampWitchBoss_OLD_UNUSED(cx, cy, t, u, pose) {
   // 2026-04-28 COMBO 28 polish — HD aura/orbs/spore ambient
   drawBossAuraOrbs(cx, cy, t, u, {
     auraOuter: "#80c060",
