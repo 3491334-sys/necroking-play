@@ -5325,22 +5325,29 @@
      dimensionamento/posição do HUD no celular (vencem as @media). */
   html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
   html.is-mobile #objectivePill { top: 48px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
-  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; transform: scale(0.23) !important; transform-origin: top right !important; }
-  html.is-mobile #topright { top: 70px !important; right: 6px !important; transform: scale(0.43) !important; transform-origin: top right !important; }
+  /* 2026-06-23 — MINIMAPA limpo e LEGÍVEL no celular: SEM a moldura gótica (poluição) e
+     SEM o label "MAPA"; vira um quadrado claro de 84px → o "mapa" fica de fato visível. */
+  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; width: 84px !important; height: 84px !important; transform: none !important; }
+  html.is-mobile #minimapGothic { display: none !important; }
+  html.is-mobile #minimapLabel { display: none !important; }
+  html.is-mobile #minimapWrap { left: 0 !important; top: 0 !important; width: 84px !important; height: 84px !important; }
+  /* meta (moedas/tempo/exército) ABAIXO do minimapa, compacto; barra de tier escondida (detalhe) */
+  html.is-mobile #topright { top: 96px !important; right: 6px !important; transform: scale(0.46) !important; transform-origin: top right !important; }
+  html.is-mobile #tierBar { display: none !important; }
   html.is-mobile #comboCount { font-size: 16px !important; }
-  /* o canto superior-direito agora é o minimapa → pause vai pro lado ESQUERDO dele */
-  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 78px !important; bottom: auto !important; width: 48px !important; height: 48px !important; }
+  /* pause à ESQUERDA do minimapa de 84px (sem colidir) */
+  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 98px !important; bottom: auto !important; width: 44px !important; height: 44px !important; }
   /* ============================================================ */
   body.menu-active #objectivePill { display: none !important; }
 
   /* Joystick virtual — bottom-left, 130px diâmetro */
+  /* 2026-06-23 — JOYSTICK FLUTUANTE: a ZONA é a metade ESQUERDA da tela (transparente);
+     a base + knob aparecem ONDE o dedo toca e seguem o dedo. z abaixo dos botões/cartas. */
   #mobileJoystick {
     position: fixed;
-    left: calc(env(safe-area-inset-left, 0px) + 20px);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
-    width: 130px;
-    height: 130px;
-    z-index: 950;
+    left: 0; top: 0;
+    width: 48%; height: 100%;
+    z-index: 800;
     pointer-events: auto;
     touch-action: none;
     user-select: none;
@@ -5348,25 +5355,33 @@
     -webkit-tap-highlight-color: transparent;
   }
   #mobileJoystickBase {
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    left: 0; top: 0;
+    width: 116px; height: 116px;
+    margin-left: -58px; margin-top: -58px;   /* centraliza no ponto (left/top) */
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, rgba(255,216,138,0.18) 0%, rgba(40,30,60,0.55) 70%);
-    border: 2.5px solid rgba(212,166,55,0.7);
-    box-shadow: 0 0 14px rgba(212,166,55,0.35), inset 0 0 18px rgba(20,10,40,0.6);
+    background: radial-gradient(circle at 35% 35%, rgba(255,216,138,0.16) 0%, rgba(40,30,60,0.5) 70%);
+    border: 2.5px solid rgba(212,166,55,0.6);
+    box-shadow: 0 0 14px rgba(212,166,55,0.3), inset 0 0 18px rgba(20,10,40,0.55);
+    opacity: 0;
+    transition: opacity 120ms ease;
+    pointer-events: none;
   }
+  #mobileJoystick.active #mobileJoystickBase { opacity: 0.92; }
   #mobileJoystickKnob {
-    position: absolute;
-    left: 50%; top: 50%;
-    width: 58px; height: 58px;
-    margin-left: -29px; margin-top: -29px;
+    position: fixed;
+    left: 0; top: 0;
+    width: 54px; height: 54px;
+    margin-left: -27px; margin-top: -27px;   /* centraliza no ponto (left/top) */
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #ffd68a 0%, #b08830 60%, #5a3810 100%);
     border: 2px solid #2a1a08;
     box-shadow: 0 4px 10px rgba(0,0,0,0.55), inset 0 -3px 6px rgba(60,30,0,0.6);
-    transition: transform 60ms ease-out;
+    opacity: 0;
+    transition: opacity 120ms ease;
     pointer-events: none;
   }
+  #mobileJoystick.active #mobileJoystickKnob { opacity: 1; }
   #mobileJoystick.active #mobileJoystickKnob {
     transition: none;  /* responde direto sem lag */
   }
@@ -5464,10 +5479,10 @@
     html.is-mobile #minimap { top: calc(env(safe-area-inset-top, 0px) + 24px); }
   }
 
-  /* Em mobile, deslocar HUD do bottom pra não colidir com joystick/botões */
-  @media (pointer: coarse), (max-width: 900px) {
-    html.is-mobile #hud { bottom: calc(env(safe-area-inset-bottom, 0px) + 116px); }
-  }
+  /* 2026-06-23 — OBSOLETO: o HUD agora é ANCORADO NO TOPO (Rework V3 T1). A regra antiga
+     setava bottom:116px e, junto com o top:8px do layout novo, ESTICAVA o #hud (top+bottom)
+     ocupando ~70% da altura no celular. Forçado bottom:auto pra voltar à altura do conteúdo. */
+  html.is-mobile #hud { bottom: auto !important; }
 </style>
 </head>
 <body>
@@ -11150,37 +11165,45 @@ canvas.addEventListener("touchcancel", (e) => {
 
   // ----- VIRTUAL JOYSTICK (movement → input.keys.w/a/s/d) -----
   const joy = document.getElementById("mobileJoystick");
+  const base = document.getElementById("mobileJoystickBase");
   const knob = document.getElementById("mobileJoystickKnob");
-  if (joy && knob) {
-    const JOY_RADIUS = 50;        // max raio de deslocamento do knob
-    const JOY_DEADZONE = 0.18;    // ignora movimento abaixo de 18% pra evitar drift
+  if (joy && knob && base) {
+    // 2026-06-23 — JOYSTICK FLUTUANTE: nasce ONDE o dedo toca (zona = metade esquerda da
+    // tela) e SEGUE o dedo se arrastar além do raio. base/knob são position:fixed movidos
+    // por left/top. Padrão recomendado p/ mobile (floating + re-center, segue o polegar).
+    const JOY_RADIUS = 52;        // raio máx de deslocamento do knob
+    const JOY_DEADZONE = 0.20;    // ignora movimento abaixo de 20% (anti-drift)
     let joyTouchId = null;
-    let joyCx = 0, joyCy = 0;
+    let joyCx = 0, joyCy = 0;     // centro ATUAL da base (pode seguir o dedo)
+
+    const _placeBase = () => { base.style.left = joyCx + "px"; base.style.top = joyCy + "px"; };
+    const _placeKnob = (nx, ny) => { knob.style.left = (joyCx + nx) + "px"; knob.style.top = (joyCy + ny) + "px"; };
 
     const _resetJoy = () => {
-      knob.style.transform = "translate(0,0)";
       input.keys.w = input.keys.a = input.keys.s = input.keys.d = false;
     };
 
     const _updateJoy = (clientX, clientY) => {
       let dx = clientX - joyCx, dy = clientY - joyCy;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      const max = JOY_RADIUS;
-      let nx = dx, ny = dy;
-      if (dist > max) {
-        nx = (dx / dist) * max;
-        ny = (dy / dist) * max;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      // FLUTUANTE: passou do raio → a BASE segue o dedo (não fica fixa).
+      if (dist > JOY_RADIUS) {
+        const over = dist - JOY_RADIUS;
+        joyCx += (dx / dist) * over;
+        joyCy += (dy / dist) * over;
+        dx = clientX - joyCx; dy = clientY - joyCy;
+        dist = JOY_RADIUS;
+        _placeBase();
       }
-      knob.style.transform = `translate(${nx}px,${ny}px)`;
+      _placeKnob(dx, dy);
       // Converte em teclas WASD com deadzone
-      const normMag = Math.min(1, dist / max);
+      const normMag = Math.min(1, dist / JOY_RADIUS);
       if (normMag < JOY_DEADZONE) {
         input.keys.w = input.keys.a = input.keys.s = input.keys.d = false;
         return;
       }
-      const ang = Math.atan2(dy, dx);  // radianos
-      const cos = Math.cos(ang), sin = Math.sin(ang);
-      // Cardinal split: ativa tecla se componente > 0.4 (mais permissivo que pi/4)
+      const cos = dx / (dist || 1), sin = dy / (dist || 1);
+      // Cardinal split: ativa tecla se componente > 0.4 (permite diagonais)
       input.keys.d = cos > 0.40;
       input.keys.a = cos < -0.40;
       input.keys.s = sin > 0.40;
@@ -11188,14 +11211,14 @@ canvas.addEventListener("touchcancel", (e) => {
     };
 
     joy.addEventListener("touchstart", (e) => {
-      e.preventDefault();
       if (joyTouchId !== null) return;
+      e.preventDefault();
       const t = e.changedTouches[0];
       joyTouchId = t.identifier;
-      const rect = joy.getBoundingClientRect();
-      joyCx = rect.left + rect.width / 2;
-      joyCy = rect.top + rect.height / 2;
+      joyCx = t.clientX; joyCy = t.clientY;   // base NASCE no ponto tocado
+      _placeBase(); _placeKnob(0, 0);
       joy.classList.add("active");
+      try { if (navigator.vibrate) navigator.vibrate(8); } catch (er) {}  // feedback no toque (limiar)
       _updateJoy(t.clientX, t.clientY);
     }, { passive: false });
 
