@@ -4,7 +4,7 @@
 // cai no cache se offline ou rede falhou.
 // Bump version quando index.html ou recursos pré-cacheados mudam significativamente.
 
-const CACHE_NAME = "necroking-v91-2026-06-23-mobile-hud-50-revive-button";
+const CACHE_NAME = "necroking-v92-2026-06-23-aquatic-hazard-decos";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",

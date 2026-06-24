@@ -7400,7 +7400,9 @@ const BIOMES = {
     lairDark:  "#1a4858",
     miniColor: "#2a8aaa",
     relic: "Coroa de Coral Profundo",
-    decoWeights: { coral: 22, kelp: 22, seaAnemone: 14, seashell: 14, bubbleVent: 12, seaRock: 10, oasis: 6 },
+    // 2026-06-23 — sem 'oasis' (poça de cura do DESERTO, incoerente no abismo). Hazard
+    // próprio = 'whirlpool' (redemoinho). + decos novos: âncora, lanterna abissal, baú.
+    decoWeights: { coral: 20, kelp: 20, seaAnemone: 12, seashell: 12, bubbleVent: 12, seaRock: 8, whirlpool: 8, anchorWreck: 8, anglerLure: 7, treasureChest: 3 },
   },
 };
 
@@ -12312,6 +12314,7 @@ function spawnCorridorScenery() {
       else if (chosen === "swampPool") game.hazards.push({ type: "lakePoison", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 250 + rng() * 150 });
       else if (chosen === "lavaPool") game.hazards.push({ type: "lakeLava", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 150 });
       else if (chosen === "oasis") game.hazards.push({ type: "lakeOasis", x, y, radius: 10, age: 0, totalLife: Infinity, tickTimer: 600 + rng() * 200 });
+      else if (chosen === "whirlpool") game.hazards.push({ type: "lakeWhirl", x, y, radius: 13, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 120 });
     }
   }
   // 2) LANDMARKS grandes (set-pieces) a cada ~600px, alternando os lados
@@ -12326,7 +12329,7 @@ function spawnCorridorScenery() {
     }
   }
   // 3) Ordena por camada/Y (grandes ao fundo)
-  const layerPriority = { frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0, lilyPad: 1, sandDune: 1, snowMound: 1 };
+  const layerPriority = { frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0, whirlpool: 0, lilyPad: 1, sandDune: 1, snowMound: 1 };
   game.decorations.sort((a, b) => { const la = layerPriority[a.type] ?? 2, lb = layerPriority[b.type] ?? 2; if (la !== lb) return la - lb; return a.y - b.y; });
 }
 
@@ -12365,7 +12368,7 @@ function spawnDecorations() {
     for (const [t, w] of entries) { pick -= w; if (pick <= 0) { chosen = t; break; } }
     // Rios/lagos ocupam área grande — limita quantidade e evita proximidade.
     if (chosen === "lavaRiver" || chosen === "lavaPool" || chosen === "frozenLake" ||
-        chosen === "swampPool" || chosen === "oasis") {
+        chosen === "swampPool" || chosen === "oasis" || chosen === "whirlpool") {
       let tooClose = false;
       for (const d of game.decorations) {
         if (d.type === chosen && (d.x - x) ** 2 + (d.y - y) ** 2 < 180 * 180) { tooClose = true; break; }
@@ -12408,13 +12411,20 @@ function spawnDecorations() {
         age: 0, totalLife: Infinity,
         tickTimer: 600 + Math.random() * 200,
       });
+    } else if (chosen === "whirlpool") {
+      game.hazards.push({
+        type: "lakeWhirl",  // 2026-06-23 — redemoinho aquático: lentifica + dano leve + puxão
+        x, y, radius: 13,
+        age: 0, totalLife: Infinity,
+        tickTimer: 200 + Math.random() * 120,
+      });
     }
     placed++;
   }
   // Ordena pra "grandes" (lagos/rios/poças) desenharem primeiro — viram fundo
   // e ficam sob as decorações menores (árvores, cogumelos, etc).
   const layerPriority = {
-    frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0,
+    frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0, whirlpool: 0,
     lilyPad: 1, sandDune: 1, snowMound: 1,
   };
   game.decorations.sort((a, b) => {
@@ -12739,7 +12749,7 @@ function spawnMapFeatures() {
 
   // Re-ordenar decorações (porque injetamos novas)
   const layerPriority = {
-    frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0,
+    frozenLake: 0, lavaRiver: 0, lavaPool: 0, swampPool: 0, oasis: 0, whirlpool: 0,
     lilyPad: 1, sandDune: 1, snowMound: 1,
   };
   game.decorations.sort((a, b) => {
@@ -32053,6 +32063,27 @@ function updateHazards(dt) {
       }
       continue;
     }
+    if (h.type === "lakeWhirl") {
+      // 2026-06-23 — REDEMOINHO aquático (hazard temático do Abismo): lentifica + dano
+      // leve de água (ice) + puxão SUAVE pro centro (não-Rei) — atmosférico, não prende.
+      // Reusa o mesmo loop do tick (sem custo por-frame extra, como os outros lagos).
+      h.tickTimer -= dt;
+      if (h.tickTimer <= 0) {
+        h.tickTimer = 280;
+        for (const u of game.units) {
+          if (!isAlive(u)) continue;
+          const dx = h.x - u.x, dy = h.y - u.y;
+          const d = Math.hypot(dx, dy);
+          if (d <= h.radius) {
+            applyDamage(null, u, 2, { type: "ice", noHitStop: true, noFlash: true });
+            u.slowed = Math.max(u.slowed || 0, 700);
+            u.slowFactor = Math.min(u.slowFactor || 1, 0.62);
+            if (u.type !== "king" && d > 2) { u.x += (dx / d) * 4; u.y += (dy / d) * 4; }  // puxão ~14px/s
+          }
+        }
+      }
+      continue;
+    }
     if (h.type === "lavaFlow") {
       // Lava permanente do mapa — queima QUALQUER unidade (allies, enemies, king).
       // Sem acúmulo forte de burn — é passagem dolorosa, não sentença de morte.
@@ -42649,6 +42680,65 @@ function _drawDecoCore(sx, sy, d) {
     offCtx.fillStyle = "#4e6e78"; offCtx.fillRect(sx - 4, sy - 5, 5, 1);
     offCtx.fillStyle = "#e8709a"; offCtx.fillRect(sx + 1, sy - 4, 1, 1); offCtx.fillRect(sx + 2, sy - 3, 1, 1);
     offCtx.fillStyle = "#4fc878"; offCtx.fillRect(sx - 3, sy - 3, 1, 1);
+    return;
+  }
+  // ===== 2026-06-23 — NOVOS DECOS DO BIOMA AQUÁTICO =====
+  if (d.type === "whirlpool") {
+    // Redemoinho: anéis girando (perspectiva top-down achatada) + centro escuro que "suga".
+    const tw = game.time || 0, ang = tw / 600;
+    offCtx.globalAlpha = 0.5; offCtx.fillStyle = "#06222e";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy, 13, 5, 0, 0, Math.PI * 2); offCtx.fill(); offCtx.globalAlpha = 1;
+    offCtx.lineWidth = 1;
+    for (let ring = 0; ring < 3; ring++) {
+      const rr = 11 - ring * 3;
+      offCtx.strokeStyle = ring % 2 ? "rgba(90,200,230,0.5)" : "rgba(40,120,150,0.65)";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy, rr, Math.max(1, rr * 0.4), 0, ang + ring * 1.6, ang + ring * 1.6 + Math.PI * 1.4); offCtx.stroke();
+    }
+    offCtx.fillStyle = "#04161e"; offCtx.beginPath(); offCtx.ellipse(sx, sy, 2.5, 1, 0, 0, Math.PI * 2); offCtx.fill();
+    const wpx = sx + Math.round(Math.cos(ang * 2) * 7), wpy = sy + Math.round(Math.sin(ang * 2) * 2.6);
+    offCtx.fillStyle = "rgba(200,240,255,0.85)"; offCtx.fillRect(wpx, wpy, 1, 1);
+    return;
+  }
+  if (d.type === "anchorWreck") {
+    // Âncora de ferro enferrujada, com elo de corrente e alga.
+    offCtx.globalAlpha = 0.35; offCtx.fillStyle = "#000"; offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 7, 2, 0, 0, Math.PI * 2); offCtx.fill(); offCtx.globalAlpha = 1;
+    const R = "#5a4a3a", RD = "#3a2e22", RU = "#7a6248";
+    offCtx.fillStyle = R; offCtx.fillRect(sx - 1, sy - 12, 2, 12);                       // haste
+    offCtx.fillStyle = RD; offCtx.fillRect(sx - 1, sy - 14, 2, 2); offCtx.fillRect(sx - 2, sy - 13, 1, 1); offCtx.fillRect(sx + 1, sy - 13, 1, 1); // anel topo
+    offCtx.fillStyle = RU; offCtx.fillRect(sx - 4, sy - 10, 9, 1);                       // braço transversal
+    offCtx.fillStyle = R; offCtx.fillRect(sx - 4, sy - 1, 9, 1);                          // base curva
+    offCtx.fillRect(sx - 5, sy - 2, 2, 2); offCtx.fillRect(sx - 6, sy - 1, 1, 1);         // garra esq
+    offCtx.fillRect(sx + 4, sy - 2, 2, 2); offCtx.fillRect(sx + 5, sy - 1, 1, 1);         // garra dir
+    offCtx.fillStyle = "#a05a28"; offCtx.fillRect(sx, sy - 7, 1, 1);                       // ferrugem
+    offCtx.fillStyle = "#2e8a52"; offCtx.fillRect(sx - 3, sy - 9, 1, 2);                   // alga
+    offCtx.fillStyle = RD; offCtx.fillRect(sx + 5, sy - 4, 1, 1); offCtx.fillRect(sx + 6, sy - 3, 1, 1); offCtx.fillRect(sx + 7, sy - 3, 1, 1); // elo de corrente
+    return;
+  }
+  if (d.type === "anglerLure") {
+    // Lanterna abissal: talo escuro curvo + bulbo bioluminescente que PULSA.
+    const tl = game.time || 0;
+    const pulse = 0.5 + 0.5 * Math.sin(tl / 300 + d.x * 0.05);
+    offCtx.fillStyle = "#16323a";
+    for (let yy = 0; yy < 11; yy++) { const cxp = sx + Math.round(Math.sin(tl / 700 + yy * 0.3) * (yy * 0.15)); offCtx.fillRect(cxp, sy - yy, 1, 1); }
+    const tipx = sx + Math.round(Math.sin(tl / 700 + 3.3) * 1.6), tipy = sy - 11;
+    offCtx.globalAlpha = 0.4 * pulse; offCtx.fillStyle = "#80ffe8"; offCtx.beginPath(); offCtx.arc(tipx, tipy, 3, 0, Math.PI * 2); offCtx.fill(); offCtx.globalAlpha = 1;
+    offCtx.fillStyle = "#3aa0a0"; offCtx.fillRect(tipx - 1, tipy - 1, 2, 2);
+    offCtx.fillStyle = pulse > 0.5 ? "#b0fff0" : "#60d8d0"; offCtx.fillRect(tipx, tipy - 1, 1, 1);
+    if (pulse > 0.75) { offCtx.fillStyle = "#ffffff"; offCtx.fillRect(tipx, tipy - 1, 1, 1); }
+    return;
+  }
+  if (d.type === "treasureChest") {
+    // Baú afundado: madeira + cintas douradas + cintilância de ouro.
+    const tc = game.time || 0;
+    offCtx.globalAlpha = 0.35; offCtx.fillStyle = "#000"; offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 6, 2, 0, 0, Math.PI * 2); offCtx.fill(); offCtx.globalAlpha = 1;
+    const W = "#5a3a1e", WD = "#3a2410", WL = "#7a5230", G = "#d4a637";
+    offCtx.fillStyle = WD; offCtx.fillRect(sx - 5, sy - 5, 10, 5);
+    offCtx.fillStyle = W; offCtx.fillRect(sx - 4, sy - 4, 8, 4);
+    offCtx.fillStyle = WL; offCtx.fillRect(sx - 5, sy - 7, 10, 2); offCtx.fillRect(sx - 4, sy - 8, 8, 1);   // tampa
+    offCtx.fillStyle = G; offCtx.fillRect(sx - 5, sy - 6, 1, 6); offCtx.fillRect(sx + 4, sy - 6, 1, 6); offCtx.fillRect(sx - 1, sy - 5, 2, 1); // cintas
+    offCtx.fillStyle = "#1a0e06"; offCtx.fillRect(sx - 1, sy - 4, 2, 2);                    // fechadura
+    if (((tc / 200) | 0) % 4 === 0) { offCtx.fillStyle = "#fff6c8"; offCtx.fillRect(sx - 1, sy - 9, 1, 1); } // cintila
+    offCtx.fillStyle = "#2e8a52"; offCtx.fillRect(sx + 2, sy - 8, 1, 2);                    // alga
     return;
   }
   if (d.type === "tree") {
