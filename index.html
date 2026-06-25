@@ -9402,6 +9402,8 @@ const DEFAULT_PROGRESS = {
   // 2026-06-16 — desbloqueio por atividade das cartas CARNIFICINA / OSSÁRIO
   knockbacksApplied: 0, // empurrões em inimigos (agregado) → desbloqueia OSSÁRIO
   carnageUnlocked: false, ossuaryUnlocked: false,
+  // 2026-06-24 — cursor de retomada da campanha (faltava em DEFAULT_PROGRESS → wipe no load)
+  campaignBiomeIndex: 0, campaignClears: 0, campaignAttempts: 0,
   // Etapa ZF: set de bioma→true das cartas de boss desbloqueadas PERMANENTEMENTE
   // no slot. Ex: { inferno: true, gelo: false }. Só é setado quando o jogador
   // derrota o boss daquele bioma NESSE slot. Persiste entre runs do mesmo slot
@@ -9629,11 +9631,15 @@ function _validateProgress(p) {
   // Booleans (preserva se booleano, senão default)
   for (const flag of ["necroKingDefeated", "tutorialDone", "holyKingUnlocked", "holyKingMode", "holyCardsUnlocked", "ngPlusUnlocked", "fxWeather", "fxDayNight", "fxReflections", "colorblindMode", "guildVillageDestroyed", "sacredCardCast", "endlessBossKilled", "voidAvatarKilled",
     // COMBO 28 (Opção M) — KING SKINS unlock flags
-    "plagueKingUnlocked", "frostKingUnlocked", "infernoKingUnlocked", "voidKingUnlocked"]) {
+    "plagueKingUnlocked", "frostKingUnlocked", "infernoKingUnlocked", "voidKingUnlocked",
+    // 2026-06-24 FIX (auditoria): estavam sendo WIPEADOS todo load → re-toast "DESBLOQUEADA" por sessão
+    "carnageUnlocked", "ossuaryUnlocked"]) {
     if (typeof p[flag] === "boolean") out[flag] = p[flag];
   }
   // Numerics
-  for (const num of ["fxBrightness", "ngPlusBestCleared", "elitesKilledTotal", "dailyAttempts", "dailyBestScore", "dailyTotalRuns", "dailySeed", "endlessHighscore", "revivalsUsed", "itemsCollected", "questsCompletedTotal"]) {
+  for (const num of ["fxBrightness", "ngPlusBestCleared", "elitesKilledTotal", "dailyAttempts", "dailyBestScore", "dailyTotalRuns", "dailySeed", "endlessHighscore", "revivalsUsed", "itemsCollected", "questsCompletedTotal",
+    // 2026-06-24 FIX (auditoria): campaignBiomeIndex era WIPEADO → "Campanha" sempre reiniciava no Deserto; knockbacksApplied perdia progresso do OSSÁRIO
+    "campaignBiomeIndex", "campaignClears", "campaignAttempts", "knockbacksApplied"]) {
     if (typeof p[num] === "number" && !isNaN(p[num])) out[num] = p[num];
   }
   // Strings
@@ -21725,7 +21731,8 @@ function update(dt) {
       if (u.slowed > 0) u.slowed = 0;
       if (u.burning > 0) u.burning = 0;
       if (u.poisoned > 0) u.poisoned = 0;
-      if (u.cursed > 0) u.cursed -= dt;  // curse é da NecroKing pra outros — pode aplicar, mas não em outros bosses
+      // 2026-06-24 FIX (auditoria): curse NÃO é decrementado aqui — o decremento genérico
+      // abaixo (21739) já cobre o boss. Antes decrementava 2× por tick (curse durava metade).
     }
     if (u.frozen > 0) u.frozen -= dt;
     if (u.rooted > 0) u.rooted -= dt;
@@ -27421,7 +27428,7 @@ function fxGolemCast(wx, wy) {
     });
   }
   // Camera shake leve
-  if (typeof shakeCamera === "function") shakeCamera(8, 250);
+  if (typeof doShake === "function") doShake(8, 250);   // 2026-06-24 FIX: shakeCamera não existe (no-op); doShake é a real
   // Flash da tela bem leve marrom-pedra
   if (typeof flashScreen === "function") flashScreen(0.10, 200, "#a89878");
 }
@@ -27589,7 +27596,7 @@ function fxAngelCast(wx, wy) {
   }
   // Flash divino e shake leve
   if (typeof flashScreen === "function") flashScreen(0.22, 320, "#fff080");
-  if (typeof shakeCamera === "function") shakeCamera(6, 200);
+  if (typeof doShake === "function") doShake(6, 200);   // 2026-06-24 FIX: shakeCamera não existe (no-op); doShake é a real
 }
 
 /* ============================================================
@@ -70084,6 +70091,11 @@ function campaignLevelComplete() {
         // FIX 2026-06-23 — zera o portal ao entrar no nível do boss (o portal já fica
         // desativado em nível 4 pela guarda campaignLevel<=3, mas resetamos por garantia).
         if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
+        // FIX 2026-06-24 (auditoria) — teleporta o Rei pra ENTRADA do corredor (como em 1→2/2→3).
+        // Sem isso o Rei terminava o nível 3 COLADO no portal/covil (x≈4040) → o covil "soca"
+        // sozinho e o boss desperta no frame 0, fazendo o toast "VÁ ATÉ O COVIL" mentir.
+        if (game.king) { game.king.x = 120; game.king.y = corridorCenterY(120); }
+        if (game.camera) game.camera.x = 120;
         game._campaignLevelDone = false;
         if (typeof showToast === "function") showToast("⚔ VÁ ATÉ O COVIL E DESPERTE O BOSS!", 3200, "danger");
       },
