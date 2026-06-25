@@ -5323,20 +5323,27 @@
      O PC (html.is-desktop) mantém o layout cheio do Rework V3 T1. Estas regras
      têm especificidade html.is-mobile + !important → são a FONTE ÚNICA do
      dimensionamento/posição do HUD no celular (vencem as @media). */
-  html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
-  html.is-mobile #objectivePill { top: 48px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important; }
-  /* 2026-06-23 — MINIMAPA limpo e LEGÍVEL no celular: SEM a moldura gótica (poluição) e
-     SEM o label "MAPA"; vira um quadrado claro de 84px → o "mapa" fica de fato visível. */
-  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; width: 84px !important; height: 84px !important; transform: none !important; }
+  /* 2026-06-24 — HUD MÍNIMO no celular (user: "diminua AINDA MAIS / minimize as infos").
+     Mostra SÓ o essencial: barras HP/Mana finas (sem avatar/nome/tier/moldura), minimapa
+     pequeno e moedas. Esconde tempo, exército, objetivo. Tudo recua um pouco (opacity). */
+  html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important;
+    background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 0.92 !important; }
+  html.is-mobile .vitals-avatar { display: none !important; }   /* sem avatar (minimal) */
+  html.is-mobile .vitals-header { display: none !important; }   /* sem nome/TIER (minimal) */
+  html.is-mobile #objectivePill { display: none !important; }   /* corredor/covil é óbvio → tira poluição */
+  /* MINIMAPA pequeno e limpo (sem moldura gótica nem label) */
+  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; width: 68px !important; height: 68px !important; transform: none !important; opacity: 0.92 !important; }
   html.is-mobile #minimapGothic { display: none !important; }
   html.is-mobile #minimapLabel { display: none !important; }
-  html.is-mobile #minimapWrap { left: 0 !important; top: 0 !important; width: 84px !important; height: 84px !important; }
-  /* meta (moedas/tempo/exército) ABAIXO do minimapa, compacto; barra de tier escondida (detalhe) */
-  html.is-mobile #topright { top: 96px !important; right: 6px !important; transform: scale(0.46) !important; transform-origin: top right !important; }
-  html.is-mobile #tierBar { display: none !important; }
-  html.is-mobile #comboCount { font-size: 16px !important; }
-  /* pause à ESQUERDA do minimapa de 84px (sem colidir) */
-  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 98px !important; bottom: auto !important; width: 44px !important; height: 44px !important; }
+  html.is-mobile #minimapWrap { left: 0 !important; top: 0 !important; width: 68px !important; height: 68px !important; }
+  /* META: SÓ MOEDAS (esconde tempo/exército/tier), sem moldura, pequeno, abaixo do minimapa */
+  html.is-mobile #topright { top: 78px !important; right: 4px !important; transform: scale(0.5) !important; transform-origin: top right !important;
+    background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 0.9 !important; }
+  html.is-mobile #topright::before, html.is-mobile #topright::after { display: none !important; }
+  html.is-mobile #timeRow, html.is-mobile #tierRow, html.is-mobile #armyRow, html.is-mobile #tierBar, html.is-mobile #questTracker { display: none !important; }
+  html.is-mobile #comboCount { font-size: 15px !important; }
+  /* pause à ESQUERDA do minimapa de 68px */
+  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 82px !important; bottom: auto !important; width: 40px !important; height: 40px !important; opacity: 0.85 !important; }
   /* ============================================================ */
   body.menu-active #objectivePill { display: none !important; }
 
@@ -10848,6 +10855,10 @@ function resize() {
   // altura) usamos escala 2 → mostra ~50% mais de mundo em cada eixo (o Rei via "pouca área").
   // Desktop/tablet (telas altas) seguem 3 (sprites maiores). Escala inteira = pixel-art nítido.
   PIXEL_SCALE = (window.innerHeight <= 540) ? 2 : 3;
+  // 2026-06-24 — CELULAR: FOV MAIOR. Força escala 2 (INTEIRA = pixel nítido, sem shimmer)
+  // mesmo em RETRATO (onde era 3 e via pouca área: ~133 un. de largura → 200, +50% de mundo).
+  // SÓ no celular (classe is-mobile); PC/desktop seguem 3/2 inalterados.
+  if (document.documentElement.classList.contains("is-mobile")) PIXEL_SCALE = 2;
   BASE_W = Math.ceil(canvas.width / PIXEL_SCALE);
   BASE_H = Math.ceil(canvas.height / PIXEL_SCALE);
   offCanvas.width = BASE_W;
@@ -11050,6 +11061,7 @@ function applyControlsMode() {
     const de = document.documentElement;
     de.classList.toggle("is-mobile", mobile);
     de.classList.toggle("is-desktop", !mobile);
+    if (typeof resize === "function") resize();   // 2026-06-24 — reaplica o FOV do celular ao trocar de modo
   } catch (e) {}
 }
 applyControlsMode();
