@@ -10835,7 +10835,9 @@ const ctx = canvas.getContext("2d");
 const offCanvas = document.createElement("canvas");
 offCanvas.width = BASE_W;
 offCanvas.height = BASE_H;
-const offCtx = offCanvas.getContext("2d");
+// 2026-06-24 — offCtx é `let` (não const) pra o CACHE DE SPRITES poder redirecioná-lo
+// temporariamente pra um canvas offscreen durante o render-to-cache (restaurado em finally).
+let offCtx = offCanvas.getContext("2d");
 offCtx.imageSmoothingEnabled = false;
 
 function resize() {
@@ -45846,6 +45848,106 @@ function spawnUnitAmbientFx(u, t) {
   }
 }
 
+// ============================================================================
+// 2026-06-24 — CACHE DE SPRITES (performance, esp. celular). Em vez de remontar cada
+// sprite com dezenas de fillRect TODO frame, renderiza o CORPO do sprite UMA vez num
+// canvas offscreen por (classe|facing|tier|escala|cor|fase-de-animação) e usa drawImage
+// nos frames seguintes. A animação procedural (sin do tempo) é QUANTIZADA em poucas
+// fases (8 de caminhada, 3 de ataque, 1 parado). Estados dinâmicos (flash de dano,
+// congelado) e unidades grandes/especiais (boss/rei/companion/morrendo/emergindo) caem
+// no draw direto. Toggle: game._spriteCache = false desliga.
+// ============================================================================
+const _SPRITE_CACHE = new Map();          // key -> { canvas, ax, ay }
+const _SPRITE_CACHE_MAX = 512;            // LRU simples (ordem de inserção do Map)
+const _SPR_W = 64, _SPR_H = 64, _SPR_AX = 32, _SPR_AY = 46;  // tile + âncora (baseline)
+function _sprNoop() {}
+
+// true se o sprite encosta em qualquer borda do tile (estaria CORTADO) → não cachear.
+function _spriteTouchesEdge(id) {
+  const d = id.data, W = _SPR_W, H = _SPR_H;
+  for (let x = 0; x < W; x++) { if (d[(0 * W + x) * 4 + 3] > 8) return true; if (d[((H - 1) * W + x) * 4 + 3] > 8) return true; }
+  for (let y = 0; y < H; y++) { if (d[(y * W) * 4 + 3] > 8) return true; if (d[(y * W + (W - 1)) * 4 + 3] > 8) return true; }
+  return false;
+}
+
+function _spriteBucket(t, pose) {
+  if (pose.attackProg > 0) {
+    const k = Math.min(2, (pose.attackProg * 3) | 0);
+    return { bucket: "a" + k, attackProg: (k + 0.5) / 3, walking: false, tFix: 0 };
+  }
+  if (pose.walking) {
+    const period = 2 * Math.PI * 100;                  // ciclo de legSwing = sin(t/100)
+    const phase = ((t % period) + period) % period;
+    const k = Math.min(7, (phase / period * 8) | 0);
+    return { bucket: "w" + k, attackProg: 0, walking: true, tFix: (k + 0.5) / 8 * period };
+  }
+  return { bucket: "i", attackProg: 0, walking: false, tFix: 0 };
+}
+
+function _spriteCacheKey(u, b) {
+  const cl = u.skeleton ? "sk" : (u.unitClass || "warrior");
+  const colK = (u.faction === "ally" ? "A" : "E")
+    + (u.skeleton ? "S" : "")
+    + (u._isSummon ? "M" + (u._summonTint || "") : "")
+    + (u.isElite ? "X" : "");
+  const sc = Math.round((u.scale || 1) * 10);
+  return cl + "|" + (u.facing === "left" ? "L" : "R") + "|" + (u.tier || 0) + "|" + sc + "|" + colK + "|" + b.bucket;
+}
+
+function _renderSpriteToCache(key, u, b, colors) {
+  const cv = document.createElement("canvas");
+  cv.width = _SPR_W; cv.height = _SPR_H;
+  const ectx = cv.getContext("2d"); ectx.imageSmoothingEnabled = false;
+  const cx = _SPR_AX, cy = _SPR_AY, tFix = b.tFix;
+  const breathe = Math.sin(tFix / 500) * 0.5;
+  const legSwing = b.walking ? Math.sin(tFix / 100) * 1.5 : 0;
+  const cpose = { breathe, legSwing, attackProg: b.attackProg, walking: b.walking };
+  const realCtx = offCtx, realTime = game.time, realPush = game.effects.push;
+  let okEntry = null;
+  try {
+    offCtx = ectx;
+    game.time = tFix;                       // alguns drawers leem game.time direto
+    game.effects.push = _sprNoop;           // não polui partículas (igual renderUnitPortrait)
+    if (u.skeleton) {
+      drawSkeletonHD(cx, cy, u.facing, colors, cpose, Math.max(1, Math.min(3, u.tier || 1)));
+    } else if (BIOME_UNIT_DRAWERS[u.unitClass]) {
+      BIOME_UNIT_DRAWERS[u.unitClass](cx, cy, tFix, u, colors, cpose);
+    } else {
+      drawWarrior(cx, cy, u.facing, colors, Object.assign({}, cpose, { scale: u.scale || 1, tier: u.tier || 0, unitClass: u.unitClass || "warrior" }));
+    }
+    okEntry = { canvas: cv, ax: cx, ay: cy };
+  } catch (e) {
+    okEntry = null;                         // drawer falhou no cache → cai no draw direto
+  } finally {
+    offCtx = realCtx; game.time = realTime; game.effects.push = realPush;
+  }
+  if (okEntry) {
+    // Se o sprite ENCOSTA nas bordas (cortado neste tile), marca a chave como "draw direto"
+    // (sentinela) pra nunca mostrar sprite cortado nem re-renderizar todo frame.
+    try {
+      const id = cv.getContext("2d").getImageData(0, 0, _SPR_W, _SPR_H);
+      if (_spriteTouchesEdge(id)) okEntry = { direct: true };
+    } catch (e) { okEntry = { direct: true }; }
+    if (_SPRITE_CACHE.size >= _SPRITE_CACHE_MAX) { const k0 = _SPRITE_CACHE.keys().next().value; _SPRITE_CACHE.delete(k0); }
+    _SPRITE_CACHE.set(key, okEntry);
+  }
+  return okEntry;
+}
+
+// Desenha o CORPO do sprite via cache. Retorna true se desenhou (cache); false se o
+// chamador deve desenhar direto (flag off / estado dinâmico / falha do render-to-cache).
+function drawUnitBodyCached(sx, sy, t, u, colors, pose) {
+  if (game._spriteCache === false) return false;
+  if (u.flashTime > 0 || u.frozen > 0) return false;
+  const b = _spriteBucket(t, pose);
+  const key = _spriteCacheKey(u, b);
+  let e = _SPRITE_CACHE.get(key);
+  if (!e) { e = _renderSpriteToCache(key, u, b, colors); if (!e) return false; }
+  if (e.direct) return false;     // sprite cortaria no tile → desenha procedural direto
+  offCtx.drawImage(e.canvas, sx - e.ax, sy - e.ay);
+  return true;
+}
+
 function drawUnit(u, camX, camY) {
   const sx = Math.round(u.x - camX + BASE_W / 2);
   const sy = Math.round(u.y - camY + BASE_H / 2);
@@ -46049,14 +46151,19 @@ function drawUnit(u, camX, camY) {
       }
       if (u.phaseFlashT <= 0) u.phaseFlashT = 0;
     }
-  } else if (u.skeleton) {
-    // 2026-06-15 — sprite de ESQUELETO DEDICADO por tier (crânio + costelas + ossos).
-    drawSkeletonHD(sx, sy, u.facing, colors, { breathe, legSwing, attackProg, walking: u.state === "walking" }, Math.max(1, Math.min(3, u.tier || 1)));
-  } else if (BIOME_UNIT_DRAWERS[u.unitClass]) {
-    // Unidades temáticas de bioma (Fase 12.7) — sprite próprio em vez de warrior.
-    BIOME_UNIT_DRAWERS[u.unitClass](sx, sy, t, u, colors, { breathe, legSwing, attackProg, walking: u.state === "walking" });
   } else {
-    drawWarrior(sx, sy, u.facing, colors, { breathe, legSwing, attackProg, walking: u.state === "walking", scale: u.scale || 1, tier: u.tier || 0, unitClass: u.unitClass || "warrior" });
+    // 2026-06-24 — corpo de unidade "normal" (esqueleto / bioma / warrior): tenta o CACHE
+    // de sprite (1 drawImage); se off/dinâmico/falha, cai no draw procedural direto.
+    const _pose = { breathe, legSwing, attackProg, walking: u.state === "walking" };
+    if (!drawUnitBodyCached(sx, sy, t, u, colors, _pose)) {
+      if (u.skeleton) {
+        drawSkeletonHD(sx, sy, u.facing, colors, _pose, Math.max(1, Math.min(3, u.tier || 1)));
+      } else if (BIOME_UNIT_DRAWERS[u.unitClass]) {
+        BIOME_UNIT_DRAWERS[u.unitClass](sx, sy, t, u, colors, _pose);
+      } else {
+        drawWarrior(sx, sy, u.facing, colors, Object.assign({}, _pose, { scale: u.scale || 1, tier: u.tier || 0, unitClass: u.unitClass || "warrior" }));
+      }
+    }
   }
 
   if (u.flashTime > 0) drawHitFlash(sx - 5, sy - 14, 10, 16, u.flashTime, u.flashColor);
