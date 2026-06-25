@@ -10547,6 +10547,21 @@ const Sfx = (() => {
       }
     },
 
+    // 2026-06-24 — Redemoinho aquático: swoosh de água girando (vórtice puxando).
+    // Tocado pelo hazard lakeWhirl quando o REI entra. Cooldown próprio (900ms) porque
+    // o tick do hazard roda repetido enquanto o Rei fica dentro.
+    _whirlLast: 0,
+    whirlpool(force) {
+      const now = (typeof performance !== "undefined") ? performance.now() : Date.now();
+      if (!force && now - this._whirlLast < 900) return;
+      this._whirlLast = now;
+      const g = 0.10;
+      noise({ dur: 520, type: "bandpass", freq: 360, q: 1.2, gain: g });            // corpo de água rodando
+      noise({ dur: 380, type: "highpass", freq: 1600, gain: g * 0.5, delay: 60 });  // borrifo na superfície
+      noise({ dur: 700, type: "lowpass", freq: 240, gain: g * 0.7 });               // sucção grave do vórtice
+      tone({ freq: 300, dur: 300, type: "sine", gain: g * 0.6, sweep: -180, delay: 80 }); // glub descendente
+    },
+
     // Skin acquired SFX — toca quando jogador desbloqueia uma skin do Rei
     skinUnlock(skinId) {
       // Toca arpejo épico genérico + tom específico da skin
@@ -12307,7 +12322,7 @@ function makeAlly(x, y, unitClass = "soldado") {
 // 2026-06-15 — Landmark (set-piece) característico de cada bioma no corredor da campanha.
 const BIOME_LANDMARK = {
   deserto: "desertTent", gelo: "igloo", inferno: "volcano", pantano: "swampHut",
-  cogumelo: "giantMushroom", catedral: "sacredAltar", aquatico: "shipwreck",
+  cogumelo: "giantMushroom", catedral: "sacredAltar", aquatico: "whaleSkeleton",
 };
 
 // 2026-06-15 — CENÁRIO do CORREDOR da campanha: decora ao longo do eixo X (não o disco do
@@ -12349,6 +12364,19 @@ function spawnCorridorScenery() {
       const y = corridorCenterY(x) + side * (Math.max(86, HALF - 18));
       game.decorations.push({ x: x + (rng() * 60 - 30), y, type: lm, variant: 0, biome: biomeId, landmark: true });
       side = -side;
+    }
+  }
+  // 2.5) 2026-06-24 — BAÚS-TESOURO COLETÁVEIS no bioma aquático (dão moedas ao abrir).
+  // Reusa a pipeline de pickups (spawnRarityChest com forcedCoin): cai, fica idle e abre
+  // quando o Rei encosta (<16px), com fxGold + toast. lifetime Infinity (espera o jogador).
+  if (biomeId === "aquatico" && Array.isArray(game.pickups) && typeof spawnRarityChest === "function") {
+    const nChests = 1 + (rng() < 0.5 ? 1 : 0);   // 1–2 por nível
+    for (let i = 0; i < nChests; i++) {
+      const cx = 600 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1400);
+      const side = rng() < 0.5 ? -1 : 1;
+      const cy = corridorCenterY(cx) + side * (50 + rng() * Math.max(8, HALF - 64));
+      const reward = 120 + Math.floor(rng() * 120);   // 120–240 moedas
+      spawnRarityChest(cx, cy, rng() < 0.25 ? "rare" : "common", { forcedCoin: reward });
     }
   }
   // 3) Ordena por camada/Y (grandes ao fundo)
@@ -26255,7 +26283,14 @@ function grantChestLoot(p) {
     progress.coins += p.coinReward;
     game.coinsThisRun = (game.coinsThisRun || 0) + p.coinReward;
     saveProgress();
-    showToast("+" + p.coinReward + " ◆ (sem relíquia disponível)", 1500, "magic");
+    // 2026-06-24 — baú-tesouro (forcedCoin) ganha efeito dourado + toast próprio + conta p/ quest de moedas
+    if (typeof fxGold === "function") fxGold(p.x, p.y - 4);
+    if (p._coinChest) {
+      showToast("+" + p.coinReward + " ◆ TESOURO", 1500, "magic");
+      try { if (typeof questProgressEvent === "function") questProgressEvent("coinPick", { value: p.coinReward }); } catch (e) {}
+    } else {
+      showToast("+" + p.coinReward + " ◆ (sem relíquia disponível)", 1500, "magic");
+    }
     renderSpellBar();
     return;
   }
@@ -26672,6 +26707,9 @@ function spawnRarityChest(x, y, rarity, opts) {
     payload = { passive: opts.forcedPassive };
   } else if (opts.forcedBuff) {
     payload = { buff: opts.forcedBuff };
+  } else if (opts.forcedCoin) {
+    // 2026-06-24 — baú-TESOURO garantido (corredor aquático): sempre dá moedas
+    payload = { coinReward: opts.forcedCoin };
   } else {
     // Rola relíquia matching rarity (RELIC_RARITY usa pt-BR: comum/incomum/raro/epico)
     let rarities, weights;
@@ -26703,6 +26741,7 @@ function spawnRarityChest(x, y, rarity, opts) {
     passive: payload.passive || null,
     relicId: payload.relicId || null,           // 2026-05-04 — novo payload
     coinReward: payload.coinReward || null,     // fallback se nada disponível
+    _coinChest: !!opts.forcedCoin,              // 2026-06-24 — baú-tesouro (toast/quest/fxGold próprios)
     x: x + ox, y: y + oy,
     phase: "falling",
     landY: y + oy,
@@ -26712,7 +26751,7 @@ function spawnRarityChest(x, y, rarity, opts) {
     age: 0,
     openTimer: 0,
     cardFloat: 0,
-    lifetime: 30000,
+    lifetime: opts.forcedCoin ? Infinity : 30000,   // tesouro espera o jogador (não some)
     collected: false,
   });
   // Partículas na queda — cor depende da raridade
@@ -32102,6 +32141,7 @@ function updateHazards(dt) {
             u.slowed = Math.max(u.slowed || 0, 700);
             u.slowFactor = Math.min(u.slowFactor || 1, 0.62);
             if (u.type !== "king" && d > 2) { u.x += (dx / d) * 4; u.y += (dy / d) * 4; }  // puxão ~14px/s
+            else if (u.type === "king") { if (typeof Sfx !== "undefined" && Sfx.whirlpool) Sfx.whirlpool(); }  // som do redemoinho (cooldown 900ms no Sfx)
           }
         }
       }
@@ -42632,6 +42672,45 @@ function _drawDecoCore(sx, sy, d) {
     offCtx.restore();
     offCtx.fillStyle = M; offCtx.fillRect(sx - 2, sy - 15, 2, 13); offCtx.fillStyle = HL; offCtx.fillRect(sx - 2, sy - 15, 1, 13);
     offCtx.fillStyle = "rgba(180,190,180,0.5)"; offCtx.beginPath(); offCtx.moveTo(sx, sy - 14); offCtx.lineTo(sx + 8, sy - 12); offCtx.lineTo(sx + 2, sy - 6); offCtx.closePath(); offCtx.fill();
+    return;
+  }
+  if (d.type === "whaleSkeleton") {
+    // 2026-06-24 — LANDMARK aquático: ESQUELETO DE BALEIA GIGANTE (crânio + espinha + costelas).
+    // Arte em escala local (~±20px); drawDecoration aplica 2.6x quando landmark → ~115px na tela.
+    const BO = "#e8e4d4", BOD = "#b8b09a", BOL = "#fbf8ec", SH = "#3a4a52";
+    offCtx.globalAlpha = 0.42; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 2, 22, 4, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // ESPINHA dorsal (coluna curva da cauda à cabeça)
+    const spineY = (x) => sy - 4 - Math.round(Math.sin((x - sx) * 0.06) * 2);
+    offCtx.fillStyle = BOD;
+    for (let x = sx - 18; x <= sx + 14; x += 2) offCtx.fillRect(x, spineY(x), 2, 2);
+    offCtx.fillStyle = BO;
+    for (let x = sx - 18; x <= sx + 14; x += 2) offCtx.fillRect(x, spineY(x), 2, 1);
+    offCtx.fillStyle = BOL;
+    for (let x = sx - 16; x <= sx + 12; x += 4) offCtx.fillRect(x, spineY(x) - 1, 1, 1);   // vértebras
+    // ARCOS DE COSTELA (curvam pra baixo dos dois lados)
+    for (let i = 0; i < 6; i++) {
+      const rx = sx - 12 + i * 4, top = spineY(rx), hh = 9 - Math.abs(i - 2);
+      offCtx.fillStyle = BOD;
+      for (let s = 0; s < hh; s++) { const cxl = rx - Math.round(Math.sin(s / hh * 1.4) * 4); offCtx.fillRect(cxl, top + s, 1, 1); }
+      for (let s = 0; s < hh; s++) { const cxr = rx + Math.round(Math.sin(s / hh * 1.4) * 4); offCtx.fillRect(cxr, top + s, 1, 1); }
+      offCtx.fillStyle = BOL; offCtx.fillRect(rx, top, 1, 1);
+    }
+    // CRÂNIO alongado à esquerda
+    const skX = sx - 20, skY = sy - 5;
+    offCtx.fillStyle = BOD;
+    offCtx.beginPath(); offCtx.moveTo(skX - 6, skY); offCtx.lineTo(skX + 4, skY - 4); offCtx.lineTo(skX + 5, skY + 3); offCtx.lineTo(skX - 5, skY + 4); offCtx.closePath(); offCtx.fill();
+    offCtx.fillStyle = BO;
+    offCtx.beginPath(); offCtx.moveTo(skX - 6, skY); offCtx.lineTo(skX + 3, skY - 3); offCtx.lineTo(skX + 4, skY + 2); offCtx.lineTo(skX - 4, skY + 3); offCtx.closePath(); offCtx.fill();
+    offCtx.fillStyle = BOD; offCtx.fillRect(skX - 6, skY + 4, 10, 1);    // mandíbula
+    offCtx.fillStyle = SH; offCtx.fillRect(skX, skY - 1, 2, 2);          // órbita
+    offCtx.fillStyle = BOL; offCtx.fillRect(skX + 3, skY - 3, 1, 1);
+    // alga marinha nos ossos (toque de vida)
+    const algSway = Math.round(Math.sin(game.time / 600 + d.x * 0.04) * 1);
+    offCtx.fillStyle = "#2e8a52";
+    offCtx.fillRect(sx + 8, sy - 2, 1, 3); offCtx.fillRect(sx + 8 + algSway, sy - 4, 1, 2);
+    offCtx.fillRect(sx - 4, sy - 1, 1, 2); offCtx.fillRect(sx - 4 + algSway, sy - 3, 1, 1);
     return;
   }
   // ===== 2026-06-15 — DECORAÇÕES DO BIOMA AQUÁTICO =====
