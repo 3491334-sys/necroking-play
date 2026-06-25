@@ -11143,6 +11143,7 @@ canvas.addEventListener("touchstart", (e) => {
   // Bloqueia comportamento default (scroll, zoom, callout)
   e.preventDefault();
   if (_hasFullScreenOverlay()) return;
+  if (game._joyPlacing) return;   // 2026-06-24 FIX (auditoria): reposicionando o joystick → não dispara rally/long-press
   if (e.touches.length === 0) return;
   // Multi-touch: usa só o primeiro toque, ignora resto
   if (_touchState.currentId !== null) return;
@@ -11279,6 +11280,11 @@ canvas.addEventListener("touchcancel", (e) => {
       input.mouse.wy = input.mouse.by - BASE_H / 2 + game.camera.y;
       input.leftClicked = true;
       input.leftDown = true; setTimeout(() => { input.leftDown = false; }, 50);
+      // 2026-06-24 (auditoria): marcador visual no ponto tocado (confirma a ordem no celular).
+      // Anel dourado que CONTRAI pra dentro (estilo "vá aqui" de RTS).
+      if (Array.isArray(game.effects)) {
+        game.effects.push({ type: "ring", x: input.mouse.wx, y: input.mouse.wy, radius: 15, _tr: 2, color: "#ffe0a0", lifetime: 300, maxLifetime: 300, size: 1, update(dt) { this.radius += (this._tr - this.radius) * dt / 220; } });
+      }
     };
 
     // Mostra a base FIXA em repouso (modo fixo) ou esconde (flutuante). Chamado no boot, no
@@ -11364,16 +11370,20 @@ canvas.addEventListener("touchcancel", (e) => {
           if (typeof saveProgress === "function") saveProgress();
         } catch (er) {}
         game._joyPlacing = false;
+        if (game._joyPlaceTimer) { clearTimeout(game._joyPlaceTimer); game._joyPlaceTimer = null; }
         if (typeof showToast === "function") showToast("✓ JOYSTICK POSICIONADO", 1400, "good");
       } else if (_tapStart) {
-        // TAP rápido (não-drag) no modo FLUTUANTE → ordem de RALLY/ATAQUE no ponto tocado.
-        // (No fixo, tocar longe do anchor já é "mover", então não vira tap.)
+        // TAP rápido (não-drag) = ordem de RALLY/ATAQUE no ponto tocado. FLUTUANTE: sempre.
+        // 2026-06-24 FIX (auditoria): FIXO também rallia, DESDE que o toque tenha começado
+        // LONGE da base ancorada (perto da base = mover o joystick; longe = comandar).
         const tc = e.changedTouches[0] || {};
         const nowT = (typeof performance !== "undefined" ? performance.now() : Date.now());
         const ex = (typeof tc.clientX === "number") ? tc.clientX : _tapStart.x;
         const ey = (typeof tc.clientY === "number") ? tc.clientY : _tapStart.y;
         const moved = Math.hypot(ex - _tapStart.x, ey - _tapStart.y);
-        if (_joyMode() === "float" && (nowT - _tapStart.t) < 260 && moved < 16 && !game._joyPlacing &&
+        let farFromBase = true;
+        if (_joyMode() === "fixed") { const a = _anchorPx(); farFromBase = Math.hypot(_tapStart.x - a.x, _tapStart.y - a.y) > (JOY_RADIUS + 10); }
+        if (farFromBase && (nowT - _tapStart.t) < 260 && moved < 16 && !game._joyPlacing &&
             (typeof _hasFullScreenOverlay !== "function" || !_hasFullScreenOverlay())) {
           _rallyTapAt(_tapStart.x, _tapStart.y);
         }
@@ -11459,6 +11469,14 @@ function bumpCombo() {
   el.classList.remove("bump");
   void el.offsetWidth;  // force reflow pra re-trigger animation
   el.classList.add("bump");
+  // 2026-06-24 (auditoria): recompensa AUDIOVISUAL ao CRUZAR um milestone (8/15/25) — antes só
+  // a UI escalava no canto. Flash + shake + som (respeitam reducedMotion via as helpers).
+  if (_comboCount === 8 || _comboCount === 15 || _comboCount === 25) {
+    const col = _comboCount >= 25 ? "#ffd060" : (_comboCount >= 15 ? "#ff5050" : "#ff9030");
+    if (typeof flashScreen === "function") flashScreen(_comboCount >= 25 ? 0.16 : 0.10, 200, col);
+    if (typeof doShake === "function") doShake(_comboCount >= 25 ? 4 : 3, 150);
+    try { if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart(); } catch (e) {}
+  }
 }
 
 /**
@@ -20854,7 +20872,10 @@ function spawnSquadLinear() {
   const size = Math.min(squadSize(), budget);
   // Ponto de spawn: à direita do Rei (~1 tela à frente), dentro do corredor.
   let cx = k.x + (BASE_W * 0.6 + 120) + Math.random() * 220;
-  cx = Math.min(cx, CAMPAIGN_LEVEL_LENGTH - 80);
+  // 2026-06-24 FIX (auditoria): teto ANTES do portal (não a borda do mundo) — senão, com o Rei
+  // perto do fim, inimigos pousavam EM CIMA do portal e atrapalhavam o hold de 3s.
+  const _spawnMax = game.levelGoal ? (game.levelGoal.x - (game.levelGoal.radius || 90) - 60) : (CAMPAIGN_LEVEL_LENGTH - 80);
+  cx = Math.min(cx, _spawnMax);
   const ccx = corridorCenterY(cx);                                   // centro sinuoso no ponto de spawn
   const _sH = corridorHalf();                                         // 2026-06-23 — banda visível
   let cy = ccx + (Math.random() * 2 - 1) * Math.max(20, _sH - 30);
@@ -21385,7 +21406,12 @@ function update(dt) {
       game._flashAlpha = 0;
     }
   }
-  if (game.paused || game.gameOver || !game.runActive || game._cutscenePaused) return;
+  if (game.paused || game.gameOver || !game.runActive || game._cutscenePaused) {
+    // 2026-06-24 FIX (auditoria): limpa toques/cliques pendentes enquanto pausado, senão um
+    // tap que escorregou entre o toque no campo e o PAUSE virava rally/cast "fantasma" ao despausar.
+    input.leftClicked = false; input.rightClicked = false; input.keysOnce = {};
+    return;
+  }
   // Hit stop: congela lógica (mas permite que damage nums/HUD continuem renderizando)
   if (game.hitStop > 0) {
     game.hitStop -= dt;
@@ -21736,7 +21762,9 @@ function update(dt) {
     }
     if (u.frozen > 0) u.frozen -= dt;
     if (u.rooted > 0) u.rooted -= dt;
-    if (u.slowed > 0) u.slowed -= dt;
+    // 2026-06-24 FIX (auditoria): ao expirar o slow, reseta o fator de intensidade (senão
+    // ficava "grudado" no valor mais agressivo já visto, por causa do Math.min nos writes).
+    if (u.slowed > 0) { u.slowed -= dt; if (u.slowed <= 0) { u.slowFactor = 1; u.slowMult = 1; } }
     if (u.cursed > 0) u.cursed -= dt;
     // 2026-04-27: MIDAS STATE timers (Chefe da Guilda)
     if (u._midasStunT && u._midasStunT > 0) u._midasStunT -= dt;
@@ -21745,22 +21773,26 @@ function update(dt) {
       u.burning -= dt;
       u.burnDmgTimer -= dt;
       if (u.burnDmgTimer <= 0 && isAlive(u)) {
-        applyDamage(null, u, 3, { type: "burn", noFlash: true, noHitStop: true });
+        // 2026-06-24 FIX (auditoria): noNumber → não cospe um número de dano por tick (poluía a tela)
+        applyDamage(null, u, 3, { type: "burn", noFlash: true, noHitStop: true, noNumber: true });
         u.burnDmgTimer = 350;
         // Pequena centelha perto da unidade
         spawnEmber(u.x + (Math.random() - 0.5) * 6, u.y - 4 + (Math.random() - 0.5) * 4);
       }
-    }
+    } else if (u.burnStacks) { u.burnStacks = 0; }
     if (u.poisoned > 0) {
       u.poisoned -= dt;
       u.poisonDmgTimer -= dt;
       if (u.poisonDmgTimer <= 0 && isAlive(u)) {
-        applyDamage(null, u, 1, { type: "poison", noFlash: true, noHitStop: true });
+        // 2026-06-24 FIX (auditoria): veneno do Toque Necrótico agora EMPILHA (cap 5) — antes
+        // poisonStacks era incrementado mas nunca lido. + noNumber (não spamma por tick).
+        const _pst = Math.min(u.poisonStacks || 1, 5);
+        applyDamage(null, u, _pst, { type: "poison", noFlash: true, noHitStop: true, noNumber: true });
         u.poisonDmgTimer = 500;
         // Bolha de gás verde
         spawnPoisonBubble(u.x + (Math.random() - 0.5) * 6, u.y - 4);
       }
-    }
+    } else if (u.poisonStacks) { u.poisonStacks = 0; }
     // === Fase 13: tick dos buffs temporários de super-aliados ===
     if (u._sacredBuffT > 0) u._sacredBuffT -= dt;
     if (u._armorBuffT > 0) u._armorBuffT -= dt;
@@ -22232,10 +22264,17 @@ function update(dt) {
           const pd = 40 + Math.random() * 80;
           let wx = u._patrolCenter.x + Math.cos(pa) * pd;
           let wy = u._patrolCenter.y + Math.sin(pa) * pd;
-          // Clamp ao mundo
-          const wr = Math.hypot(wx, wy);
-          const maxR = worldEdgeRadiusFor(Math.atan2(wy, wx)) - 40;
-          if (wr > maxR) { const f = maxR / wr; wx *= f; wy *= f; }
+          // 2026-06-24 FIX (auditoria): na CAMPANHA, clampa o waypoint à BANDA do corredor
+          // (antes só clampava ao raio do mundo → inimigos patrulhavam ATRAVÉS das paredes).
+          if (game.campaignLinear) {
+            if (wx < 0) wx = 0; else if (wx > CAMPAIGN_LEVEL_LENGTH) wx = CAMPAIGN_LEVEL_LENGTH;
+            const cc = corridorCenterY(wx), sH = corridorHalf();
+            if (wy < cc - sH) wy = cc - sH; else if (wy > cc + sH) wy = cc + sH;
+          } else {
+            const wr = Math.hypot(wx, wy);
+            const maxR = worldEdgeRadiusFor(Math.atan2(wy, wx)) - 40;
+            if (wr > maxR) { const f = maxR / wr; wx *= f; wy *= f; }
+          }
           u._patrolWaypoint = { x: wx, y: wy, t: 5000 + Math.random() * 4000 };
         }
         u._patrolWaypoint.t -= dt;
@@ -23004,7 +23043,9 @@ function moveTowardPoint(u, tx, ty, dt) {
   // Veneno aplica slow de 40%; gelo imobiliza (tratado antes); slow geral 50%.
   let slowMult = 1;
   if (u.poisoned > 0) slowMult *= 0.6;
-  if (u.slowed > 0)   slowMult *= 0.5;
+  // 2026-06-24 FIX (auditoria): honra a INTENSIDADE do slow (u.slowFactor/u.slowMult escritos
+  // por gelo 0.5/frostbite 0.40/redemoinho 0.62 etc.). Antes todo slow virava 50% fixo.
+  if (u.slowed > 0)   slowMult *= (u.slowFactor || u.slowMult || 0.5);
   // Terreno (Fase 15): água/areia movediça desaceleram; gelo dá deslize (inércia).
   const terrain = terrainEffectAt(u.x, u.y);
   if (terrain && terrain.speedMult) slowMult *= terrain.speedMult;
@@ -23155,6 +23196,18 @@ function _getHitFlashColor(type, crit) {
 // recebem vermelho-pop + glow + size boost (renderer já trata crit flag).
 function _spawnHitNumber(target, amount, type, crit) {
   if (!target || amount <= 0) return;
+  const color = _getHitColor(type, crit);
+  // 2026-06-24 (auditoria): MERGE anti-stacking (movido do bloco legado removido): se este target
+  // já tem um número RECENTE da mesma cor, SOMA nele em vez de criar outro (evita pilha em boss
+  // low-HP). É também o único sistema de damage number agora (antes coexistiam dois → duplicava).
+  const N = game.damageNums.length, scan = Math.min(8, N);
+  for (let i = N - 1; i >= N - scan; i--) {
+    const dn = game.damageNums[i];
+    if (dn && dn._targetRef === target && dn.color === color && typeof dn.amount === "number" && dn.lifetime > 600) {
+      dn.amount += amount; dn.lifetime = 820; dn.alpha = 1; dn.vy = -45 - Math.random() * 10;
+      dn.crit = dn.crit || !!crit; return;
+    }
+  }
   game.damageNums.push({
     x: target.x + (Math.random() - 0.5) * 8,
     y: target.y - 12,
@@ -23164,9 +23217,10 @@ function _spawnHitNumber(target, amount, type, crit) {
     lifetime: crit ? 850 : 650,
     maxLifetime: crit ? 850 : 650,
     alpha: 1,
-    color: _getHitColor(type, crit),
+    color: color,
     type: type || "physical",
     crit: !!crit,
+    _targetRef: target,
   });
 }
 // Shockwave radial em hits pesados (>20% maxHp). Anel branco que expande.
@@ -23518,6 +23572,14 @@ function applyDamage(attacker, target, amount, opts) {
   // 2026-06-16 — REWORK V3 T5: estrela de IMPACTO em hits significativos (perf-gated p/ não spammar)
   if (dmg >= 14 && !game.perfMode && !game._autoQualityLow && typeof fxHitStar === "function") {
     fxHitStar(target.x, target.y - 4, !!opts.crit);
+  } else if (dmg > 0 && dmg < 14 && !opts.noNumber && !game.perfMode && !game._autoQualityLow) {
+    // 2026-06-24 (auditoria): MICRO-impacto pra hits fracos (4-13 dmg) — exército de esqueleto/
+    // soldado bater em tanky tinha zero feedback. 2 sparks curtos na cor do tipo de dano.
+    const _hc = (typeof _getHitFlashColor === "function" ? _getHitFlashColor(type, false) : null) || "#fff6c8";
+    for (let _i = 0; _i < 2; _i++) {
+      const _a = Math.random() * Math.PI * 2;
+      game.effects.push({ type: "spark", color: _hc, x: target.x, y: target.y - 4, vx: Math.cos(_a) * 42, vy: Math.sin(_a) * 42 - 12, lifetime: 130, maxLifetime: 130, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.9; this.vy *= 0.9; } });
+    }
   }
   // === FX 2026-05-04: vignette quando Rei toma dano ===
   if (target === game.king && dmg > 0 && typeof flashKingHit === "function") {
@@ -23630,51 +23692,9 @@ function applyDamage(attacker, target, amount, opts) {
     // poison bubbles vêm do tick
   }
 
-  // Damage number com cor por tipo e pop animado
-  const colorMap = {
-    physical: attacker && attacker.faction === "ally" ? "#ffcc66" : "#ff5555",
-    fire: "#ff8844",
-    burn: "#ff6622",
-    ice: "#a0e0ff",
-    lightning: "#fff0a0",
-    poison: "#80e080",
-  };
-  // 2026-04-28 BUG FIX (combo 24): damage number stacking em bosses low HP.
-  // Quando boss leva 20+ hits/seg, dezenas de números empilhavam vertical na mesma posição.
-  // Fix: MERGE — se mesmo target já tem damageNum RECENTE do mesmo tipo, SOMA o dano em vez de criar novo.
-  // Pop animado é refrescado pra ficar visível.
-  const targetDmgColor = colorMap[type] || colorMap.physical;
-  // Busca damageNum recente deste target+cor (varre últimos 8 — merge só faz sentido pra entries novos).
-  let merged = false;
-  const N = game.damageNums.length;
-  const scanLimit = Math.min(8, N);
-  for (let i = N - 1; i >= N - scanLimit; i--) {
-    const dn = game.damageNums[i];
-    if (dn && dn._targetRef === target && dn.color === targetDmgColor && typeof dn.amount === "number" && dn.lifetime > 620) {
-      dn.amount += Math.round(dmg);
-      dn.lifetime = 800;
-      dn.alpha = 1;
-      dn.crit = dn.crit || dn.amount >= 60;
-      dn.vy = -42 - Math.random() * 8;
-      merged = true;
-      break;
-    }
-  }
-  if (!merged) {
-    game.damageNums.push({
-      x: target.x + (Math.random() - 0.5) * 18,  // jitter ±18 (era ±4)
-      y: target.y - 12,
-      vy: -42 - Math.random() * 14,
-      amount: Math.round(dmg),
-      lifetime: 800,
-      maxLifetime: 800,
-      alpha: 1,
-      color: targetDmgColor,
-      type,
-      crit: dmg >= 30,
-      _targetRef: target,
-    });
-  }
+  // 2026-06-24 FIX (auditoria): bloco LEGADO de damage number REMOVIDO — coexistia com o
+  // sistema novo (_spawnHitNumber, chamado acima) e DUPLICAVA cada número (cores/jitter
+  // diferentes). O merge anti-stacking foi movido pra dentro de _spawnHitNumber.
   // CAP em 80 damage numbers (FIFO drop oldest). Antes: unbounded growth.
   if (game.damageNums.length > 80) {
     game.damageNums.splice(0, game.damageNums.length - 80);
@@ -24290,8 +24310,11 @@ function spawnDeathDebris(u) {
   const colors = unitColors(u);
   const x = u.x, y = u.y - 4;
   const tier = u.tier || 0;
+  // 2026-06-24 FIX (auditoria): respeita perf/reducedMotion (antes ~15-20 FX por morte SEM gate
+  // estouravam o cap de effects em horda, dropando telegraphs/skill-FX ainda relevantes).
+  const _low = (game.reducedMotion || game.perfMode || game._autoQualityLow);
   // Spray de sangue denso no impacto.
-  const bloodCount = 6 + Math.floor(Math.random() * 4);
+  const bloodCount = _low ? (2 + Math.floor(Math.random() * 2)) : (6 + Math.floor(Math.random() * 4));
   for (let i = 0; i < bloodCount; i++) {
     const a = Math.random() * Math.PI * 2;
     const spd = 40 + Math.random() * 80;
@@ -24311,7 +24334,7 @@ function spawnDeathDebris(u) {
   }
   // Chunks de armadura / pano do corpo — caem com gravidade.
   const palette = [colors.body, colors.armor, colors.armorD, colors.bodyD, colors.accent].filter(Boolean);
-  const chunkCount = 3 + Math.min(3, tier) + Math.floor(Math.random() * 2);
+  const chunkCount = _low ? (1 + Math.floor(Math.random() * 2)) : (3 + Math.min(3, tier) + Math.floor(Math.random() * 2));
   for (let i = 0; i < chunkCount; i++) {
     const a = Math.random() * Math.PI * 2;
     const spd = 30 + Math.random() * 70;
@@ -24332,7 +24355,7 @@ function spawnDeathDebris(u) {
     });
   }
   // Faíscas metálicas (armas).
-  const sparkCount = 2 + Math.floor(Math.random() * 3);
+  const sparkCount = _low ? 1 : (2 + Math.floor(Math.random() * 3));
   for (let i = 0; i < sparkCount; i++) {
     const a = Math.random() * Math.PI * 2;
     const spd = 60 + Math.random() * 50;
@@ -24352,7 +24375,7 @@ function spawnDeathDebris(u) {
     });
   }
   // Poeira ao bater no chão (leve).
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (_low ? 0 : 4); i++) {
     game.effects.push({
       type: "dirt",
       x: x + (Math.random() - 0.5) * 8,
@@ -27202,6 +27225,13 @@ function fxHitStar(x, y, crit) {
   }
   for (const d of [[0.7, -0.7], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]]) {
     game.effects.push({ type: "spark", color: core, x, y, vx: d[0] * 58, vy: d[1] * 58, lifetime: 130, maxLifetime: 130, size: 1, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; } });
+  }
+  // 2026-06-24 (auditoria): CRIT se destaca — 4 diagonais EXTRA (estrela 8-pontas) + anel branco curto.
+  if (crit) {
+    for (const d of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+      game.effects.push({ type: "spark", color: "#ffffff", x, y, vx: d[0] * 150, vy: d[1] * 150, lifetime: 200, maxLifetime: 200, size: 2, update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.86; this.vy *= 0.86; } });
+    }
+    game.effects.push({ type: "ring", x, y, radius: 2, color: "#ffffff", lifetime: 160, maxLifetime: 160, update(dt) { this.radius += dt * 0.06; } });
   }
 }
 function fxGold(x, y) {
@@ -32268,6 +32298,18 @@ function updateHazards(dt) {
             else if (u.type === "king") { if (typeof Sfx !== "undefined" && Sfx.whirlpool) Sfx.whirlpool(); }  // som do redemoinho (cooldown 900ms no Sfx)
           }
         }
+        // 2026-06-24 (auditoria): VFX de VÓRTICE — faísca de água que espirala pro centro
+        // (a sucção era invisível). Gated por perf.
+        if (!game.perfMode && !game._autoQualityLow && !game.reducedMotion) {
+          const ang = (game.time || 0) * 0.004 + Math.random() * 6.28;
+          const rr = h.radius * (0.7 + Math.random() * 0.5);
+          game.effects.push({
+            type: "spark", color: Math.random() < 0.5 ? "#7fdfff" : "#bfeaff",
+            x: h.x + Math.cos(ang) * rr, y: h.y + Math.sin(ang) * rr * 0.5,
+            _cx: h.x, _cy: h.y, lifetime: 520, maxLifetime: 520, size: 1,
+            update(dt) { this.x += (this._cx - this.x) * dt / 600; this.y += (this._cy - this.y) * dt / 600; },
+          });
+        }
       }
       continue;
     }
@@ -33990,6 +34032,13 @@ function renderHazards(camX, camY) {
 // Congela brevemente o game loop no impacto de um golpe forte.
 // A câmera e HUD continuam respondendo, mas `update()` ignora dt.
 function triggerHitStop(ms) {
+  // 2026-06-24 FIX (auditoria): COOLDOWN GLOBAL. Sem isso, em horda (dezenas de hits/s) o
+  // hit-stop reativava todo frame e o jogo ficava quase travado (o oposto de "juice").
+  // No celular/perfMode desliga de vez. Agora ~1 hit-stop a cada 220ms no máximo.
+  if (game.perfMode || game._autoQualityLow) return;
+  const now = game.time || 0;
+  if (now - (game._lastHitStopAt || -9999) < 220) return;
+  game._lastHitStopAt = now;
   if (!game.hitStop || ms > game.hitStop) game.hitStop = ms;
 }
 
@@ -45995,8 +46044,10 @@ function _spriteTouchesEdge(id) {
 
 function _spriteBucket(t, pose) {
   if (pose.attackProg > 0) {
-    const k = Math.min(2, (pose.attackProg * 3) | 0);
-    return { bucket: "a" + k, attackProg: (k + 0.5) / 3, walking: false, tFix: 0 };
+    // 2026-06-24 FIX (auditoria): 3→6 fases. Com 6, os buckets das pontas (prog ~0.083/0.917)
+    // têm swing<0.3 = espada na ANTECIPAÇÃO/RECUPERAÇÃO (antes as 3 poses ficavam no meio do golpe).
+    const k = Math.min(5, (pose.attackProg * 6) | 0);
+    return { bucket: "a" + k, attackProg: (k + 0.5) / 6, walking: false, tFix: 0 };
   }
   if (pose.walking) {
     const period = 2 * Math.PI * 100;                  // ciclo de legSwing = sin(t/100)
@@ -46004,7 +46055,12 @@ function _spriteBucket(t, pose) {
     const k = Math.min(7, (phase / period * 8) | 0);
     return { bucket: "w" + k, attackProg: 0, walking: true, tFix: (k + 0.5) / 8 * period };
   }
-  return { bucket: "i", attackProg: 0, walking: false, tFix: 0 };
+  // 2026-06-24 FIX (auditoria): idle QUANTIZADO em 4 fases de respiração (antes tFix=0 fixo →
+  // unidades paradas não "respiravam" e o Ogro ficava de olhos FECHADOS pra sempre).
+  const iperiod = 2 * Math.PI * 500;                   // ciclo de breathe = sin(t/500)
+  const iphase = ((t % iperiod) + iperiod) % iperiod;
+  const ik = Math.min(3, (iphase / iperiod * 4) | 0);
+  return { bucket: "i" + ik, attackProg: 0, walking: false, tFix: (ik + 0.5) / 4 * iperiod };
 }
 
 function _spriteCacheKey(u, b) {
@@ -46059,9 +46115,13 @@ function _renderSpriteToCache(key, u, b, colors) {
 
 // Desenha o CORPO do sprite via cache. Retorna true se desenhou (cache); false se o
 // chamador deve desenhar direto (flag off / estado dinâmico / falha do render-to-cache).
+// 2026-06-24 FIX (auditoria): classes cujo DRAWER tem VFX contínuo embutido (teia/aura girando
+// via game.time) NÃO podem ser cacheadas — o cache congela a animação. Desenham sempre direto.
+const _SPRITE_CACHE_BLOCK = { necroSpider: true };
 function drawUnitBodyCached(sx, sy, t, u, colors, pose) {
   if (game._spriteCache === false) return false;
   if (u.flashTime > 0 || u.frozen > 0) return false;
+  if (u.unitClass && _SPRITE_CACHE_BLOCK[u.unitClass]) return false;
   const b = _spriteBucket(t, pose);
   const key = _spriteCacheKey(u, b);
   let e = _SPRITE_CACHE.get(key);
@@ -61759,6 +61819,15 @@ function drawEffect(e, camX, camY) {
     offCtx.globalAlpha = alpha * 0.8;
     drawCircleOutline(sx, sy, Math.round(e.radius), e.color || PAL.MAGIC);
     offCtx.globalAlpha = 1;
+  } else if (e.type === "shockwave") {
+    // 2026-06-24 FIX (auditoria): 18 pulsos de ult/cast usavam type:"shockwave" sem branch de
+    // render → eram INVISÍVEIS. Anima o anel de 0→maxR ao longo do lifetime.
+    const sx = Math.round(e.x - camX + BASE_W / 2);
+    const sy = Math.round(e.y - camY + BASE_H / 2);
+    const k = 1 - (e.lifetime / e.maxLifetime);   // 0→1
+    offCtx.globalAlpha = (e.lifetime / e.maxLifetime) * 0.85;
+    drawCircleOutline(sx, sy, Math.round((e.maxR || 40) * k), e.color || PAL.MAGIC);
+    offCtx.globalAlpha = 1;
   } else if (e.type === "telegraph") {
     // Etapa 9 rebalance: zona de perigo MUITO mais vis\u00edvel.
     // Combina:
@@ -72769,6 +72838,10 @@ if (_jrBtn) {
     progress.joystickMode = "fixed";
     try { saveProgress(); } catch(e) {}
     game._joyPlacing = true;
+    // 2026-06-24 FIX (auditoria): auto-cancela se o jogador não reposicionar em ~7s (senão
+    // a flag ficava presa e o próximo gesto de mover virava reposicionamento).
+    if (game._joyPlaceTimer) clearTimeout(game._joyPlaceTimer);
+    game._joyPlaceTimer = setTimeout(() => { if (game._joyPlacing) { game._joyPlacing = false; if (typeof showToast === "function") showToast("Reposição cancelada", 1200, "magic"); } }, 7000);
     if (typeof hideAllMenus === "function") hideAllMenus();
     if (typeof showToast === "function") showToast("ARRASTE O JOYSTICK PARA ONDE QUISER", 2600, "magic");
   });
