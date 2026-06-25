@@ -75,7 +75,7 @@
     PokiHelpers.init();
   </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
 <title>NecroKing</title>
 <!-- COMBO 11 H3 → Fase 18 — PWA: manifest + theme color + icons (multi-size) -->
 <meta name="theme-color" content="#d4a637">
@@ -102,7 +102,7 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-user-select:none; }
   html, body {
-    width:100%; height:100%; overflow:hidden;
+    width:100%; height:100%; height:100dvh; overflow:hidden;
     background:#0a0810;
     font-family: "Press Start 2P", "Silkscreen", ui-monospace, monospace;
     color:#d9c4a0;
@@ -204,8 +204,11 @@
   .font-title { font-family: "Press Start 2P", "Silkscreen", monospace; letter-spacing: 1px; font-weight: 700; }
   canvas#game {
     display:block;
+    position: fixed;               /* 2026-06-24 — ancora no canto da área visível */
+    top: 0; left: 0;
     width:100vw;
     height:100vh;
+    height:100dvh;                 /* dvh = área REALMENTE visível (exclui a barra do browser) → não corta */
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     cursor: none;
@@ -5392,6 +5395,11 @@
   #mobileJoystick.active #mobileJoystickKnob {
     transition: none;  /* responde direto sem lag */
   }
+  /* 2026-06-24 — modo FIXO: base/knob ficam VISÍVEIS (dim) no anchor mesmo em repouso */
+  #mobileJoystick.joy-fixed #mobileJoystickBase { opacity: 0.4; }
+  #mobileJoystick.joy-fixed #mobileJoystickKnob { opacity: 0.55; }
+  #mobileJoystick.joy-fixed.active #mobileJoystickBase { opacity: 0.92; }
+  #mobileJoystick.joy-fixed.active #mobileJoystickKnob { opacity: 1; }
 
   /* Botão Necromancia — bottom-right, 76px */
   #mobileNecroBtn {
@@ -6210,6 +6218,17 @@
         <span>MODO DE INPUT</span>
         <button class="small" id="controlsModeBtn" type="button">AUTO</button>
         <span class="value" style="font-size:8px;">desktop (mouse) / celular (joystick)</span>
+      </div>
+      <!-- 2026-06-24 — JOYSTICK do celular: flutuante (nasce onde toca) ou fixo (posição livre) -->
+      <div class="settings-row">
+        <span>JOYSTICK</span>
+        <button class="small" id="joyModeBtn" type="button">FLUTUANTE</button>
+        <span class="value" style="font-size:8px;">celular: nasce onde toca / posição fixa</span>
+      </div>
+      <div class="settings-row" id="joyRepositionRow" style="display:none;">
+        <span>POSIÇÃO</span>
+        <button class="small" id="joyRepositionBtn" type="button">REPOSICIONAR</button>
+        <span class="value" style="font-size:8px;">arraste o joystick onde quiser</span>
       </div>
       <div class="menu-buttons" style="margin-top: 28px;">
         <button class="menu-btn secondary" data-menu-action="clear-save" data-i18n="menu.clearSaves">APAGAR TODOS OS SAVES</button>
@@ -9438,6 +9457,10 @@ const DEFAULT_PROGRESS = {
   // COMBO 11 H2 — Controles remapáveis
   controlsScheme: "wasd",  // "wasd" (default) | "arrows" | "ijkl"
   controlsMode: "auto",    // 2026-06-16 REWORK V3 T2: "auto" | "desktop" | "mobile" (joystick vs mouse)
+  // 2026-06-24 — joystick do celular: posição configurável
+  joystickMode: "float",   // "float" (nasce onde toca) | "fixed" (posição fixa, arrastável)
+  joyAnchorX: 0.14,        // âncora do joystick fixo (normalizado 0-1 da tela)
+  joyAnchorY: 0.80,
   // COMBO 13 F1 — Boss Rush leaderboard
   bossRushBestTime: 0,    // segundos do melhor clear (0 = nunca terminou)
   bossRushAttempts: 0,    // total de tentativas
@@ -9611,8 +9634,12 @@ function _validateProgress(p) {
     if (typeof p[num] === "number" && !isNaN(p[num])) out[num] = p[num];
   }
   // Strings
-  for (const s of ["activeCompanion", "controlsScheme", "activeKingSkin", "controlsMode"]) {
+  for (const s of ["activeCompanion", "controlsScheme", "activeKingSkin", "controlsMode", "joystickMode"]) {
     if (typeof p[s] === "string") out[s] = p[s];
+  }
+  // 2026-06-24 — âncora do joystick fixo (normalizada 0-1)
+  for (const n of ["joyAnchorX", "joyAnchorY"]) {
+    if (typeof p[n] === "number" && p[n] >= 0 && p[n] <= 1) out[n] = p[n];
   }
   // Objects (maps)
   if (p.bossKillCounts && typeof p.bossKillCounts === "object") {
@@ -10848,13 +10875,21 @@ let offCtx = offCanvas.getContext("2d");
 offCtx.imageSmoothingEnabled = false;
 
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  // 2026-06-24 — usa o VISUAL VIEWPORT (área REALMENTE visível) em vez de innerWidth/Height.
+  // No celular, innerHeight inclui a área atrás da barra do browser → o fundo da tela (cartas,
+  // joystick) ficava CORTADO. visualViewport reflete o que o usuário vê de fato.
+  const vp = window.visualViewport;
+  const vw = Math.round(vp ? vp.width : window.innerWidth);
+  const vh = Math.round(vp ? vp.height : window.innerHeight);
+  canvas.style.width = vw + "px";
+  canvas.style.height = vh + "px";
+  canvas.width = vw;
+  canvas.height = vh;
   ctx.imageSmoothingEnabled = false;
   // 2026-06-14: FOV maior no celular. Em telas baixas (celular em paisagem, ~360–450px de
   // altura) usamos escala 2 → mostra ~50% mais de mundo em cada eixo (o Rei via "pouca área").
   // Desktop/tablet (telas altas) seguem 3 (sprites maiores). Escala inteira = pixel-art nítido.
-  PIXEL_SCALE = (window.innerHeight <= 540) ? 2 : 3;
+  PIXEL_SCALE = (vh <= 540) ? 2 : 3;
   // 2026-06-24 — CELULAR: FOV MAIOR. Força escala 2 (INTEIRA = pixel nítido, sem shimmer)
   // mesmo em RETRATO (onde era 3 e via pouca área: ~133 un. de largura → 200, +50% de mundo).
   // SÓ no celular (classe is-mobile); PC/desktop seguem 3/2 inalterados.
@@ -10866,7 +10901,17 @@ function resize() {
   offCtx.imageSmoothingEnabled = false;
 }
 window.addEventListener("resize", resize);
+// 2026-06-24 — no celular a barra do browser aparece/some DEPOIS do load e em orientationchange,
+// e nem sempre dispara "resize". Ouve o visualViewport + orientationchange + re-resizes tardios
+// pra garantir que a tela inteira fique visível (nada cortado).
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", resize);
+  window.visualViewport.addEventListener("scroll", resize);
+}
+window.addEventListener("orientationchange", () => { resize(); setTimeout(resize, 200); setTimeout(resize, 500); });
+window.addEventListener("load", () => setTimeout(resize, 100));
 resize();
+setTimeout(resize, 300); setTimeout(resize, 900);
 
 /* ============================================================
    INPUT
@@ -11197,46 +11242,57 @@ canvas.addEventListener("touchcancel", (e) => {
   const base = document.getElementById("mobileJoystickBase");
   const knob = document.getElementById("mobileJoystickKnob");
   if (joy && knob && base) {
-    // 2026-06-23 — JOYSTICK FLUTUANTE: nasce ONDE o dedo toca (zona = metade esquerda da
-    // tela) e SEGUE o dedo se arrastar além do raio. base/knob são position:fixed movidos
-    // por left/top. Padrão recomendado p/ mobile (floating + re-center, segue o polegar).
+    // 2026-06-24 — JOYSTICK configurável (via configs): FLUTUANTE (nasce onde o dedo toca e
+    // segue o dedo) OU FIXO (posição fixa que o usuário arrasta pra ONDE QUISER pelo botão
+    // "REPOSICIONAR" das configurações). base/knob são position:fixed movidos por left/top.
     const JOY_RADIUS = 52;        // raio máx de deslocamento do knob
     const JOY_DEADZONE = 0.20;    // ignora movimento abaixo de 20% (anti-drift)
     let joyTouchId = null;
-    let joyCx = 0, joyCy = 0;     // centro ATUAL da base (pode seguir o dedo)
+    let joyCx = 0, joyCy = 0;     // centro ATUAL da base
+    let _repos = false;           // arrastando pra REPOSICIONAR (modo placement)
 
+    const _joyMode = () => (typeof progress !== "undefined" && progress && progress.joystickMode) || "float";
+    const _anchorPx = () => ({
+      x: ((typeof progress !== "undefined" && progress && typeof progress.joyAnchorX === "number") ? progress.joyAnchorX : 0.14) * window.innerWidth,
+      y: ((typeof progress !== "undefined" && progress && typeof progress.joyAnchorY === "number") ? progress.joyAnchorY : 0.80) * window.innerHeight,
+    });
     const _placeBase = () => { base.style.left = joyCx + "px"; base.style.top = joyCy + "px"; };
     const _placeKnob = (nx, ny) => { knob.style.left = (joyCx + nx) + "px"; knob.style.top = (joyCy + ny) + "px"; };
+    const _resetJoy = () => { input.keys.w = input.keys.a = input.keys.s = input.keys.d = false; };
 
-    const _resetJoy = () => {
-      input.keys.w = input.keys.a = input.keys.s = input.keys.d = false;
+    // Mostra a base FIXA em repouso (modo fixo) ou esconde (flutuante). Chamado no boot, no
+    // resize e quando o toggle das configs muda o modo (window._refreshJoystickMode).
+    const _refreshFixedBase = () => {
+      if (_joyMode() === "fixed" && !_repos) {
+        const a = _anchorPx(); joyCx = a.x; joyCy = a.y; _placeBase(); _placeKnob(0, 0);
+        joy.classList.add("joy-fixed");
+      } else {
+        joy.classList.remove("joy-fixed");
+      }
     };
+    window.addEventListener("resize", _refreshFixedBase);
+    window._refreshJoystickMode = _refreshFixedBase;
+    setTimeout(_refreshFixedBase, 60);
 
     const _updateJoy = (clientX, clientY) => {
       let dx = clientX - joyCx, dy = clientY - joyCy;
       let dist = Math.sqrt(dx*dx + dy*dy);
-      // FLUTUANTE: passou do raio → a BASE segue o dedo (não fica fixa).
       if (dist > JOY_RADIUS) {
-        const over = dist - JOY_RADIUS;
-        joyCx += (dx / dist) * over;
-        joyCy += (dy / dist) * over;
-        dx = clientX - joyCx; dy = clientY - joyCy;
-        dist = JOY_RADIUS;
-        _placeBase();
+        if (_joyMode() === "float") {   // FLUTUANTE: a base segue o dedo
+          const over = dist - JOY_RADIUS;
+          joyCx += (dx / dist) * over; joyCy += (dy / dist) * over;
+          dx = clientX - joyCx; dy = clientY - joyCy; dist = Math.sqrt(dx*dx + dy*dy);
+          _placeBase();
+        }
+        const k = JOY_RADIUS / (dist || 1);   // clampa o knob ao raio (ambos os modos)
+        dx *= k; dy *= k; dist = JOY_RADIUS;
       }
       _placeKnob(dx, dy);
-      // Converte em teclas WASD com deadzone
       const normMag = Math.min(1, dist / JOY_RADIUS);
-      if (normMag < JOY_DEADZONE) {
-        input.keys.w = input.keys.a = input.keys.s = input.keys.d = false;
-        return;
-      }
+      if (normMag < JOY_DEADZONE) { input.keys.w = input.keys.a = input.keys.s = input.keys.d = false; return; }
       const cos = dx / (dist || 1), sin = dy / (dist || 1);
-      // Cardinal split: ativa tecla se componente > 0.4 (permite diagonais)
-      input.keys.d = cos > 0.40;
-      input.keys.a = cos < -0.40;
-      input.keys.s = sin > 0.40;
-      input.keys.w = sin < -0.40;
+      input.keys.d = cos > 0.40; input.keys.a = cos < -0.40;
+      input.keys.s = sin > 0.40; input.keys.w = sin < -0.40;
     };
 
     joy.addEventListener("touchstart", (e) => {
@@ -11244,10 +11300,17 @@ canvas.addEventListener("touchcancel", (e) => {
       e.preventDefault();
       const t = e.changedTouches[0];
       joyTouchId = t.identifier;
-      joyCx = t.clientX; joyCy = t.clientY;   // base NASCE no ponto tocado
+      // MODO REPOSICIONAR (armado nas configs): o arraste POSICIONA o joystick (não move o Rei).
+      if (game._joyPlacing) {
+        _repos = true; joyCx = t.clientX; joyCy = t.clientY;
+        _placeBase(); _placeKnob(0, 0); joy.classList.add("active", "joy-fixed");
+        return;
+      }
+      if (_joyMode() === "fixed") { const a = _anchorPx(); joyCx = a.x; joyCy = a.y; }  // base no anchor fixo
+      else { joyCx = t.clientX; joyCy = t.clientY; }                                     // flutuante: nasce no toque
       _placeBase(); _placeKnob(0, 0);
       joy.classList.add("active");
-      try { if (navigator.vibrate) navigator.vibrate(8); } catch (er) {}  // feedback no toque (limiar)
+      try { if (navigator.vibrate) navigator.vibrate(8); } catch (er) {}
       _updateJoy(t.clientX, t.clientY);
     }, { passive: false });
 
@@ -11255,7 +11318,8 @@ canvas.addEventListener("touchcancel", (e) => {
       e.preventDefault();
       for (const tc of e.changedTouches) {
         if (tc.identifier === joyTouchId) {
-          _updateJoy(tc.clientX, tc.clientY);
+          if (_repos) { joyCx = tc.clientX; joyCy = tc.clientY; _placeBase(); _placeKnob(0, 0); }
+          else _updateJoy(tc.clientX, tc.clientY);
           break;
         }
       }
@@ -11263,14 +11327,24 @@ canvas.addEventListener("touchcancel", (e) => {
 
     const _endJoy = (e) => {
       let ended = false;
-      for (const tc of e.changedTouches) {
-        if (tc.identifier === joyTouchId) { ended = true; break; }
-      }
+      for (const tc of e.changedTouches) { if (tc.identifier === joyTouchId) { ended = true; break; } }
       if (!ended) return;
       e.preventDefault();
       joyTouchId = null;
       joy.classList.remove("active");
       _resetJoy();
+      if (_repos) {
+        _repos = false;
+        try {
+          progress.joyAnchorX = Math.max(0.04, Math.min(0.96, joyCx / window.innerWidth));
+          progress.joyAnchorY = Math.max(0.10, Math.min(0.95, joyCy / window.innerHeight));
+          progress.joystickMode = "fixed";
+          if (typeof saveProgress === "function") saveProgress();
+        } catch (er) {}
+        game._joyPlacing = false;
+        if (typeof showToast === "function") showToast("✓ JOYSTICK POSICIONADO", 1400, "good");
+      }
+      _refreshFixedBase();
     };
     joy.addEventListener("touchend", _endJoy, { passive: false });
     joy.addEventListener("touchcancel", _endJoy, { passive: false });
@@ -72497,6 +72571,14 @@ function refreshSettingsMenu() {
     const md = progress.controlsMode || "auto";
     cmBtn.textContent = md === "auto" ? ("AUTO (" + (effectiveControlsMode() === "mobile" ? "CELULAR" : "DESKTOP") + ")") : (md === "desktop" ? "DESKTOP" : "CELULAR");
   }
+  // 2026-06-24 — joystick (celular): modo flutuante/fixo + linha de reposição
+  const jmBtn = document.getElementById("joyModeBtn");
+  if (jmBtn) {
+    const jm = progress.joystickMode || "float";
+    jmBtn.textContent = jm === "fixed" ? "FIXO" : "FLUTUANTE";
+    const rrow = document.getElementById("joyRepositionRow");
+    if (rrow) rrow.style.display = (jm === "fixed") ? "flex" : "none";
+  }
   document.getElementById("settingsInfo").textContent = "";
   // 2026-05-11 — Atualiza label do botao IDIOMA com a lingua atual
   try {
@@ -72626,6 +72708,27 @@ if (_cmBtn) {
     try { saveProgress(); } catch(e) {}
     if (typeof applyControlsMode === "function") applyControlsMode();
     refreshSettingsMenu();
+  });
+}
+// 2026-06-24 — joystick: alterna flutuante/fixo
+const _jmBtn = document.getElementById("joyModeBtn");
+if (_jmBtn) {
+  _jmBtn.addEventListener("click", () => {
+    progress.joystickMode = (progress.joystickMode === "fixed") ? "float" : "fixed";
+    try { saveProgress(); } catch(e) {}
+    if (typeof window._refreshJoystickMode === "function") window._refreshJoystickMode();
+    refreshSettingsMenu();
+  });
+}
+// 2026-06-24 — joystick: arma a REPOSIÇÃO (fecha o menu; o próximo arraste posiciona o joystick)
+const _jrBtn = document.getElementById("joyRepositionBtn");
+if (_jrBtn) {
+  _jrBtn.addEventListener("click", () => {
+    progress.joystickMode = "fixed";
+    try { saveProgress(); } catch(e) {}
+    game._joyPlacing = true;
+    if (typeof hideAllMenus === "function") hideAllMenus();
+    if (typeof showToast === "function") showToast("ARRASTE O JOYSTICK PARA ONDE QUISER", 2600, "magic");
   });
 }
 
