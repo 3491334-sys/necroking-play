@@ -5329,24 +5329,27 @@
   /* 2026-06-24 — HUD MÍNIMO no celular (user: "diminua AINDA MAIS / minimize as infos").
      Mostra SÓ o essencial: barras HP/Mana finas (sem avatar/nome/tier/moldura), minimapa
      pequeno e moedas. Esconde tempo, exército, objetivo. Tudo recua um pouco (opacity). */
-  html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.5) !important; transform-origin: top left !important;
-    background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 0.92 !important; }
+  /* 2026-06-24 — vitals HP/Mana um POUCO maiores (0.5→0.58, pedido do user) */
+  html.is-mobile #hud { top: 8px !important; left: 8px !important; transform: scale(0.58) !important; transform-origin: top left !important;
+    background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 0.95 !important; }
   html.is-mobile .vitals-avatar { display: none !important; }   /* sem avatar (minimal) */
   html.is-mobile .vitals-header { display: none !important; }   /* sem nome/TIER (minimal) */
   html.is-mobile #objectivePill { display: none !important; }   /* corredor/covil é óbvio → tira poluição */
-  /* MINIMAPA pequeno e limpo (sem moldura gótica nem label) */
-  html.is-mobile #minimapContainer { top: 6px !important; right: 6px !important; width: 68px !important; height: 68px !important; transform: none !important; opacity: 0.92 !important; }
-  html.is-mobile #minimapGothic { display: none !important; }
-  html.is-mobile #minimapLabel { display: none !important; }
-  html.is-mobile #minimapWrap { left: 0 !important; top: 0 !important; width: 68px !important; height: 68px !important; }
-  /* META: SÓ MOEDAS (esconde tempo/exército/tier), sem moldura, pequeno, abaixo do minimapa */
-  html.is-mobile #topright { top: 78px !important; right: 4px !important; transform: scale(0.5) !important; transform-origin: top right !important;
+  /* 2026-06-24 — MINIMAPA REMOVIDO no celular (pedido do user) */
+  html.is-mobile #minimapContainer { display: none !important; }
+  /* META: SÓ MOEDAS (esconde tempo/exército/tier), sem moldura, no canto sup-direito (minimapa saiu) */
+  html.is-mobile #topright { top: 6px !important; right: 6px !important; transform: scale(0.5) !important; transform-origin: top right !important;
     background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 0.9 !important; }
   html.is-mobile #topright::before, html.is-mobile #topright::after { display: none !important; }
   html.is-mobile #timeRow, html.is-mobile #tierRow, html.is-mobile #armyRow, html.is-mobile #tierBar, html.is-mobile #questTracker { display: none !important; }
   html.is-mobile #comboCount { font-size: 15px !important; }
-  /* pause à ESQUERDA do minimapa de 68px */
-  html.is-mobile #mobilePauseBtn { top: 8px !important; right: 82px !important; bottom: auto !important; width: 40px !important; height: 40px !important; opacity: 0.85 !important; }
+  /* pause no canto sup-direito (minimapa removido); fica à direita das moedas */
+  html.is-mobile #mobilePauseBtn { top: 6px !important; right: 6px !important; bottom: auto !important; width: 40px !important; height: 40px !important; opacity: 0.85 !important; }
+  html.is-mobile #topright { right: 52px !important; }   /* moedas à esquerda do pause */
+  /* 2026-06-24 — FIX: cartas ACIMA da zona do joystick (z 800) e do botão revive — antes
+     a zona/botão cobriam as cartas da esquerda/direita e SÓ a do meio funcionava. */
+  html.is-mobile #cards { z-index: 960 !important; pointer-events: none !important; }
+  html.is-mobile #cards .card { pointer-events: auto !important; }   /* só as cartas captam; gaps passam pro campo */
   /* ============================================================ */
   body.menu-active #objectivePill { display: none !important; }
 
@@ -11259,6 +11262,18 @@ canvas.addEventListener("touchcancel", (e) => {
     const _placeBase = () => { base.style.left = joyCx + "px"; base.style.top = joyCy + "px"; };
     const _placeKnob = (nx, ny) => { knob.style.left = (joyCx + nx) + "px"; knob.style.top = (joyCy + ny) + "px"; };
     const _resetJoy = () => { input.keys.w = input.keys.a = input.keys.s = input.keys.d = false; };
+    let _tapStart = null;        // 2026-06-24 — detecta TAP (vs drag) pra ordem de rally/ataque
+    // TAP no campo (sem arrastar) = ordem de RALLY/ATAQUE (igual ao clique do PC): marca
+    // input.leftClicked na posição tocada → a lógica de alvo/waypoint (21407) roda no próximo frame.
+    const _rallyTapAt = (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      input.mouse.sx = clientX - rect.left; input.mouse.sy = clientY - rect.top;
+      input.mouse.bx = input.mouse.sx / PIXEL_SCALE; input.mouse.by = input.mouse.sy / PIXEL_SCALE;
+      input.mouse.wx = input.mouse.bx - BASE_W / 2 + game.camera.x;
+      input.mouse.wy = input.mouse.by - BASE_H / 2 + game.camera.y;
+      input.leftClicked = true;
+      input.leftDown = true; setTimeout(() => { input.leftDown = false; }, 50);
+    };
 
     // Mostra a base FIXA em repouso (modo fixo) ou esconde (flutuante). Chamado no boot, no
     // resize e quando o toggle das configs muda o modo (window._refreshJoystickMode).
@@ -11306,6 +11321,7 @@ canvas.addEventListener("touchcancel", (e) => {
         _placeBase(); _placeKnob(0, 0); joy.classList.add("active", "joy-fixed");
         return;
       }
+      _tapStart = { t: (typeof performance !== "undefined" ? performance.now() : Date.now()), x: t.clientX, y: t.clientY };
       if (_joyMode() === "fixed") { const a = _anchorPx(); joyCx = a.x; joyCy = a.y; }  // base no anchor fixo
       else { joyCx = t.clientX; joyCy = t.clientY; }                                     // flutuante: nasce no toque
       _placeBase(); _placeKnob(0, 0);
@@ -11343,7 +11359,20 @@ canvas.addEventListener("touchcancel", (e) => {
         } catch (er) {}
         game._joyPlacing = false;
         if (typeof showToast === "function") showToast("✓ JOYSTICK POSICIONADO", 1400, "good");
+      } else if (_tapStart) {
+        // TAP rápido (não-drag) no modo FLUTUANTE → ordem de RALLY/ATAQUE no ponto tocado.
+        // (No fixo, tocar longe do anchor já é "mover", então não vira tap.)
+        const tc = e.changedTouches[0] || {};
+        const nowT = (typeof performance !== "undefined" ? performance.now() : Date.now());
+        const ex = (typeof tc.clientX === "number") ? tc.clientX : _tapStart.x;
+        const ey = (typeof tc.clientY === "number") ? tc.clientY : _tapStart.y;
+        const moved = Math.hypot(ex - _tapStart.x, ey - _tapStart.y);
+        if (_joyMode() === "float" && (nowT - _tapStart.t) < 260 && moved < 16 && !game._joyPlacing &&
+            (typeof _hasFullScreenOverlay !== "function" || !_hasFullScreenOverlay())) {
+          _rallyTapAt(_tapStart.x, _tapStart.y);
+        }
       }
+      _tapStart = null;
       _refreshFixedBase();
     };
     joy.addEventListener("touchend", _endJoy, { passive: false });
@@ -35786,8 +35815,9 @@ function render() {
   // Lua durante a noite (depois do overlay pra ficar BRILHANTE acima do tint)
   drawMoon(camX, camY);
 
-  // Cursor
-  drawCursor(input.mouse.bx, input.mouse.by);
+  // Cursor — 2026-06-24: NÃO desenha no celular (não há mouse; aparecia parado no último
+  // toque). Só no desktop/mouse.
+  if (!document.documentElement.classList.contains("is-mobile")) drawCursor(input.mouse.bx, input.mouse.by);
 
   // 2026-05-02 COMBO 52 (Audit Fase 3 — A8): FLASH SCREEN OVERLAY
   // Aplicado no offCanvas ANTES do blit pra ser escalado junto com o resto.
