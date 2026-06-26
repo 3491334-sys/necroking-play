@@ -5431,6 +5431,34 @@
     box-shadow: 0 0 24px rgba(200,140,255,0.85), 0 2px 4px rgba(0,0,0,0.6);
   }
 
+  /* MODO TESTE — pílula "CARTAS" no topo-centro: abre a troca de cartas grátis sob demanda.
+     Só aparece quando o modo teste está ligado E não há menu aberto. Vale em celular e PC. */
+  #testDeckBtn {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 951;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(60,30,110,0.96), rgba(28,12,54,0.96));
+    border: 2px solid #8a5cff;
+    color: #d9c4ff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(138,92,255,0.5), 0 3px 8px rgba(0,0,0,0.5);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  body.test-mode-on:not(.menu-active) #testDeckBtn { display: flex; }
+  #testDeckBtn:active { transform: translateX(-50%) scale(0.94); }
+
   /* Botão Pause — top-right, 56px */
   #mobilePauseBtn {
     position: fixed;
@@ -5746,6 +5774,8 @@
       <path d="M9.5 15 Q12 16.5 14.5 15" stroke="#3a0850" stroke-width="1" fill="none"/>
     </svg>
   </button>
+  <!-- MODO TESTE — botão de troca de cartas sob demanda (celular + PC, só no modo teste) -->
+  <button id="testDeckBtn" type="button" aria-label="Trocar cartas (modo teste)">🃏 CARTAS</button>
   <!-- Botão Pause (top-right) -->
   <button id="mobilePauseBtn" class="mobile-only" type="button" aria-label="Pausa">
     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
@@ -5857,6 +5887,9 @@
         <button class="menu-btn" data-menu-action="open-codex" data-i18n="menu.codex">CODEX</button>
         <button class="menu-btn" data-menu-action="open-settings" data-i18n="menu.settings">CONFIGURAÇÕES</button>
         <button class="menu-btn" data-menu-action="open-credits" data-i18n="menu.credits">CRÉDITOS</button>
+        <!-- MODO TESTE — sandbox de sessão: todas as cartas liberadas, mana/cooldown livres.
+             Não toca no save. Aparece em celular e PC (botão de menu é compartilhado). -->
+        <button class="menu-btn" data-menu-action="test-mode" style="border-color:#8a5cff; color:#cbb0ff;">🧪 MODO TESTE</button>
         <!-- Fase 18 — PWA install prompt (só aparece quando browser dispara beforeinstallprompt) -->
         <button class="menu-btn" id="pwaInstallBtn" style="display:none; background:linear-gradient(180deg,#3a2858,#1a1028);" data-i18n="menu.installApp">📱 INSTALAR APP</button>
         <button class="menu-btn" data-menu-action="exit" data-i18n="menu.exit">SAIR</button>
@@ -11154,6 +11187,9 @@ canvas.addEventListener("touchstart", (e) => {
   _touchState.startTime = performance.now();
   _touchState.fired = false;
   _touchState.movedTooMuch = false;
+  // MODO CELULAR: lembra se já havia feitiço armado no início do gesto — usado no touchend
+  // pra decidir se um ARRASTO de mira deve lançar ao soltar.
+  _touchState.armedAtStart = !!game.armedSpell;
   _updateMouseFromTouch(t);
 
   // Long-press timer: dispara como right-click depois de 500ms se não moveu/soltou
@@ -11217,6 +11253,14 @@ canvas.addEventListener("touchend", (e) => {
       setTimeout(() => { input.leftDown = false; }, 50);
     }
   } else {
+    // MODO CELULAR — se um feitiço estava armado ao começar o gesto e o jogador ARRASTOU pra
+    // mirar, soltar o dedo LANÇA no ponto final (antes, arrastar com feitiço armado não conjurava).
+    if (_touchState.armedAtStart && _touchState.movedTooMuch && game.armedSpell && !_hasFullScreenOverlay()) {
+      let _et = null;
+      for (const tc of e.changedTouches) { if (tc.identifier === _touchState.currentId) { _et = tc; break; } }
+      if (_et) _updateMouseFromTouch(_et);
+      input.leftClicked = true;
+    }
     // Drag/long-press: solta os botões
     input.leftDown = false;
     input.rightDown = false;
@@ -11224,6 +11268,7 @@ canvas.addEventListener("touchend", (e) => {
 
   _touchState.currentId = null;
   _touchState.fired = false;
+  _touchState.armedAtStart = false;
 }, { passive: false });
 
 canvas.addEventListener("touchcancel", (e) => {
@@ -11282,7 +11327,9 @@ canvas.addEventListener("touchcancel", (e) => {
       input.leftDown = true; setTimeout(() => { input.leftDown = false; }, 50);
       // 2026-06-24 (auditoria): marcador visual no ponto tocado (confirma a ordem no celular).
       // Anel dourado que CONTRAI pra dentro (estilo "vá aqui" de RTS).
-      if (Array.isArray(game.effects)) {
+      // NÃO mostra o anel "vá aqui" com feitiço armado — aí o toque é CONJURAÇÃO (FX próprio),
+      // não ordem de mover o exército.
+      if (!game.armedSpell && Array.isArray(game.effects)) {
         game.effects.push({ type: "ring", x: input.mouse.wx, y: input.mouse.wy, radius: 15, _tr: 2, color: "#ffe0a0", lifetime: 300, maxLifetime: 300, size: 1, update(dt) { this.radius += (this._tr - this.radius) * dt / 220; } });
       }
     };
@@ -28526,6 +28573,9 @@ const SPELL_DATA = [
 
 function unlockedSpells() {
   const b = game.bonuses || computeBonuses();
+  // MODO TESTE (sessão — nunca persiste em progress): libera TODAS as cartas tanto no
+  // pool da tela de pick quanto na troca in-run. Chokepoint único do sistema de unlock.
+  if (typeof game !== "undefined" && game && game._testAllCards) return SPELL_DATA.slice();
   return SPELL_DATA.filter(s => s.unlocked(b));
 }
 
@@ -28748,7 +28798,7 @@ function buildStartingCardsFromIds(ids) {
     if (picked.length >= 3) break;
     const spell = SPELL_DATA.find(s => s.id === id);
     if (!spell) continue;
-    if (!spell.unlocked(game.bonuses)) continue;
+    if (!(game && game._testAllCards) && !spell.unlocked(game.bonuses)) continue;
     seen.add(id);
     picked.push({ spellId: id });
   }
@@ -29048,7 +29098,12 @@ let pickDrag = null;
 
 // Ponto de entrada único da tela de pick. Usado pelo botão "NOVA PARTIDA"
 // (tanto do startMenu quanto do gameover).
-function openCardPickFlow() {
+function openCardPickFlow(opts) {
+  // MODO TESTE (sessão): liga/desliga aqui pra cobrir TODOS os pontos de entrada da tela
+  // de pick (endless, campanha, região, boss rush, gameover) num único chokepoint. Só fica
+  // ligado quando explicitamente chamado com {testMode:true}; qualquer run normal o desliga.
+  game._testAllCards = !!(opts && opts.testMode);
+  document.body.classList.toggle("test-mode-on", !!game._testAllCards);
   // 2026-06-12 FIX (audit): NOVA PARTIDA do gameover chamava isto direto sem zerar os
   // flags de modo extra — morrer em Boss Rush/Survival/Daily e clicar NOVA PARTIDA
   // reiniciava no MESMO modo (e queimava tentativa do Daily). Reset centralizado aqui
@@ -29604,12 +29659,12 @@ function tryCastCardInSlot(slotIdx, wx, wy) {
     manaMult *= (1 - echoDiscount);
   }
   const manaCost = Math.max(1, Math.ceil(spell.cost * manaMult));
-  if (game.king.mana < manaCost) {
+  if (!game._testAllCards && game.king.mana < manaCost) {
     Sfx.deny();
     showToast("SEM MANA", 600, "danger");
     return;
   }
-  game.king.mana -= manaCost;
+  if (!game._testAllCards) game.king.mana -= manaCost;
   // 2026-05-03 COMBO 57 — anima pose de conjuração no Rei (cetro elevado +
   // brilho extra no topo + sparkles ao redor) por 600ms. Usa timestamp absoluto
   // pra dispensar tick (drawKing lê game.time vs _castAnimEndT).
@@ -29662,6 +29717,8 @@ function tryCastCardInSlot(slotIdx, wx, wy) {
     cdMs = 0;
     showToast(skipCd ? "✦ TOMO ETERNO ✦" : "✦ VAZIO ABERTO ✦", 1200, "magic");
   }
+  // MODO TESTE: cooldown zero (recast instantâneo pra testar cada carta sem esperar).
+  if (game._testAllCards) cdMs = 0;
   game.cardCooldowns[slotIdx] = { endAt: now + cdMs, total: cdMs, spellId: card.spellId, castAt: now };
   // Desarma automaticamente (não faz sentido manter armada a carta em CD).
   if (game.armedSpell && game.armedSpell.kind === "spell" && game.armedSpell.slotIdx === slotIdx) {
@@ -29706,6 +29763,7 @@ function armSpellSlot(slotIdx) {
     return;
   }
   game.armedSpell = { kind: "spell", slotIdx, armedAt: game.time || 0 };
+  if (document.documentElement.classList.contains("is-mobile")) _mobileDefaultAimInFrontOfKing();
   const name = (typeof getCardName === "function") ? getCardName(card.spellId) : (CARD_NAMES[card.spellId] || card.spellId.toUpperCase());
   const _castMsg = _currentLang === "en" ? " — CLICK TO CAST" : _currentLang === "es" ? " — CLIC PARA LANZAR" : " — CLIQUE PARA LANÇAR";
   showToast("◈ " + name + _castMsg, 1500, "magic");
@@ -29734,6 +29792,7 @@ function armNecromanciaCard() {
     return;
   }
   game.armedSpell = { kind: "necro", armedAt: game.time || 0 };
+  if (document.documentElement.classList.contains("is-mobile")) _mobileDefaultAimInFrontOfKing();
   showToast("◈ NECROMANCIA — CLIQUE PARA RITUAR", 1500, "magic");
   renderSpellBar();
   updateCastCancelBtn();
@@ -29744,6 +29803,21 @@ function disarmSpell() {
   game.armedSpell = null;
   renderSpellBar();
   updateCastCancelBtn();
+}
+
+// MODO CELULAR — ao armar um feitiço por TOQUE, posiciona o ponto de mira ~70px à frente do
+// Rei pra o preview de área aparecer IMEDIATAMENTE (sem isso ficaria no último ponto tocado /
+// canto da tela). Inverte a fórmula de input.mouse.wx/wy (no update loop) pra o ponto
+// sobreviver ao recálculo do próximo frame. No-op se não houver Rei/câmera. PC não chama isto.
+function _mobileDefaultAimInFrontOfKing() {
+  if (!game.king || !game.camera) return;
+  const dir = game.king.facing === "left" ? -1 : 1;
+  const wx = game.king.x + dir * 70;
+  const wy = game.king.y;
+  input.mouse.wx = wx;
+  input.mouse.wy = wy;
+  input.mouse.bx = wx - game.camera.x + BASE_W / 2;
+  input.mouse.by = wy - game.camera.y + BASE_H / 2;
 }
 
 /* Etapa Y — DRAG-AND-DROP de cartas
@@ -35871,9 +35945,19 @@ function render() {
   // Lua durante a noite (depois do overlay pra ficar BRILHANTE acima do tint)
   drawMoon(camX, camY);
 
-  // Cursor — 2026-06-24: NÃO desenha no celular (não há mouse; aparecia parado no último
-  // toque). Só no desktop/mouse.
-  if (!document.documentElement.classList.contains("is-mobile")) drawCursor(input.mouse.bx, input.mouse.by);
+  // Cursor — 2026-06-24: NÃO desenha o cursor de mouse no celular (não há mouse). PORÉM, se um
+  // feitiço estiver ARMADO, o celular MOSTRA o preview de área + o reticle (indicador de mira)
+  // — antes esse indicador vivia DENTRO do drawCursor e ficava invisível no celular.
+  {
+    const _isMob = document.documentElement.classList.contains("is-mobile");
+    if (!_isMob) {
+      drawCursor(input.mouse.bx, input.mouse.by);
+    } else if (game.armedSpell) {
+      const _ax = Math.round(input.mouse.bx), _ay = Math.round(input.mouse.by);
+      drawArmedSpellPreview(_ax, _ay);
+      drawArmedCursor(_ax, _ay, game.armedSpell);
+    }
+  }
 
   // 2026-05-02 COMBO 52 (Audit Fase 3 — A8): FLASH SCREEN OVERLAY
   // Aplicado no offCanvas ANTES do blit pra ser escalado junto com o resto.
@@ -64196,7 +64280,7 @@ const MERCHANT_ITEMS = [
 // Mostra: cartas equipadas (esq) + cartas desbloqueadas e não equipadas (dir).
 // Player seleciona uma de cada lado e confirma → swap em game.cardSlots.
 let _cardSwapState = null;  // { selectedSlotIdx, selectedNewSpellId }
-function openCardSwapUI() {
+function openCardSwapUI(standalone) {
   // Verifica que tem cartas pra trocar
   const equipped = (game.cardSlots || []).filter(c => c && c.spellId);
   if (equipped.length === 0) {
@@ -64211,6 +64295,10 @@ function openCardSwapUI() {
     showToast("GRIMÓRIO VAZIO (TODAS AS CARTAS JÁ EQUIPADAS)", 1800, "danger");
     return;
   }
+  // MODO TESTE: aberto sob demanda (botão DECK) — pausa o jogo e habilita trocas ilimitadas.
+  // Só ligamos após as checagens acima pra não deixar o jogo pausado num early-return.
+  game._swapStandalone = !!standalone;
+  if (standalone) game.paused = true;
   _cardSwapState = { selectedSlotIdx: -1, selectedNewSpellId: null };
   // Cria overlay dinâmico
   let overlay = document.getElementById("cardSwapOverlay");
@@ -64227,6 +64315,8 @@ function closeCardSwapUI(refund) {
   const overlay = document.getElementById("cardSwapOverlay");
   if (overlay) overlay.style.display = "none";
   _cardSwapState = null;
+  // MODO TESTE: se foi aberto sob demanda, despausa o jogo.
+  if (game._swapStandalone) { game.paused = false; game._swapStandalone = false; }
 }
 function renderCardSwapUI() {
   const overlay = document.getElementById("cardSwapOverlay");
@@ -64235,7 +64325,7 @@ function renderCardSwapUI() {
   const unlockedIds = unlockedSpells().map(s => s.id);
   const equippedIds = equipped.filter(c => c && c.spellId).map(c => c.spellId);
   const availableNew = unlockedIds.filter(id => !equippedIds.includes(id));
-  const cost = 300;
+  const cost = game._testAllCards ? 0 : 300;
   const canAfford = (progress.coins || 0) >= cost;
   const ready = _cardSwapState.selectedSlotIdx >= 0 && _cardSwapState.selectedNewSpellId;
 
@@ -64310,7 +64400,7 @@ function renderCardSwapUI() {
     if (!canAfford) { showToast("MOEDAS INSUFICIENTES", 1000, "danger"); return; }
     // Executa troca
     progress.coins -= cost;
-    if (typeof saveProgress === "function") saveProgress();
+    if (cost > 0 && typeof saveProgress === "function") saveProgress();
     const slotIdx = _cardSwapState.selectedSlotIdx;
     const newId = _cardSwapState.selectedNewSpellId;
     const oldName = (typeof getCardName === "function") ? getCardName(game.cardSlots[slotIdx].spellId) : (CARD_NAMES[game.cardSlots[slotIdx].spellId] || game.cardSlots[slotIdx].spellId.toUpperCase());
@@ -64324,8 +64414,14 @@ function renderCardSwapUI() {
     // Marca o item como já comprado nesta run + desbloqueia botão fechar
     if (!game._merchantPurchased) game._merchantPurchased = {};
     game._merchantPurchased.swapCard = true;
-    closeCardSwapUI();
-    if (typeof renderMerchantShop === "function") renderMerchantShop();
+    if (game._swapStandalone) {
+      // MODO TESTE: mantém o painel aberto pra trocar quantas cartas quiser, de graça.
+      _cardSwapState = { selectedSlotIdx: -1, selectedNewSpellId: null };
+      renderCardSwapUI();
+    } else {
+      closeCardSwapUI();
+      if (typeof renderMerchantShop === "function") renderMerchantShop();
+    }
   });
   const cancelBtn = overlay.querySelector("[data-swap-cancel]");
   if (cancelBtn) cancelBtn.addEventListener("click", () => closeCardSwapUI());
@@ -72194,6 +72290,13 @@ function hideAllMenus() {
 }
 function showMenu(id) {
   hideAllMenus();
+  // MODO TESTE (sessão): voltar pro MENU INICIAL sempre desliga o modo teste — garante que
+  // nenhum modo iniciado direto (boss rush/survival/daily, que não passam pelo openCardPickFlow)
+  // herde a flag por engano. O fluxo de teste liga a flag DEPOIS, ao clicar "MODO TESTE".
+  if (id === "mainMenu") {
+    game._testAllCards = false;
+    try { document.body.classList.remove("test-mode-on"); } catch(e) {}
+  }
   document.getElementById(id).classList.add("show");
   game.paused = true;
   // Fix 2026-05-04: marca body com menu-active pra esconder HUD elementos da run
@@ -72859,6 +72962,20 @@ if (castCancelEl) {
   castCancelEl.addEventListener("mousedown", (e) => e.stopPropagation());
 }
 
+// MODO TESTE — botão "CARTAS": abre a troca de cartas grátis sob demanda (pausa o jogo,
+// trocas ilimitadas). Funciona em celular E PC (botão DOM clicável + tocável).
+const _testDeckBtn = document.getElementById("testDeckBtn");
+if (_testDeckBtn) {
+  const _openTestDeck = (ev) => {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (!game._testAllCards || !game.runActive) return;
+    if (typeof openCardSwapUI === "function") openCardSwapUI(true);
+  };
+  _testDeckBtn.addEventListener("click", _openTestDeck);
+  _testDeckBtn.addEventListener("touchstart", _openTestDeck, { passive: false });
+  _testDeckBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+}
+
 // ----- Stack de menu anterior para "voltar" ser contextual -----
 const menuReturnStack = [];
 
@@ -72883,6 +73000,15 @@ document.addEventListener("click", (e) => {
       _pendingModeChoice = "endless";
       refreshStartMenu();
       showMenu("startMenu");
+      break;
+    // MODO TESTE (sandbox de sessão): abre a tela de pick com TODAS as cartas liberadas e
+    // entra numa run estilo Endless. Mana/cooldown livres + troca de cartas grátis sob demanda
+    // (botão DECK). NÃO escreve em progress — reseta ao voltar pro menu / escolher modo normal.
+    case "test-mode":
+      _pendingCampaign = null;
+      _pendingModeChoice = null;
+      openCardPickFlow({ testMode: true });
+      showToast("🧪 MODO TESTE — todas as cartas, mana e cooldown livres", 2600, "magic");
       break;
     // 2026-06-15 — tap na CARTA de região (mobile) revela os níveis; pips param a propagação
     case "region-toggle": {
