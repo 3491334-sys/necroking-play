@@ -7769,7 +7769,7 @@ const BIOMES = {
     lairDark:  "#5a3e1c",
     miniColor: "#caa05c",   // cor mostrada no minimapa pra essa região
     relic: "Cetro de Ouro Desértico",
-    decoWeights: { cactus: 22, sandDune: 20, sandBones: 14, oasis: 4, palm: 10, rock: 10, sandTuft: 20 },
+    decoWeights: { cactus: 22, sandDune: 20, sandBones: 14, oasis: 4, palm: 10, rock: 10, sandTuft: 20, sandstoneRuin: 6, campfire: 2 },
   },
   gelo: {
     // 2026-04-27: paleta refeita pra parecer NEVE (branco), não água (azul).
@@ -7785,7 +7785,7 @@ const BIOMES = {
     lairDark:  "#5878a0",   // era #3a5068 (azul-escuro) → azul médio (secundário)
     miniColor: "#dceaf4",   // era #86b8d8 (azul) → branco-azulado (no minimap fica claro)
     relic: "Coroa Congelada do Lich",
-    decoWeights: { pineSnow: 22, snowMound: 22, icePillar: 14, frozenLake: 4, frozenLog: 8, rock: 10, snowTuft: 20 },
+    decoWeights: { pineSnow: 22, snowMound: 22, icePillar: 14, frozenLake: 4, frozenLog: 8, rock: 10, snowTuft: 20, runeStone: 6, frozenWarrior: 5, campfire: 2 },
   },
   inferno: {
     name: "Abismo Ígneo",
@@ -7797,7 +7797,7 @@ const BIOMES = {
     lairDark:  "#6a2010",
     miniColor: "#a8281c",
     relic: "Coração de Magma",
-    decoWeights: { charredTree: 22, obsidian: 20, lavaPool: 6, lavaRiver: 4, emberRock: 16, bonePile: 10, ashTuft: 22 },
+    decoWeights: { charredTree: 22, obsidian: 20, lavaPool: 6, lavaRiver: 4, emberRock: 16, bonePile: 10, ashTuft: 22, boneArch: 5, demonIdol: 5 },
   },
   pantano: {
     name: "Pântano Sombrio",
@@ -7809,7 +7809,7 @@ const BIOMES = {
     lairDark:  "#3a5028",
     miniColor: "#3a6630",
     relic: "Cajado do Bruxo Ancião",
-    decoWeights: { twistedTree: 22, swampPool: 6, lilyPad: 12, bigShroom: 14, vine: 16, rock: 8, swampTuft: 22 },
+    decoWeights: { twistedTree: 22, swampPool: 6, lilyPad: 12, bigShroom: 14, vine: 16, rock: 8, swampTuft: 22, witchTotem: 6, oldGraves: 4 },
   },
   cogumelo: {
     name: "Bosque dos Esporos",
@@ -7822,7 +7822,7 @@ const BIOMES = {
     lairDark:  "#4a0a5a",
     miniColor: "#b048d0",
     relic: "Coroa Micelial",
-    decoWeights: { giantMushroom: 24, redShroomCluster: 20, sporeMist: 16, sporeTuft: 22, shroomLog: 8, bigShroom: 6, rock: 6, twistedTree: 4 },
+    decoWeights: { giantMushroom: 24, redShroomCluster: 20, sporeMist: 16, sporeTuft: 22, shroomLog: 8, bigShroom: 6, rock: 6, twistedTree: 4, mushroomHouse: 5 },
   },
   // COMBO 8 A1 — CATEDRAL CAÍDA: 6º bioma, tema sagrado-corrompido (branco
   // sujo + dourado + azul-claro). Boss: Anjo Caído (movido do endless pool).
@@ -7845,7 +7845,7 @@ const BIOMES = {
     // COMBO 19 — minimap branco-pérola pra contrastar com outros biomas (pantano verde, inferno vermelho)
     miniColor: "#f0f0f8",
     relic: "Coroa de Espinhos Sagrada",
-    decoWeights: { rock: 18, brokenPillar: 24, stainedGlass: 16, sacredAltar: 10, sacredTorch: 12, twistedTree: 8, candle: 12 },
+    decoWeights: { rock: 18, brokenPillar: 24, stainedGlass: 16, sacredAltar: 10, sacredTorch: 12, twistedTree: 8, candle: 12, ruinedTower: 8, bannerPole: 5, lanternPost: 6, stoneStatue: 5 },
   },
   // 2026-06-15 — 7º bioma: ABISMO AQUÁTICO. Leito do abismo azul-petróleo, inimigos
   // aquáticos e o boss Leviatã Rei. Usado na Campanha e no Endless.
@@ -7861,7 +7861,7 @@ const BIOMES = {
     relic: "Coroa de Coral Profundo",
     // 2026-06-23 — sem 'oasis' (poça de cura do DESERTO, incoerente no abismo). Hazard
     // próprio = 'whirlpool' (redemoinho). + decos novos: âncora, lanterna abissal, baú.
-    decoWeights: { coral: 20, kelp: 20, seaAnemone: 12, seashell: 12, bubbleVent: 12, seaRock: 8, whirlpool: 8, anchorWreck: 8, anglerLure: 7, treasureChest: 3 },
+    decoWeights: { coral: 20, kelp: 20, seaAnemone: 12, seashell: 12, bubbleVent: 12, seaRock: 8, whirlpool: 8, anchorWreck: 8, anglerLure: 7, treasureChest: 3, sunkenStatue: 5, shipwreck: 3 },
   },
 };
 
@@ -8326,7 +8326,7 @@ const NEUTRAL_MINI = "#2a3420";
 // FIX (Fase pos-relics): "arqueiro"/"lanceiro" eram typos \u2014 CLASSES usa "archer"/"lancer".
 // Sem esse fix, T2 nunca spawnava no bioma neutro (s\u00f3 T1/T3/T4).
 const NEUTRAL_ENEMIES = ["bandido", "soldado", "archer", "lancer", "capitao", "musketeer", "ceifeiro", "ogro"];
-const NEUTRAL_DECO_WEIGHTS = { tree: 34, grass: 24, bush: 16, berry: 8, mushroom: 8, flower: 8, log: 6, rock: 6, stump: 4 };
+const NEUTRAL_DECO_WEIGHTS = { tree: 34, grass: 24, bush: 16, berry: 8, mushroom: 8, flower: 8, log: 6, rock: 6, stump: 4, ruinedTower: 3, stoneStatue: 3, oldGraves: 4, campfire: 2, bannerPole: 2, lanternPost: 2, runeStone: 1 };
 
 // Raio ao redor da origem (0,0) onde o mapa é neutro.
 // Etapa Z6: bioma neutro aumentado de 700 → 980 (+40% de raio, ~+96% de área).
@@ -13217,13 +13217,16 @@ function makeAlly(x, y, unitClass = "soldado") {
 // FEEDBACK 2026-07-02 (R4) — KITS de landmark: cada bioma tem 2-3 set-pieces
 // que se alternam ao longo do corredor (antes era 1 tipo repetido como metrônomo).
 const BIOME_LANDMARK = {
-  deserto:  ["desertTent", "oasis", "palm"],
-  gelo:     ["igloo", "icePillar", "frozenLake"],
-  inferno:  ["volcano", "obsidian", "lavaPool"],
-  pantano:  ["swampHut", "swampPool", "bigShroom"],
-  cogumelo: ["giantMushroom", "bigShroom", "twistedTree"],
-  catedral: ["sacredAltar"],
-  aquatico: ["whaleSkeleton"],
+  // FEEDBACK R7 (2026-07-02) — kits estendidos com as construções novas; catedral/
+  // aquático deixam de ter kit de 1 só. "shipwreck" era case órfão — wireado aqui.
+  deserto:  ["desertTent", "oasis", "palm", "sandstoneRuin"],
+  gelo:     ["igloo", "icePillar", "frozenLake", "runeStone"],
+  inferno:  ["volcano", "obsidian", "lavaPool", "boneArch"],
+  pantano:  ["swampHut", "swampPool", "bigShroom", "witchTotem"],
+  cogumelo: ["giantMushroom", "bigShroom", "twistedTree", "mushroomHouse"],
+  catedral: ["sacredAltar", "ruinedTower", "bannerPole", "lanternPost"],
+  aquatico: ["whaleSkeleton", "shipwreck", "sunkenStatue"],
+  neutro:   ["ruinedTower", "stoneStatue", "campfire"],
 };
 
 // FEEDBACK 2026-07-02 (R4) — MODIFICADORES DE NÍVEL: cada nível da campanha sorteia
@@ -14916,6 +14919,13 @@ function awakenLair(lair) {
     color: lair.lairColor || "#ff6030",
     update(dt) { this.radius += dt * 0.08; },
   });
+  // FEEDBACK R7 (2026-07-02) — 2º anel branco mais lento: eco do primeiro
+  game.effects.push({
+    type: "ring", x: lair.x, y: lair.y, radius: 4,
+    lifetime: 1000, maxLifetime: 1000,
+    color: "#ffffff",
+    update(dt) { this.radius += dt * 0.05; },
+  });
   // Cria a ARENA de boss ancorada no covil. O Rei fica preso dentro enquanto
   // o boss viver; paredes mágicas pulsam ao redor.
   game.bossArena = {
@@ -15001,6 +15011,10 @@ function summonBossAtLair(lair) {
     const cls = biomePool[Math.floor(Math.random() * biomePool.length)] || "soldado";
     spawnEnemyAt(sx, sy, cls);
   }
+  // FEEDBACK R7 (2026-07-02) — nascimento do boss ganhou presença física:
+  // shockwave da cor do covil + pilar de luz no ponto de spawn (1x por covil).
+  game.effects.push({ type: "shockwave", x: lair.x, y: lair.y, maxR: 80, color: lair.lairColor || "#ff6030", lifetime: 500, maxLifetime: 500, update() {} });
+  game.effects.push({ type: "lightpillar", x: lair.x, y: lair.y, lifetime: 600, maxLifetime: 600, update() {} });
   doShake(8, 500);
   Sfx.waveStart();
   showToast("CHEFE: " + lair.bossName.toUpperCase(), 2400, "danger");
@@ -15048,6 +15062,19 @@ function updateLairs(dt) {
       if (lair.hp <= 0) awakenLair(lair);
     } else if (lair.state === "awakening") {
       lair.awakenT -= dt;
+      // FEEDBACK R7 (2026-07-02) — telegraph deixou de ser oco: detritos e fagulhas
+      // da cor do covil sobem da terra durante os 1.6s (contínuo → gate _shouldSkipFx).
+      if (!_shouldSkipFx() && Math.random() < 0.35) {
+        const a = Math.random() * Math.PI * 2, r = 14 + Math.random() * 22;
+        game.effects.push({
+          type: "debris",
+          color: Math.random() < 0.5 ? (lair.lairColor || "#ff6030") : "#3a2a30",
+          x: lair.x + Math.cos(a) * r, y: lair.y + Math.sin(a) * r * 0.6,
+          vx: (Math.random() - 0.5) * 20, vy: -45 - Math.random() * 35,
+          lifetime: 600, maxLifetime: 600, size: 1 + Math.floor(Math.random() * 2),
+          update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 90 * dt / 1000; },
+        });
+      }
       if (lair.awakenT <= 0) {
         lair.state = "active";
         summonBossAtLair(lair);
@@ -15102,27 +15129,63 @@ function updateLairs(dt) {
       // portal, sem NENHUMA checagem de combate — correr direto pulava (e até reduzia)
       // todos os inimigos do nível. Agora o portal só arma com o orçamento do nível
       // esgotado E sem inimigo vivo num raio de 340 px do portal.
-      let portalLocked = false;
-      if (inPortal) {
-        const budgetLeft = isFinite(game.campaignEnemyBudget) ? (game.campaignEnemyBudget || 0) : 0;
-        let nearEnemies = 0;
-        for (const u of game.units) {
-          if (isAlive(u) && u.faction === "enemy" && !u.isWagon) {
-            const dx = u.x - g.x, dy = u.y - g.y;
-            if (dx * dx + dy * dy < 340 * 340) nearEnemies++;
-          }
+      // FEEDBACK R7 (2026-07-02) — o estado de selo agora é computado SEMPRE (não só
+      // com o Rei dentro) e exposto em g._locked pro render pintar o portal selado de
+      // vermelho à distância. Gameplay intacto: toast e hold continuam como antes.
+      const budgetLeft = isFinite(game.campaignEnemyBudget) ? (game.campaignEnemyBudget || 0) : 0;
+      let nearEnemies = 0;
+      for (const u of game.units) {
+        if (isAlive(u) && u.faction === "enemy" && !u.isWagon) {
+          const dx = u.x - g.x, dy = u.y - g.y;
+          if (dx * dx + dy * dy < 340 * 340) nearEnemies++;
         }
-        portalLocked = budgetLeft > 0 || nearEnemies > 0;
-        if (portalLocked && (!game._portalLockToastT || game.runTime - game._portalLockToastT > 4)) {
-          game._portalLockToastT = game.runTime;
-          const remaining = budgetLeft + nearEnemies;
-          if (typeof showToast === "function") showToast("🔒 PORTAL SELADO — derrote os inimigos (" + remaining + " restantes)", 2400, "danger");
+      }
+      const portalLocked = budgetLeft > 0 || nearEnemies > 0;
+      g._locked = portalLocked;
+      if (inPortal && portalLocked && (!game._portalLockToastT || game.runTime - game._portalLockToastT > 4)) {
+        game._portalLockToastT = game.runTime;
+        const remaining = budgetLeft + nearEnemies;
+        if (typeof showToast === "function") showToast("🔒 PORTAL SELADO — derrote os inimigos (" + remaining + " restantes)", 2400, "danger");
+      }
+      // FEEDBACK R7 (2026-07-02) — motes orbitais sendo sugados pro portal aberto.
+      // FX contínuo (~1 a cada 120ms, ~7 vivos no pior caso) → gate _shouldSkipFx.
+      g._moteT = (g._moteT || 0) + dt;
+      if (g._moteT >= 120) {
+        g._moteT = 0;
+        const _psx = g.x - game.camera.x + BASE_W / 2;
+        if (!portalLocked && _psx > -40 && _psx < BASE_W + 40 && !_shouldSkipFx()) {
+          const a = Math.random() * Math.PI * 2;
+          game.effects.push({
+            type: "spark", color: Math.random() < 0.5 ? "#7affb0" : "#eaffd0",
+            x: g.x + Math.cos(a) * 26, y: g.y + Math.sin(a) * 34,
+            ang: a, r: 28, lifetime: 900, maxLifetime: 900, size: 1,
+            update(dt) {
+              this.ang += dt * 0.004;
+              this.r = Math.max(2, this.r - dt * 0.03);
+              this.x = g.x + Math.cos(this.ang) * this.r;
+              this.y = g.y + Math.sin(this.ang) * this.r * 1.3;
+            },
+          });
         }
       }
       if (inPortal && !portalLocked) {
         g.inPortal = true;
         g.standTimer = Math.min(PORTAL_HOLD, (g.standTimer || 0) + dt);
         if (g.standTimer >= PORTAL_HOLD) {
+          // FEEDBACK R7 (2026-07-02) — burst de conclusão (dispara 1x por nível)
+          game.effects.push({ type: "shockwave", x: g.x, y: g.y, maxR: 70, color: "#7affb0", lifetime: 450, maxLifetime: 450, update() {} });
+          game.effects.push({ type: "shockwave", x: g.x, y: g.y, maxR: 40, color: "#ffffff", lifetime: 350, maxLifetime: 350, update() {} });
+          for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2;
+            game.effects.push({
+              type: "spark", color: i % 2 ? "#7affb0" : "#eaffd0",
+              x: g.x, y: g.y,
+              vx: Math.cos(a) * (70 + Math.random() * 40), vy: Math.sin(a) * (70 + Math.random() * 40),
+              lifetime: 500, maxLifetime: 500, size: 1,
+              update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.9; this.vy *= 0.9; },
+            });
+          }
+          if (typeof doShake === "function") doShake(3, 220);
           g.reached = true;
           game._campaignLevelDone = true;
           if (typeof campaignLevelComplete === "function") campaignLevelComplete();
@@ -21870,6 +21933,25 @@ function updateWaveSystem(dt) {
     showToast("ONDA " + game.waveIndex, 1400, "magic");
     // COMBO 6 B3 — log onda
     try { logRunEvent("wave", "🚩", "Onda " + game.waveIndex); } catch(e) {}
+    // FEEDBACK R7 (2026-07-02) — FX de início de onda: pulso sombrio emanando do Rei
+    // + anel de brasas de presságio. Dispara 1x/75s — perf irrelevante, sem gate.
+    // (A "onda especial a cada 5" não existe mais — bosses moraram pros covis —
+    // então não há variação de intensidade por índice de onda.)
+    const _wk = game.king;
+    if (_wk) {
+      game.effects.push({ type: "shockwave", x: _wk.x, y: _wk.y, maxR: 60, color: "#a02830", lifetime: 600, maxLifetime: 600, update() {} });
+      game.effects.push({ type: "shockwave", x: _wk.x, y: _wk.y, maxR: 38, color: "#ff6050", lifetime: 450, maxLifetime: 450, update() {} });
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        game.effects.push({
+          type: "ember",
+          x: _wk.x + Math.cos(a) * 22, y: _wk.y + Math.sin(a) * 22,
+          vx: Math.cos(a) * 35, vy: Math.sin(a) * 35 - 20,
+          lifetime: 700, maxLifetime: 700, size: 1,
+          update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.93; this.vy *= 0.93; },
+        });
+      }
+    }
     if (game.units.length < 360) spawnSquad();
     game.spawnTimer = Math.min(game.spawnTimer, 1800);
   }
@@ -23364,6 +23446,7 @@ function update(dt) {
   // COMBO 9 B1 + B2 — clima ambiente + ciclo dia/noite
   updateWeather(dt);
   updateDayNight(dt);
+  updateAmbientLife(dt);  // FEEDBACK R7 (2026-07-02) — vida ambiente: pássaros/vagalumes/critters
   // COMBO 21 L3 — Ambient sound layer por bioma do rei (tick a cada 8s)
   // COMBO 21 L1 — Music swell quando muda de bioma (volume duck-then-restore)
   if (game.king && typeof biomeAt === "function") {
@@ -23581,15 +23664,30 @@ function update(dt) {
         p.lifetime -= dt;
       } else if (p.phase === "opening") {
         p.openTimer += dt;
+        // FEEDBACK R7 (2026-07-02) — luz vazando pela FRESTA da tampa enquanto abre,
+        // na cor do glow da raridade (FX contínuo → gate _shouldSkipFx; ~8/abertura).
+        const _cGlow = (p.palette && p.palette.glow) || "#c060ff";
+        if (Math.random() < 0.5 && !_shouldSkipFx()) {
+          game.effects.push({
+            type: "spark", color: _cGlow,
+            x: p.x + (Math.random() - 0.5) * 8, y: p.y - 4,
+            vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 40,
+            lifetime: 400, maxLifetime: 400, size: 1,
+            update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 120 * dt / 1000; },
+          });
+        }
         if (p.openTimer >= 500) {
           p.phase = "emitting";
           p.cardFloat = 0;
-          // Explosão dourada ao revelar
-          for (let i = 0; i < 14; i++) {
+          // Explosão ao revelar — FEEDBACK R7 (2026-07-02): ESCALA com a raridade.
+          // Cor = palette.glow (antes: "magic" roxo genérico pra toda raridade);
+          // anel pra raro+, pilar de luz + shake + 4 estrelas de impacto pra épico.
+          const n = p.rarity === "epic" ? 26 : p.rarity === "rare" ? 18 : 14;
+          for (let i = 0; i < n; i++) {
             const a = Math.random() * Math.PI * 2;
             const s = 50 + Math.random() * 50;
             game.effects.push({
-              type: "magic", x: p.x, y: p.y - 4,
+              type: "spark", color: _cGlow, x: p.x, y: p.y - 4,
               vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40,
               lifetime: 600, maxLifetime: 600,
               size: 1 + Math.floor(Math.random() * 2),
@@ -23599,6 +23697,22 @@ function update(dt) {
                 this.vx *= 0.9; this.vy *= 0.9;
               },
             });
+          }
+          if (p.rarity === "rare" || p.rarity === "epic") {
+            game.effects.push({ type: "ring", x: p.x, y: p.y - 4, radius: 3, color: _cGlow, lifetime: 420, maxLifetime: 420, update(dt) { this.radius += dt * 0.05; } });
+          }
+          if (p.rarity === "epic") {
+            game.effects.push({ type: "lightpillar", x: p.x, y: p.y, lifetime: 550, maxLifetime: 550, update() {} });
+            if (typeof doShake === "function") doShake(2, 140);
+            // 4 estrelas de impacto nas diagonais (padrão fxHitStar)
+            for (const d of [[0.7, -0.7], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]]) {
+              game.effects.push({
+                type: "spark", color: _cGlow, x: p.x, y: p.y - 4,
+                vx: d[0] * 90, vy: d[1] * 90,
+                lifetime: 200, maxLifetime: 200, size: 2,
+                update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.88; this.vy *= 0.88; },
+              });
+            }
           }
         }
       } else if (p.phase === "emitting") {
@@ -27133,11 +27247,14 @@ function startOpenChest(p) {
   // 2026-04-29 COMBO 31 — quest "Caçador de Tesouro"
   if (typeof questProgressEvent === "function") questProgressEvent("chestOpen", { count: 1 });
   // Poeira de abertura
+  // FEEDBACK R7 (2026-07-02) — a poeira usa a COR do glow da raridade (antes era
+  // type:"magic" roxo genérico, que ignora e.color — spark respeita).
+  const c = (p.palette && p.palette.glow) || "#c060ff";
   for (let i = 0; i < 12; i++) {
     const a = Math.random() * Math.PI - Math.PI; // só pra cima
     const s = 40 + Math.random() * 60;
     game.effects.push({
-      type: "magic", x: p.x, y: p.y - 4,
+      type: "spark", color: c, x: p.x, y: p.y - 4,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s - 30,
       lifetime: 500 + Math.random() * 400,
@@ -28131,7 +28248,9 @@ function tryNecromance(wx, wy, rangeOverride) {
       ally.hp = ally.maxHp;
     }
     game.units.push(ally);
-    spawnNecroFX(c.x, c.y);
+    // FEEDBACK R7 (2026-07-02) — degradação por índice: cadáveres 1-3 do cast têm
+    // FX completo, 4º+ usa a versão low (perf fix — ver spawnNecroFX).
+    spawnNecroFX(c.x, c.y, converted >= 3);
     // Etapa 3: faísca extra dourada quando ressuscita boss
     if (c.isBossCorpse) {
       for (let i = 0; i < 30; i++) {
@@ -32457,6 +32576,113 @@ const WEATHER_BY_BIOME = {
   aquatico: { type: "bubbles",   intensity: 0.9 },   // 2026-06-23 — bolhas/plâncton subindo
   neutro:   { type: null,        intensity: 0 },
 };
+// ============================================================
+// FEEDBACK R7 (2026-07-02) — VIDA AMBIENTE: criaturinhas baratas em game.effects
+// (pássaros/morcegos, vagalumes, caranguejo, mariposas de brasa). Todas morrem
+// sozinhas por lifetime; o Y-sort/cull e o fxCap existentes cuidam do resto.
+// ============================================================
+function _ambClampY(x, y) {
+  // clampa o y à banda do corredor na campanha (pra não spawnar dentro da parede)
+  if (!game.campaignLinear) return y;
+  const c = corridorCenterY(x), h = corridorHalfAt(x);
+  return Math.max(c - h + 8, Math.min(c + h - 8, y));
+}
+function spawnBirdFlock(k, bats) {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const vx = dir * (bats ? 48 + Math.random() * 20 : 38 + Math.random() * 14);
+  // R7 (verificação): lifetime dimensionado pela TRAVESSIA real do viewport — o valor
+  // fixo de 16s expirava com o bando ainda visível na faixa lenta de velocidade.
+  const crossMs = ((BASE_W + 200) / Math.abs(vx)) * 1000;
+  game.effects.push({
+    type: "birdFlock", bat: !!bats,
+    x: k.x - dir * (BASE_W / 2 + 60),
+    y: k.y - 30 - Math.random() * 50,
+    vx,
+    vy: (Math.random() - 0.5) * 6,
+    dir,
+    n: bats ? 3 + ((Math.random() * 2) | 0) : 5 + ((Math.random() * 3) | 0),
+    lifetime: crossMs, maxLifetime: crossMs, size: 1,
+    update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
+  });
+}
+function spawnFirefly(k, biome) {
+  const x0 = k.x + (Math.random() - 0.5) * BASE_W * 0.9;
+  // R7 (verificação): lifetime sorteado UMA vez pros dois campos — com maxLifetime fixo
+  // o termo de fade-in do drawer ((max-lifetime)/600) já nascia >1 e o bicho dava pop-in.
+  const _ffLife = 6000 + Math.random() * 3000;
+  game.effects.push({
+    type: "firefly",
+    x: x0,
+    y: _ambClampY(x0, k.y + (Math.random() - 0.5) * BASE_H * 0.9),
+    color: biome === "pantano" ? "#d0ff90" : biome === "cogumelo" ? "#d987f0" : "#f7d96f",
+    _ph: Math.random() * Math.PI * 2,
+    lifetime: _ffLife, maxLifetime: _ffLife, size: 1,
+    update(dt) {
+      this._ph += dt * 0.0016;
+      this.x += Math.cos(this._ph) * 9 * dt / 1000;
+      this.y += Math.sin(this._ph * 1.7) * 7 * dt / 1000;
+    },
+  });
+}
+function spawnCrab(k) {
+  const x0 = k.x + (Math.random() - 0.5) * BASE_W * 0.9;
+  game.effects.push({
+    type: "crab",
+    x: x0,
+    y: _ambClampY(x0, k.y + (Math.random() - 0.5) * BASE_H * 0.9),
+    dirx: Math.random() < 0.5 ? -1 : 1,
+    _t: 0, _moving: false,
+    lifetime: 12000, maxLifetime: 12000, size: 1,
+    update(dt) {
+      // anda de lado em rajadas com pausas (caranguejo de verdade)
+      this._t -= dt;
+      if (this._t <= 0) {
+        this._moving = !this._moving;
+        this._t = this._moving ? 500 + Math.random() * 700 : 400 + Math.random() * 900;
+        if (Math.random() < 0.4) this.dirx *= -1;
+      }
+      if (this._moving) this.x += this.dirx * 22 * dt / 1000;
+    },
+  });
+}
+function spawnEmberMoth(k) {
+  const x0 = k.x + (Math.random() - 0.5) * BASE_W * 0.9;
+  const _emLife = 5000 + Math.random() * 3000;   // R7: sorteado 1× (fade-in do drawer funciona)
+  game.effects.push({
+    type: "emberMoth",
+    x: x0,
+    y: _ambClampY(x0, k.y + (Math.random() - 0.5) * BASE_H * 0.9),
+    _ph: Math.random() * Math.PI * 2,
+    lifetime: _emLife, maxLifetime: _emLife, size: 1,
+    update(dt) {
+      // espiral com deriva pra cima, como brasa viva
+      this._ph += dt * 0.002;
+      this.x += Math.cos(this._ph) * 12 * dt / 1000;
+      this.y += (Math.sin(this._ph * 1.3) * 6 - 4) * dt / 1000;
+    },
+  });
+}
+function updateAmbientLife(dt) {
+  if (!game.king || !game.runActive || game.gameOver || game.paused) return;
+  if (game.reducedMotion || game.perfMode || game._autoQualityLow) return;
+  if (progress.fxWeather === false) return;            // reusa o toggle de clima
+  game._ambLifeT = (game._ambLifeT || 0) - dt;
+  if (game._ambLifeT > 0) return;
+  game._ambLifeT = 2500 + Math.random() * 3500;        // 1 tentativa a cada ~2.5-6s
+  if (_shouldSkipFx()) return;
+  const k = game.king;
+  const biome = game.campaignLinear ? (game.campaignBiomeId || "neutro") : biomeAt(k.x, k.y);
+  const night = game.dayPhase >= 0.55 && game.dayPhase < 0.85;
+  // pássaros em V (dia) / morcegos (noite) — só mundo aberto (no corredor cruzariam as paredes)
+  if (!game.campaignLinear && !night && (biome === "neutro" || biome === "deserto" || biome === "gelo" || biome === "catedral") && Math.random() < 0.08) spawnBirdFlock(k, false);
+  if (!game.campaignLinear && night && (biome === "neutro" || biome === "pantano" || biome === "catedral") && Math.random() < 0.10) spawnBirdFlock(k, true);
+  // vagalumes à noite (pântano/cogumelo/neutro), 2 por vez
+  if (night && (biome === "pantano" || biome === "cogumelo" || biome === "neutro") && Math.random() < 0.45) { spawnFirefly(k, biome); spawnFirefly(k, biome); }
+  // caranguejinho no leito do abismo (dia e noite)
+  if (biome === "aquatico" && Math.random() < 0.35) spawnCrab(k);
+  // mariposas de brasa no inferno (sempre — o inferno é escuro)
+  if (biome === "inferno" && Math.random() < 0.40) { spawnEmberMoth(k); if (Math.random() < 0.5) spawnEmberMoth(k); }
+}
 function updateWeather(dt) {
   if (!game.king || game.gameOver) return;
   const k = game.king;
@@ -35998,7 +36224,7 @@ function doSporePulse(u) {
   }
 }
 
-function spawnNecroFX(x, y) {
+function spawnNecroFX(x, y, forceLow) {
   // NECROFX HD (2026-04-26) \u2014 ressurrei\u00e7\u00e3o sagrado-necrom\u00e2ntica massiva:
   // \u2022 35 fa\u00edscas douradas subindo (era 18)
   // \u2022 12 fa\u00edscas roxas (necromancia) misturadas
@@ -36007,6 +36233,12 @@ function spawnNecroFX(x, y) {
   // \u2022 Pilar de luz duplo
   // \u2022 14 pequenos cr\u00e2neos pulsando (s\u00edmbolo necromante)
   // \u2022 Flash branco central inicial
+  // FEEDBACK R7 (2026-07-02) \u2014 PERF FIX: ~72 effects por cad\u00e1ver SEM gate; num cast
+  // de 12 corpos estourava o teto de ~500 effects e engolia telegraphs de boss.
+  // Evento one-shot \u2192 padr\u00e3o `low` (reduz contagem, nunca some): 35\u219210 holy,
+  // 12\u21925 magic, 14\u21924 cr\u00e2nios, sem estrelas, 1 pilar. forceLow = degrada\u00e7\u00e3o por
+  // \u00edndice de cad\u00e1ver no mesmo cast (4\u00ba+ j\u00e1 vem reduzido \u2014 ver tryNecromance).
+  const low = !!(forceLow || game.reducedMotion || game.perfMode || game._autoQualityLow);
   // Flash branco/dourado central
   game.effects.push({
     type: "spark", color: "#ffffff",
@@ -36014,8 +36246,8 @@ function spawnNecroFX(x, y) {
     lifetime: 180, maxLifetime: 180, size: 5,
     update(dt) { this.size = Math.max(1, this.size - dt * 0.025); },
   });
-  // 35 fa\u00edscas douradas subindo
-  for (let i = 0; i < 35; i++) {
+  // 35 fa\u00edscas douradas subindo (10 em low)
+  for (let i = 0, nH = low ? 10 : 35; i < nH; i++) {
     const a = Math.random() * Math.PI * 2;
     const spd = 25 + Math.random() * 60;
     game.effects.push({
@@ -36032,8 +36264,8 @@ function spawnNecroFX(x, y) {
       },
     });
   }
-  // 12 faiscas ROXAS misturadas (s\u00edmbolo necromante)
-  for (let i = 0; i < 12; i++) {
+  // 12 faiscas ROXAS misturadas (s\u00edmbolo necromante) (5 em low)
+  for (let i = 0, nM = low ? 5 : 12; i < nM; i++) {
     const a = Math.random() * Math.PI * 2;
     const spd = 30 + Math.random() * 50;
     game.effects.push({
@@ -36069,8 +36301,8 @@ function spawnNecroFX(x, y) {
     color: PAL.MAGIC,
     update(dt) { this.radius += dt * 0.08; },
   });
-  // 6 estrelas pulsantes ao redor (sym mistico)
-  for (let i = 0; i < 6; i++) {
+  // 6 estrelas pulsantes ao redor (sym mistico) \u2014 puladas em low
+  if (!low) for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     const r = 8 + Math.random() * 6;
     const sx = x + Math.cos(a) * r;
@@ -36082,8 +36314,8 @@ function spawnNecroFX(x, y) {
       update(dt) { this.y += this.vy * dt / 1000; this.size = Math.max(1, this.size - dt * 0.003); },
     });
   }
-  // 14 mini-cr\u00e2neos pulsando subindo
-  for (let i = 0; i < 14; i++) {
+  // 14 mini-cr\u00e2neos pulsando subindo (4 em low)
+  for (let i = 0, nS = low ? 4 : 14; i < nS; i++) {
     const a = Math.random() * Math.PI * 2;
     const dd = Math.random() * 8;
     game.effects.push({
@@ -36099,13 +36331,13 @@ function spawnNecroFX(x, y) {
       },
     });
   }
-  // Pilar de luz DUPLO (sagrado + necromante)
+  // Pilar de luz DUPLO (sagrado + necromante) \u2014 simples em low
   game.effects.push({
     type: "lightpillar", x, y,
     lifetime: 600, maxLifetime: 600,
     update() {},
   });
-  game.effects.push({
+  if (!low) game.effects.push({
     type: "lightpillar", x: x + 1, y,
     lifetime: 500, maxLifetime: 500,
     update() {},
@@ -38154,44 +38386,74 @@ function drawBackground(camX, camY) {
         const pBot = (goal.y + corridorHalfAt(goal.x)) - camY + BASE_H / 2;
         const y0 = Math.max(0, pTop), y1 = Math.min(BASE_H, pBot);
         const t = game.time || 0;
-        const pulse = 0.55 + 0.45 * Math.sin(t / 200);
         const prog = Math.min(1, (goal.standTimer || 0) / (goal.holdMax || 3000));
         const active = !!goal.inPortal;
+        // FEEDBACK R7 (2026-07-02) — estado SELADO visível (goal._locked vem do update):
+        // paleta vermelha, pulse lento (t/340) e CADEADO no lugar do vórtice brilhante.
+        // Portal aberto: intensidade RAMPA com prog (pulse acelera, +faíscas, vórtice +vivo).
+        const locked = !!goal._locked;
+        const pulse = 0.55 + 0.45 * Math.sin(t / (locked ? 340 : (200 - 120 * prog)));
         // Coluna de energia do portal (mais intensa quando o Rei está dentro)
         const colA = (0.5 * pulse + (active ? 0.3 : 0)).toFixed(2);
         const grad = offCtx.createLinearGradient(gsx - 14, 0, gsx + 14, 0);
-        grad.addColorStop(0, "rgba(120,255,150,0)");
-        grad.addColorStop(0.5, (active ? "rgba(190,255,215," : "rgba(140,255,170,") + colA + ")");
-        grad.addColorStop(1, "rgba(120,255,150,0)");
+        const edgeC = locked ? "rgba(255,90,70,0)" : "rgba(120,255,150,0)";
+        const midC = locked ? "rgba(255,110,90," : (active ? "rgba(190,255,215," : "rgba(140,255,170,");
+        grad.addColorStop(0, edgeC);
+        grad.addColorStop(0.5, midC + colA + ")");
+        grad.addColorStop(1, edgeC);
         offCtx.fillStyle = grad;
         offCtx.fillRect(gsx - 14, y0, 28, y1 - y0);
-        offCtx.fillStyle = "rgba(235,255,225," + (0.9 * pulse).toFixed(2) + ")";
+        offCtx.fillStyle = (locked ? "rgba(255,220,210," : "rgba(235,255,225,") + (0.9 * pulse).toFixed(2) + ")";
         offCtx.fillRect(gsx - 1, y0, 2, y1 - y0);
-        // Faíscas subindo dentro da coluna
-        for (let i = 0; i < 6; i++) {
+        // Faíscas subindo dentro da coluna (6 → até 14 conforme o hold carrega)
+        const nSp = locked ? 4 : 6 + Math.floor(prog * 8);
+        for (let i = 0; i < nSp; i++) {
           const py = y1 - ((t / 8 + i * 47) % Math.max(1, y1 - y0));
           const fx = gsx + Math.sin(t / 180 + i) * 9;
-          offCtx.fillStyle = "rgba(205,255,215,0.7)";
+          offCtx.fillStyle = locked ? "rgba(255,170,150,0.7)" : "rgba(205,255,215,0.7)";
           offCtx.fillRect(Math.round(fx), Math.round(py), 1, 2);
         }
         // === ARCO / VÓRTICE central ===
         const rx = 16, ry = 30;
-        offCtx.globalAlpha = 0.22 * pulse; offCtx.fillStyle = "#7affb0";
+        offCtx.globalAlpha = (0.22 + (locked ? 0 : 0.3 * prog)) * pulse;
+        offCtx.fillStyle = locked ? "#602018" : "#7affb0";
         offCtx.beginPath(); offCtx.ellipse(gsx, gcy, rx + 4, ry + 5, 0, 0, Math.PI * 2); offCtx.fill();
         offCtx.globalAlpha = 1;
-        for (let r = 0; r < 4; r++) {
-          offCtx.strokeStyle = (r % 2) ? "rgba(120,230,150,0.7)" : "rgba(220,255,230,0.85)";
-          offCtx.lineWidth = 1;
-          const k2 = 1 - r * 0.22;
-          offCtx.beginPath();
-          offCtx.ellipse(gsx, gcy, rx * k2, ry * k2, Math.sin(t / 300 + r) * 0.2, 0, Math.PI * 2);
-          offCtx.stroke();
+        if (locked) {
+          // Vórtice apagado: 2 elipses tênues + cadeado pixel 5x6 (blocos 2x2 pra ler no low-res)
+          for (let r = 0; r < 2; r++) {
+            offCtx.strokeStyle = (r % 2) ? "rgba(96,32,24,0.8)" : "rgba(255,122,96,0.45)";
+            offCtx.lineWidth = 1;
+            const k2 = 1 - r * 0.3;
+            offCtx.beginPath();
+            offCtx.ellipse(gsx, gcy, rx * k2, ry * k2, 0, 0, Math.PI * 2);
+            offCtx.stroke();
+          }
+          const px = 2;
+          const lx = Math.round(gsx - 2.5 * px), ly = Math.round(gcy - 3 * px);
+          offCtx.fillStyle = "#ffb0a0";   // alça
+          offCtx.fillRect(lx + px, ly, 3 * px, px);
+          offCtx.fillRect(lx, ly + px, px, px);
+          offCtx.fillRect(lx + 4 * px, ly + px, px, px);
+          offCtx.fillStyle = "#ff7a60";   // corpo
+          offCtx.fillRect(lx, ly + 2 * px, 5 * px, 4 * px);
+          offCtx.fillStyle = "#602018";   // fechadura
+          offCtx.fillRect(lx + 2 * px, ly + 3 * px, px, 2 * px);
+        } else {
+          for (let r = 0; r < 4; r++) {
+            offCtx.strokeStyle = (r % 2) ? "rgba(120,230,150,0.7)" : "rgba(220,255,230,0.85)";
+            offCtx.lineWidth = 1;
+            const k2 = 1 - r * 0.22;
+            offCtx.beginPath();
+            offCtx.ellipse(gsx, gcy, rx * k2, ry * k2, Math.sin(t / 300 + r) * 0.2, 0, Math.PI * 2);
+            offCtx.stroke();
+          }
         }
         // Postes laterais do arco
-        offCtx.fillStyle = "#2a7a4a";
+        offCtx.fillStyle = locked ? "#6a2a24" : "#2a7a4a";
         offCtx.fillRect(gsx - rx - 2, gcy - ry, 2, ry * 2);
         offCtx.fillRect(gsx + rx, gcy - ry, 2, ry * 2);
-        offCtx.fillStyle = "#7affb0";
+        offCtx.fillStyle = locked ? "#ff7a60" : "#7affb0";
         offCtx.fillRect(gsx - rx - 2, gcy - ry, 2, 2);
         offCtx.fillRect(gsx + rx, gcy - ry, 2, 2);
         // === ANEL DE PROGRESSO (preenche em 3s) ===
@@ -38203,10 +38465,10 @@ function drawBackground(camX, camY) {
           offCtx.stroke();
         }
         // === HINT ===
-        offCtx.fillStyle = active ? "#eaffd0" : "#cfe8c0";
+        offCtx.fillStyle = locked ? "#ffb0a0" : (active ? "#eaffd0" : "#cfe8c0");
         offCtx.font = "6px monospace"; offCtx.textAlign = "center";
         const secs = Math.max(0, ((goal.holdMax || 3000) - (goal.standTimer || 0)) / 1000);
-        offCtx.fillText(active ? ("FIQUE NO PORTAL " + secs.toFixed(1) + "s") : "PORTAL DE SAÍDA", gsx, gcy - ry - 4);
+        offCtx.fillText(locked ? "PORTAL SELADO" : (active ? ("FIQUE NO PORTAL " + secs.toFixed(1) + "s") : "PORTAL DE SAÍDA"), gsx, gcy - ry - 4);
         offCtx.textAlign = "left";
       }
     }
@@ -43812,6 +44074,469 @@ function _drawDecoCore(sx, sy, d) {
     offCtx.fillRect(sx - 4, sy - 1, 1, 2); offCtx.fillRect(sx - 4 + algSway, sy - 3, 1, 1);
     return;
   }
+  // ===== FEEDBACK R7 (2026-07-02) — CONSTRUÇÕES NOVAS (14 tipos) =====
+  if (d.type === "ruinedTower") {
+    // Torre de vigia quebrada — pedra do reino caído
+    const hh = 18 + (v % 3) * 2;                       // altura 18/20/22 por variante
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 9, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // entulho na base
+    offCtx.fillStyle = "#4a4458";
+    offCtx.fillRect(sx - 8, sy - 1, 2, 1); offCtx.fillRect(sx + 6, sy - 2, 3, 2);
+    offCtx.fillStyle = "#2a2438";
+    offCtx.fillRect(sx - 7, sy, 3, 1); offCtx.fillRect(sx + 5, sy, 2, 1);
+    // corpo + coluna de sombra à dir. + coluna de luz à esq.
+    offCtx.fillStyle = "#4a4458"; offCtx.fillRect(sx - 5, sy - hh, 10, hh);
+    offCtx.fillStyle = "#2a2438"; offCtx.fillRect(sx + 3, sy - hh, 2, hh);
+    offCtx.fillStyle = "#6a6478"; offCtx.fillRect(sx - 5, sy - hh, 1, hh);
+    // topo QUEBRADO: ameias irregulares com vão faltando no meio
+    offCtx.fillStyle = "#4a4458";
+    offCtx.fillRect(sx - 5, sy - hh - 4, 2, 4);
+    offCtx.fillRect(sx - 1, sy - hh - 2, 2, 2);
+    offCtx.fillRect(sx + 3, sy - hh - 3, 2, 3);
+    // linhas de tijolo
+    offCtx.globalAlpha = 0.35; offCtx.fillStyle = "#2a2438";
+    for (let i = 0; i < Math.floor(hh / 4); i++) offCtx.fillRect(sx - 5, sy - 6 - i * 4, 10, 1);
+    offCtx.globalAlpha = 1;
+    // rachadura zigzag descendo do topo (lado por variante)
+    const crs = (v % 2) ? 1 : -1;
+    offCtx.fillStyle = "#0d0810";
+    offCtx.fillRect(sx + crs * 2, sy - hh + 1, 1, 2);
+    offCtx.fillRect(sx + crs * 3, sy - hh + 3, 1, 2);
+    offCtx.fillRect(sx + crs * 2, sy - hh + 5, 1, 2);
+    offCtx.fillRect(sx + crs, sy - hh + 7, 1, 2);
+    // seteira com verga
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(sx - 1, sy - 12, 2, 4);
+    offCtx.fillStyle = "#6a6478"; offCtx.fillRect(sx - 1, sy - 13, 3, 1);
+    // musgo na base
+    offCtx.fillStyle = "#2f5a2e";
+    offCtx.fillRect(sx - 5, sy - 1, 2, 1); offCtx.fillRect(sx + 2, sy - 2, 2, 1);
+    return;
+  }
+  if (d.type === "stoneStatue") {
+    // Estátua erodida de rei antigo (v=1 decapitada, v=2 inclinada)
+    const tilt = (v === 2) ? 1 : 0;
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 6, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // pedestal + tampo
+    offCtx.fillStyle = "#2a2438"; offCtx.fillRect(sx - 4, sy - 3, 8, 3);
+    offCtx.fillStyle = "#4a4458"; offCtx.fillRect(sx - 4, sy - 4, 8, 1);
+    // corpo (coluna de luz à esq.)
+    offCtx.fillStyle = "#4a4458"; offCtx.fillRect(sx - 2 + tilt, sy - 11, 4, 7);
+    offCtx.fillStyle = "#6a6478"; offCtx.fillRect(sx - 2 + tilt, sy - 11, 1, 7);
+    // cicatriz do braço perdido (ombro esq.)
+    offCtx.fillStyle = "#2a2438"; offCtx.fillRect(sx - 2 + tilt, sy - 10, 1, 1);
+    // braço erguido + toco de espada quebrada
+    offCtx.fillStyle = "#4a4458"; offCtx.fillRect(sx + 2 + tilt, sy - 13, 1, 3);
+    offCtx.fillStyle = "#8a8498"; offCtx.fillRect(sx + 2 + tilt, sy - 15, 1, 2);
+    if (v === 1) {
+      // sem cabeça — cabeça caída no chão ao lado
+      offCtx.fillStyle = "#6a6478"; offCtx.fillRect(sx + 5, sy - 2, 3, 2);
+      offCtx.fillStyle = "#2a2438"; offCtx.fillRect(sx + 5, sy - 1, 1, 1);
+    } else {
+      // cabeça + resto de coroa (ouro apagado) + olhos erodidos
+      offCtx.fillStyle = "#6a6478"; offCtx.fillRect(sx - 1 + tilt, sy - 14, 3, 3);
+      offCtx.fillStyle = "#8a5a1a"; offCtx.fillRect(sx - 1 + tilt, sy - 15, 3, 1);
+      offCtx.fillStyle = "#2a2438";
+      offCtx.fillRect(sx - 1 + tilt, sy - 13, 1, 1); offCtx.fillRect(sx + 1 + tilt, sy - 13, 1, 1);
+    }
+    // musgo no canto do pedestal
+    offCtx.fillStyle = "#2f5a2e"; offCtx.fillRect(sx - 4, sy - 1, 2, 1);
+    return;
+  }
+  if (d.type === "oldGraves") {
+    // Cemitériozinho de 3 lápides + crânio meio enterrado (tema necro)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 9, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    const gxs = [sx - 7, sx, sx + 6];
+    for (let g = 0; g < 3; g++) {
+      const gx = gxs[g];
+      const gTilt = (g === 0) ? 1 : (g === 2) ? -1 : 0;   // tilt fake nas laterais
+      // monte de terra
+      offCtx.globalAlpha = 0.8; offCtx.fillStyle = "#33260f";
+      offCtx.beginPath(); offCtx.ellipse(gx + 1, sy + 1, 3, 1, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.globalAlpha = 1;
+      // lápide + topo arredondado deslocado pelo tilt
+      offCtx.fillStyle = "#4a4458"; offCtx.fillRect(gx - 1, sy - 5, 3, 5);
+      offCtx.fillRect(gx + gTilt, sy - 6, 1, 1);
+      offCtx.fillStyle = "#6a6478"; offCtx.fillRect(gx - 1, sy - 5, 1, 5);
+      // cruz gravada
+      offCtx.fillStyle = "#2a2438";
+      offCtx.fillRect(gx, sy - 4, 1, 3); offCtx.fillRect(gx - 1, sy - 3, 3, 1);
+    }
+    // crânio meio enterrado (posição por variante)
+    const skx = sx - 4 + (v % 3) * 4;
+    offCtx.fillStyle = "#b8b09a"; offCtx.fillRect(skx, sy - 1, 2, 2);
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(skx, sy, 1, 1);
+    // wisp necro subindo (animação inline barata, sem effects)
+    // R7 (verificação): módulo normalizado — com d.x negativo (oeste do mundo) o % do
+    // JS fica negativo e o wisp nunca disparava nos primeiros minutos da run.
+    const wt = ((((game.time / 1000 + d.x * 0.1) % 4) + 4) % 4);
+    if (wt < 1) {
+      offCtx.globalAlpha = 1 - wt;
+      offCtx.fillStyle = "#c060ff";
+      offCtx.fillRect(sx + ((v * 7) % 13) - 6, Math.round(sy - 6 - wt * 5), 1, 1);
+      offCtx.globalAlpha = 1;
+    }
+    return;
+  }
+  if (d.type === "campfire") {
+    // Fogueira de acampamento abandonado — chama 2 camadas + glow + brasas/fumaça
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 5, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // lenhos cruzados
+    offCtx.fillStyle = "#5a3a1a"; offCtx.fillRect(sx - 4, sy - 2, 8, 2);
+    offCtx.fillStyle = "#33260f"; offCtx.fillRect(sx - 3, sy - 3, 6, 1);
+    // anel de 6 pedras — as 2 da frente com topo claro
+    offCtx.fillStyle = "#4a4458";
+    offCtx.fillRect(sx - 3, sy - 4, 2, 1); offCtx.fillRect(sx + 1, sy - 4, 2, 1);
+    offCtx.fillRect(sx - 5, sy - 2, 2, 1); offCtx.fillRect(sx + 3, sy - 2, 2, 1);
+    offCtx.fillRect(sx - 3, sy, 2, 1); offCtx.fillRect(sx + 1, sy, 2, 1);
+    offCtx.fillStyle = "#6a6478";
+    offCtx.fillRect(sx - 3, sy - 1, 2, 1); offCtx.fillRect(sx + 1, sy - 1, 2, 1);
+    // CHAMA (base + núcleo + ponta) com tremulação
+    const fOff = Math.round(Math.sin(game.time / 90 + d.x * 0.03) * 1);
+    offCtx.fillStyle = "#ff5a20"; offCtx.fillRect(sx - 2 + fOff, sy - 6, 5, 4);
+    offCtx.fillStyle = "#ffb030"; offCtx.fillRect(sx - 1 + fOff, sy - 7, 3, 4);
+    offCtx.fillStyle = "#fff2a0"; offCtx.fillRect(sx + fOff, sy - 8, 1, 2);
+    // GLOW pulsante
+    const gp = 0.7 + Math.sin(game.time / 150 + d.x * 0.05) * 0.3;
+    offCtx.globalAlpha = 0.30 * gp; offCtx.fillStyle = "#ffb030"; fillCircle(sx, sy - 5, 7);
+    offCtx.globalAlpha = 0.14 * gp; fillCircle(sx, sy - 5, 11);
+    offCtx.globalAlpha = 1;
+    // brasas subindo + fumaça ocasional (padrão do candle)
+    // R7 (verificação): offset escalado quando LANDMARK (arte 2.6× — as brasas saíam
+    // de dentro dos lenhos em vez da ponta da chama).
+    const _cfS = d.landmark ? 2.6 : 1;
+    if (!game.paused && Math.random() < 0.08 && !_shouldSkipFx()) {
+      game.effects.push({
+        type: "ember", x: d.x + fOff * _cfS, y: d.y - 7 * _cfS,
+        vx: (Math.random() - 0.5) * 4, vy: -14 - Math.random() * 6,
+        lifetime: 700, maxLifetime: 700, size: 1,
+        update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
+      });
+    }
+    if (!game.paused && Math.random() < 0.04 && !_shouldSkipFx()) {
+      game.effects.push({
+        type: "spark", color: "#55504a", x: d.x + fOff * _cfS, y: d.y - 7 * _cfS,
+        vx: (Math.random() - 0.5) * 4, vy: -10,
+        lifetime: 1600, maxLifetime: 1600, size: 1,
+        update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
+      });
+    }
+    return;
+  }
+  if (d.type === "bannerPole") {
+    // Mastro com bandeirola tremulando (v par = vermelho real, ímpar = roxo, v=2 esfarrapada)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000"; offCtx.fillRect(sx - 1, sy + 1, 3, 1);
+    offCtx.globalAlpha = 1;
+    // mastro + ponteira dourada
+    offCtx.fillStyle = "#5a3a1a"; offCtx.fillRect(sx, sy - 18, 1, 18);
+    offCtx.fillStyle = "#7a5018"; offCtx.fillRect(sx, sy - 18, 1, 6);
+    offCtx.fillStyle = "#f7d96f"; offCtx.fillRect(sx, sy - 19, 1, 1);
+    // BANDEIRA em 8 colunas — ripple cresce pro lado livre
+    const red = (v % 2) === 0;
+    const bodyC = red ? "#b02030" : "#9a30c0";
+    const darkC = red ? "#6a1018" : "#5a1880";
+    const liteC = red ? "#e04050" : "#c060ff";
+    for (let j = 0; j < 8; j++) {
+      const yOff = Math.round(Math.sin(game.time / 180 + j * 0.8 + d.x * 0.05) * (j / 7) * 1.8);
+      if (v === 2 && (j * 7 + (d.x | 0)) % 5 === 0) continue;   // esfarrapada
+      const colH = (j === 7) ? 2 : 4;                            // rabo de andorinha
+      offCtx.fillStyle = bodyC; offCtx.fillRect(sx + 1 + j, sy - 17 + yOff, 1, colH);
+      offCtx.fillStyle = darkC; offCtx.fillRect(sx + 1 + j, sy - 17 + yOff + colH - 1, 1, 1);
+      if (j < 3) { offCtx.fillStyle = liteC; offCtx.fillRect(sx + 1 + j, sy - 17 + yOff, 1, 2); }
+    }
+    // ponta dourada no rabo
+    const tOff = Math.round(Math.sin(game.time / 180 + 5.6 + d.x * 0.05) * 1.8);
+    offCtx.fillStyle = "#d4a637"; offCtx.fillRect(sx + 8, sy - 17 + tOff, 1, 1);
+    return;
+  }
+  if (d.type === "lanternPost") {
+    // Poste de lanterna piscando (tremeluz ~9% do tempo apagada)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000"; offCtx.fillRect(sx - 1, sy + 1, 3, 1);
+    offCtx.globalAlpha = 1;
+    // plinto + poste + braço
+    offCtx.fillStyle = "#2a2438";
+    offCtx.fillRect(sx - 1, sy - 2, 3, 2);
+    offCtx.fillRect(sx, sy - 13, 1, 11);
+    offCtx.fillRect(sx, sy - 13, 4, 1);
+    offCtx.fillStyle = "#4a4458"; offCtx.fillRect(sx, sy - 13, 1, 1);
+    // caixa da lanterna (3×4, moldura escura + vidro interno)
+    offCtx.fillStyle = "#2a2438"; offCtx.fillRect(sx + 3, sy - 12, 3, 4);
+    const fl = Math.sin(game.time / 120 + d.x * 0.07);
+    const lit = fl > -0.82;
+    offCtx.fillStyle = lit ? "#fff080" : "#7a5018";
+    offCtx.fillRect(sx + 4, sy - 11, 1, 2);
+    if (lit) {
+      offCtx.fillStyle = "#ffb030"; offCtx.fillRect(sx + 4, sy - 10, 1, 1);
+      offCtx.globalAlpha = 0.28; offCtx.fillStyle = "#ffd060"; fillCircle(sx + 4, sy - 10, 5);
+      offCtx.globalAlpha = 0.12; fillCircle(sx + 4, sy - 10, 8);
+      offCtx.globalAlpha = 1;
+    }
+    return;
+  }
+  if (d.type === "sandstoneRuin") {
+    // Ruína de arenito com arco quebrado (v=1 sem verga, v=2 um pilar só + entulho)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 11, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // pilar esquerdo
+    offCtx.fillStyle = "#c08040"; offCtx.fillRect(sx - 8, sy - 10, 3, 10);
+    offCtx.fillStyle = "#d9a85c"; offCtx.fillRect(sx - 8, sy - 10, 1, 10);
+    offCtx.fillStyle = "#8a6430"; offCtx.fillRect(sx - 6, sy - 10, 1, 10);
+    // pilar direito
+    if (v !== 2) {
+      offCtx.fillStyle = "#c08040"; offCtx.fillRect(sx + 5, sy - 10, 3, 10);
+      offCtx.fillStyle = "#d9a85c"; offCtx.fillRect(sx + 5, sy - 10, 1, 10);
+      offCtx.fillStyle = "#8a6430"; offCtx.fillRect(sx + 7, sy - 10, 1, 10);
+    }
+    // verga QUEBRADA só do lado esquerdo (ponta irregular: último px de 1 de altura)
+    if (v === 0) {
+      offCtx.fillStyle = "#c08040"; offCtx.fillRect(sx - 8, sy - 12, 6, 2);
+      offCtx.fillRect(sx - 2, sy - 12, 1, 1);
+      offCtx.fillStyle = "#d9a85c"; offCtx.fillRect(sx - 8, sy - 12, 6, 1);
+    }
+    // bloco caído (2 rects deslocados = tombado)
+    offCtx.fillStyle = "#8a6430"; offCtx.fillRect(sx + 1, sy - 3, 4, 3);
+    offCtx.fillStyle = "#c08040"; offCtx.fillRect(sx + 2, sy - 4, 4, 3);
+    if (v === 2) {
+      offCtx.fillStyle = "#8a6430"; offCtx.fillRect(sx + 6, sy - 2, 3, 2);
+      offCtx.fillStyle = "#c08040"; offCtx.fillRect(sx - 2, sy - 2, 2, 2);
+    }
+    // hieróglifos no pilar esquerdo
+    offCtx.fillStyle = "#5a3c14";
+    offCtx.fillRect(sx - 7, sy - 8, 1, 1); offCtx.fillRect(sx - 7, sy - 6, 1, 1);
+    offCtx.fillRect(sx - 7, sy - 4, 1, 1); offCtx.fillRect(sx - 7, sy - 2, 1, 1);
+    // areia acumulada nas bases
+    offCtx.fillStyle = "#e8c878";
+    offCtx.fillRect(sx - 9, sy - 1, 5, 1); offCtx.fillRect(sx - 10, sy, 7, 1);
+    offCtx.fillRect(sx + 4, sy - 1, 5, 1);
+    return;
+  }
+  if (d.type === "frozenWarrior") {
+    // Guerreiro congelado num bloco de gelo (cadáver inalcançável — flavor necro)
+    const bh = 9 + (v % 3);                            // altura do bloco 9/10/11
+    const mir = (v % 2) ? -1 : 1;                      // silhueta espelhada
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 5, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // bloco de gelo + interior + bisel de topo
+    offCtx.fillStyle = "#5a90c0"; offCtx.fillRect(sx - 4, sy - bh, 8, bh);
+    offCtx.fillStyle = "#a0d8f0"; offCtx.fillRect(sx - 3, sy - bh + 1, 6, bh - 2);
+    offCtx.fillStyle = "#e8f8ff"; offCtx.fillRect(sx - 3, sy - bh, 6, 1);
+    // facetas diagonais
+    offCtx.fillRect(sx - 3, sy - bh + 2, 1, 1); offCtx.fillRect(sx - 2, sy - bh + 3, 1, 1);
+    offCtx.fillRect(sx + 2, sy - 3, 1, 1); offCtx.fillRect(sx + 1, sy - 4, 1, 1);
+    // SILHUETA congelada dentro (corpo + cabeça + lança diagonal)
+    offCtx.globalAlpha = 0.75; offCtx.fillStyle = "#1a2430";
+    offCtx.fillRect(sx - 1, sy - 6, 2, 4);
+    offCtx.fillRect(sx - 1, sy - 8, 2, 2);
+    for (let i = 1; i <= 3; i++) {
+      const py = sy - 6 - i;
+      if (py >= sy - bh + 1) offCtx.fillRect(sx + mir * i, py, 1, 1);
+    }
+    offCtx.globalAlpha = 1;
+    // glint pulsante — R7 (verificação): módulo normalizado (d.x negativo travava o glint)
+    if ((((game.time / 400 + d.x * 0.1) % 6) + 6) % 6 < 0.5) {
+      offCtx.fillStyle = "#ffffff"; offCtx.fillRect(sx - 2, sy - bh + 2, 1, 1);
+    }
+    // neve no topo
+    offCtx.fillStyle = "#ffffff"; offCtx.fillRect(sx - 3, sy - bh - 1, 6, 1);
+    return;
+  }
+  if (d.type === "runeStone") {
+    // Menir com runas brilhando (v=2 = runas necro roxas — versão do neutro)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 6, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // menir afunilado (3 blocos)
+    offCtx.fillStyle = "#4a4458";
+    offCtx.fillRect(sx - 4, sy - 3, 9, 3);
+    offCtx.fillRect(sx - 3, sy - 8, 7, 5);
+    offCtx.fillRect(sx - 2, sy - 11, 5, 3);
+    // coluna sombra à dir. + luz à esq.
+    offCtx.fillStyle = "#2a2438";
+    offCtx.fillRect(sx + 4, sy - 3, 1, 3); offCtx.fillRect(sx + 3, sy - 8, 1, 5); offCtx.fillRect(sx + 2, sy - 11, 1, 3);
+    offCtx.fillStyle = "#6a6478";
+    offCtx.fillRect(sx - 4, sy - 3, 1, 3); offCtx.fillRect(sx - 3, sy - 8, 1, 5); offCtx.fillRect(sx - 2, sy - 11, 1, 3);
+    // RUNAS em coluna central — base + overdraw pulsante + mini-glow
+    offCtx.fillStyle = "#5a90c0";
+    offCtx.fillRect(sx, sy - 10, 1, 2); offCtx.fillRect(sx - 1, sy - 7, 2, 1); offCtx.fillRect(sx, sy - 5, 1, 2);
+    const rp = 0.5 + 0.5 * Math.sin(game.time / 700 + d.x * 0.03);
+    offCtx.globalAlpha = rp * 0.8;
+    offCtx.fillStyle = (v === 2) ? "#c060ff" : "#e8f8ff";
+    offCtx.fillRect(sx, sy - 10, 1, 2); offCtx.fillRect(sx - 1, sy - 7, 2, 1); offCtx.fillRect(sx, sy - 5, 1, 2);
+    offCtx.globalAlpha = 0.10 * rp;
+    fillCircle(sx, sy - 6, 6);
+    offCtx.globalAlpha = 1;
+    return;
+  }
+  if (d.type === "boneArch") {
+    // Arco de costelas com crânio no ápice (inferno)
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 10, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // 2 colunas de costela curvas espelhadas + espinhos de vértebra
+    for (let s = 0; s < 12; s++) {
+      const bend = Math.round(Math.sin(s / 11 * 1.35) * 4);
+      offCtx.fillStyle = s < 3 ? "#6b6452" : "#b8b09a";
+      offCtx.fillRect(sx - 7 + bend, sy - s, 2, 1);
+      offCtx.fillRect(sx + 6 - bend, sy - s, 2, 1);
+      if (s === 3 || s === 6 || s === 9) {
+        offCtx.fillStyle = "#b8b09a";
+        offCtx.fillRect(sx - 8 + bend, sy - s, 1, 1);
+        offCtx.fillRect(sx + 8 - bend, sy - s, 1, 1);
+      }
+    }
+    // CRÂNIO no ápice: calota + olhos + nasal + dentes alternados + spec
+    offCtx.fillStyle = "#e8e4d4"; offCtx.fillRect(sx - 2, sy - 14, 4, 3);
+    offCtx.fillStyle = "#0d0810";
+    offCtx.fillRect(sx - 1, sy - 13, 1, 1); offCtx.fillRect(sx + 1, sy - 13, 1, 1);
+    offCtx.fillRect(sx, sy - 12, 1, 1);
+    offCtx.fillStyle = "#b8b09a"; offCtx.fillRect(sx - 2, sy - 11, 1, 1); offCtx.fillRect(sx, sy - 11, 1, 1);
+    offCtx.fillStyle = "#e8e4d4"; offCtx.fillRect(sx - 1, sy - 11, 1, 1); offCtx.fillRect(sx + 1, sy - 11, 1, 1);
+    offCtx.fillStyle = "#ffffff"; offCtx.fillRect(sx - 1, sy - 14, 1, 1);
+    // brasas pulsantes na base
+    offCtx.globalAlpha = 0.5 + 0.5 * Math.sin(game.time / 300 + d.x * 0.05);
+    offCtx.fillStyle = "#ff5a20";
+    offCtx.fillRect(sx - 6, sy, 1, 1); offCtx.fillRect(sx + 6, sy - 1, 1, 1);
+    offCtx.globalAlpha = 1;
+    return;
+  }
+  if (d.type === "demonIdol") {
+    // Ídolo demoníaco de obsidiana com olhos de lava (v=1 chifre quebrado, v=2 pedestal torto)
+    const pShift = (v === 2) ? 1 : 0;
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 6, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // pedestal + torso (coluna de luz) + cabeça
+    offCtx.fillStyle = "#1a1024"; offCtx.fillRect(sx - 4 + pShift, sy - 2, 8, 2);
+    offCtx.fillStyle = "#2a1a38"; offCtx.fillRect(sx - 3, sy - 8, 6, 6);
+    offCtx.fillStyle = "#3a2a48"; offCtx.fillRect(sx - 3, sy - 8, 1, 6);
+    offCtx.fillStyle = "#2a1a38"; offCtx.fillRect(sx - 2, sy - 11, 4, 3);
+    // chifres curvando pra fora
+    offCtx.fillStyle = "#b8b09a";
+    offCtx.fillRect(sx - 2, sy - 12, 1, 1); offCtx.fillRect(sx - 3, sy - 13, 1, 1); offCtx.fillRect(sx - 4, sy - 14, 1, 1);
+    offCtx.fillRect(sx + 1, sy - 12, 1, 1);
+    if (v !== 1) { offCtx.fillRect(sx + 2, sy - 13, 1, 1); offCtx.fillRect(sx + 3, sy - 14, 1, 1); }
+    // OLHOS de lava pulsantes + mini-glow
+    const ep = 0.6 + 0.4 * Math.sin(game.time / 450 + d.x * 0.05);
+    offCtx.fillStyle = "#ff5a20";
+    offCtx.fillRect(sx - 1, sy - 10, 1, 1); offCtx.fillRect(sx + 1, sy - 10, 1, 1);
+    offCtx.globalAlpha = ep; offCtx.fillStyle = "#ffb030";
+    offCtx.fillRect(sx - 1, sy - 10, 1, 1); offCtx.fillRect(sx + 1, sy - 10, 1, 1);
+    offCtx.globalAlpha = 0.18 * ep; offCtx.fillStyle = "#ff5a20"; fillCircle(sx, sy - 10, 3);
+    offCtx.globalAlpha = 1;
+    // boca + rachadura diagonal no torso
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(sx - 1, sy - 9, 2, 1);
+    offCtx.fillStyle = "#1a1024";
+    offCtx.fillRect(sx, sy - 7, 1, 1); offCtx.fillRect(sx + 1, sy - 6, 1, 1); offCtx.fillRect(sx + 1, sy - 5, 1, 1);
+    return;
+  }
+  if (d.type === "witchTotem") {
+    // Totem de bruxa — crânio, penas ao vento e wisp orbitando
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000"; offCtx.fillRect(sx - 2, sy + 1, 4, 2);
+    offCtx.globalAlpha = 1;
+    // estaca + travessa
+    offCtx.fillStyle = "#33260f"; offCtx.fillRect(sx, sy - 12, 2, 12);
+    offCtx.fillStyle = "#5a4424"; offCtx.fillRect(sx, sy - 12, 1, 12);
+    offCtx.fillStyle = "#33260f"; offCtx.fillRect(sx - 3, sy - 9, 8, 1);
+    // CRÂNIO no topo: calota + sombra na base + olhos + mandíbula
+    offCtx.fillStyle = "#e8e4d4"; offCtx.fillRect(sx - 1, sy - 16, 4, 3);
+    offCtx.fillStyle = "#b8b09a"; offCtx.fillRect(sx - 1, sy - 14, 4, 1);
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(sx, sy - 15, 1, 1); offCtx.fillRect(sx + 2, sy - 15, 1, 1);
+    offCtx.fillStyle = "#b8b09a"; offCtx.fillRect(sx, sy - 13, 2, 1);
+    // PENAS penduradas nas pontas da travessa (sway)
+    for (let side = 0; side < 2; side++) {
+      const fx = side === 0 ? sx - 3 : sx + 4;
+      const fSway = Math.round(Math.sin(game.time / 500 + d.x * 0.04 + side * 2) * 1);
+      offCtx.fillStyle = "#3a6630"; offCtx.fillRect(fx + fSway, sy - 8, 1, 2);
+      offCtx.fillStyle = "#9fd06a"; offCtx.fillRect(fx + fSway, sy - 6, 1, 1);
+    }
+    // WISP orbitando
+    const wxp = sx + Math.round(Math.cos(game.time / 800 + d.x) * 5);
+    const wyp = sy - 8 + Math.round(Math.sin(game.time / 800 + d.x) * 3);
+    offCtx.fillStyle = "#9ad060"; offCtx.fillRect(wxp, wyp, 1, 1);
+    offCtx.globalAlpha = 0.25; fillCircle(wxp, wyp, 2);
+    offCtx.globalAlpha = 1;
+    return;
+  }
+  if (d.type === "mushroomHouse") {
+    // Casa-cogumelo com janela acesa e chaminé fumegante
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 9, 2, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // talo-casa + sombreado à dir.
+    offCtx.fillStyle = "#d8c8a8"; offCtx.fillRect(sx - 5, sy - 8, 10, 8);
+    offCtx.fillStyle = "#a89878"; offCtx.fillRect(sx + 3, sy - 8, 2, 8);
+    // porta em arco + maçaneta dourada
+    offCtx.fillStyle = "#5a3a1a"; offCtx.fillRect(sx - 2, sy - 4, 3, 4); offCtx.fillRect(sx - 1, sy - 5, 1, 1);
+    offCtx.fillStyle = "#d4a637"; offCtx.fillRect(sx, sy - 2, 1, 1);
+    // JANELA 2×2 acendendo/apagando devagar
+    const litW = Math.sin(game.time / 900 + d.x * 0.03) > -0.6;
+    offCtx.fillStyle = litW ? "#ffd060" : "#3a2a48";
+    offCtx.fillRect(sx + 2, sy - 6, 2, 2);
+    if (litW) { offCtx.globalAlpha = 0.2; fillCircle(sx + 3, sy - 5, 3); offCtx.globalAlpha = 1; }
+    // CHAPÉU 3 camadas + pintas
+    offCtx.fillStyle = "#b0387a"; offCtx.fillRect(sx - 8, sy - 10, 16, 3);
+    offCtx.fillStyle = "#d860a8"; offCtx.fillRect(sx - 6, sy - 12, 12, 2);
+    offCtx.fillStyle = "#ff9ad0"; offCtx.fillRect(sx - 4, sy - 13, 8, 1);
+    offCtx.fillStyle = "#f0e8f0";
+    offCtx.fillRect(sx - 5, sy - 9, 2, 1); offCtx.fillRect(sx + 1, sy - 11, 2, 1); offCtx.fillRect(sx + 4, sy - 9, 2, 1);
+    // chaminé espetando o chapéu (desenha por cima)
+    offCtx.fillStyle = "#a89878"; offCtx.fillRect(sx + 5, sy - 13, 2, 3);
+    // FUMAÇA da chaminé — R7 (verificação): offset escalado quando LANDMARK (2.6×),
+    // senão a fumaça saía do meio da casa em vez da chaminé.
+    const _mhS = d.landmark ? 2.6 : 1;
+    if (!game.paused && Math.random() < 0.03 && !_shouldSkipFx()) {
+      game.effects.push({
+        type: "spark", color: "#8a8498", x: d.x + 6 * _mhS, y: d.y - 14 * _mhS,
+        vx: (Math.random() - 0.5) * 3, vy: -8,
+        lifetime: 1400, maxLifetime: 1400, size: 1,
+        update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
+      });
+    }
+    return;
+  }
+  if (d.type === "sunkenStatue") {
+    // Cabeça de estátua colossal afundada (aquático) — pedra esverdeada + algas + bolhas
+    offCtx.globalAlpha = 0.4; offCtx.fillStyle = "#000";
+    offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 8, 3, 0, 0, Math.PI * 2); offCtx.fill();
+    offCtx.globalAlpha = 1;
+    // rosto inclinado (mesmo truque do shipwreck)
+    offCtx.save(); offCtx.translate(sx, sy); offCtx.rotate(-0.12);
+    offCtx.fillStyle = "#3a5a58"; offCtx.fillRect(-4, -9, 8, 8);
+    offCtx.fillStyle = "#24383a"; offCtx.fillRect(2, -9, 2, 8);
+    offCtx.fillStyle = "#5a7a74"; offCtx.fillRect(-4, -9, 8, 1);
+    offCtx.fillRect(0, -5, 1, 2);                        // nariz
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(-2, -6, 2, 1);   // olho visível
+    // dentes de coroa quebrada
+    offCtx.fillStyle = "#3a5a58";
+    offCtx.fillRect(-4, -11, 1, 2); offCtx.fillRect(-1, -11, 1, 2); offCtx.fillRect(2, -11, 1, 2);
+    offCtx.restore();
+    // areia cobrindo o queixo
+    offCtx.fillStyle = "#b89878";
+    offCtx.fillRect(sx - 6, sy - 1, 12, 1); offCtx.fillRect(sx - 4, sy - 2, 8, 1);
+    // ALGAS drapejadas com sway
+    const aSway = Math.round(Math.sin(game.time / 500 + d.x * 0.04) * 1);
+    offCtx.fillStyle = "#2e8a52";
+    offCtx.fillRect(sx - 3 + aSway, sy - 9, 1, 3); offCtx.fillRect(sx + 2 + aSway, sy - 8, 1, 3);
+    offCtx.fillStyle = "#4fc878";
+    offCtx.fillRect(sx - 3 + aSway, sy - 6, 1, 1); offCtx.fillRect(sx + 2 + aSway, sy - 5, 1, 1);
+    // BOLHAS subindo (inline, padrão do bubbleVent — sem effects)
+    for (let i = 0; i < 3; i++) {
+      const by = sy - 10 - ((game.time / 16 + i * 20) % 22);
+      const bx = sx + Math.round(Math.sin(game.time / 200 + i) * 2);
+      offCtx.fillStyle = "rgba(180,235,255,0.6)";
+      offCtx.fillRect(bx, Math.round(by), 1, 1);
+    }
+    return;
+  }
   // ===== 2026-06-15 — DECORAÇÕES DO BIOMA AQUÁTICO =====
   if (d.type === "coral") {
     offCtx.globalAlpha = 0.32; offCtx.fillStyle = "#000"; offCtx.beginPath(); offCtx.ellipse(sx, sy + 1, 6, 2, 0, 0, Math.PI * 2); offCtx.fill(); offCtx.globalAlpha = 1;
@@ -47042,7 +47767,10 @@ function _renderSpriteToCache(key, u, b, colors) {
 // chamador deve desenhar direto (flag off / estado dinâmico / falha do render-to-cache).
 // 2026-06-24 FIX (auditoria): classes cujo DRAWER tem VFX contínuo embutido (teia/aura girando
 // via game.time) NÃO podem ser cacheadas — o cache congela a animação. Desenham sempre direto.
-const _SPRITE_CACHE_BLOCK = { necroSpider: true };
+// 2026-07-02 R7 (verificação): medusa também — a Górgona tem olhar petrificante cíclico
+// (t % 2600) + anel de pulso + partículas; no cache o flash assava CONGELADO nos buckets
+// (tFix=0 do ataque → gazing sempre true, anel estático carimbado no sprite).
+const _SPRITE_CACHE_BLOCK = { necroSpider: true, leviataProfundo: true, medusa: true }; // 2026-07-02: leviatã aquático tem ondulação contínua + bolhas
 function drawUnitBodyCached(sx, sy, t, u, colors, pose) {
   if (game._spriteCache === false) return false;
   if (u.flashTime > 0 || u.frozen > 0) return false;
@@ -47059,7 +47787,10 @@ function drawUnitBodyCached(sx, sy, t, u, colors, pose) {
 function drawUnit(u, camX, camY) {
   const sx = Math.round(u.x - camX + BASE_W / 2);
   const sy = Math.round(u.y - camY + BASE_H / 2);
-  if (sx < -30 || sx > BASE_W + 30 || sy < -30 || sy > BASE_H + 30) return;
+  // R7 (verificação): o Leviatã Menor HD se estende até ±37px do centro — margem
+  // de cull maior pra ele não dar pop-in na borda da tela.
+  const _cullM = u.unitClass === "leviataProfundo" ? 46 : 30;
+  if (sx < -_cullM || sx > BASE_W + _cullM || sy < -_cullM || sy > BASE_H + _cullM) return;
 
   const t = game.time + u.animPhase;
   const breathe = Math.sin(t / 500) * 0.5;
@@ -53492,130 +54223,247 @@ function drawMortoAfogado(cx, cy, t, u, c, pose) {
 }
 
 function drawMedusa(cx, cy, t, u, c, pose) {
-  // FEEDBACK R6 (2026-07-02) — MEDUSA = ÁGUA-VIVA. O sprite antigo era uma Górgona
-  // (cobras no cabelo, cimitarra) — "não tem nada a ver com uma medusa". Redesenhada
-  // como água-viva do pântano: sino translúcido PULSANTE, núcleo bioluminescente,
-  // saia franjada e 8 tentáculos ondulantes + 2 braços orais. Flutua (sem pernas);
-  // o ataque é uma contração do sino com chicote de tentáculos.
-  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
-  // 5 tons verde-veneno (identidade do pântano preservada)
-  const JW = "#d8ffc8";   // brilho
-  const JL = c.body || "#80d060";
-  const JM = c.bodyD || "#3a7838";
-  const JS = "#1a4020";
-  const JK = "#0a2010";
-  const CORE = "#eaffb0";
+  // FEEDBACK R7 (2026-07-02) — MEDUSA GREGA (Górgona) v3. O dono confirmou: é a
+  // Medusa da mitologia, não água-viva. Redesenho com leitura MUITO mais forte que
+  // a v2: coroa de 13 SERPENTES grandes e animadas (a assinatura domina a silhueta),
+  // OLHAR PETRIFICANTE cíclico (olhos flamejam + anel de pulso verde), cauda de
+  // serpente ENROLADA em 3 voltas com ventre dourado, torso escamado com peitoral
+  // de bronze, cimitarra de bronze com trail no ataque.
+  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = pose.walking ? Math.round(Math.abs(Math.sin(t / 200)) * 1.5) : Math.round(Math.sin(t / 600) * 0.8);
+  const tailWag = Math.sin(t / 300);
+  // Escamas (5 tons)
+  const SC_W = "#d8f0b8";
+  const SC_L = c.body || "#90c860";
+  const SC_M = c.bodyD || "#4a7838";
+  const SC_S = "#24481c";
+  const SC_K = "#0c1c08";
+  // Bronze
+  const BR_L = "#ffd890";
+  const BR_M = "#c89040";
+  const BR_D = "#7a5420";
+  const BR_K = "#3a2810";
+  // Olhar petrificante
+  const EYE = "#b0ff70";
+  const EYE_W = "#eaffc8";
 
-  // ===== Pulso do sino: respiração lenta + CONTRAÇÃO forte no ataque =====
-  const atkM = pose.attackProg || 0;
-  const atkPulse = atkM > 0 ? Math.sin(atkM * Math.PI) : 0;
-  const breathe = Math.sin(t / 340);
-  const squash = breathe * 0.14 + atkPulse * 0.42;          // >0 = sino achatado/largo
-  const bellW = Math.round(7 + squash * 3);                 // meia-largura 7..10
-  const bellH = Math.round(9 - squash * 3);                 // altura 6..10
-  const hover = Math.round(Math.sin(t / 520) * 1.5);        // flutuação vertical
-  const top = -13 - bellH + hover;                          // y do topo do sino
-
-  // ===== Sombra (menor e mais fraca — ela FLUTUA) =====
-  offCtx.globalAlpha = 0.22;
+  // ===== Sombra larga =====
+  offCtx.globalAlpha = 0.35;
   offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 6, cy + 3, 12, 1);
+  offCtx.fillRect(cx - 10, cy + 3, 20, 1);
   offCtx.globalAlpha = 1;
 
-  // ===== TENTÁCULOS (8 finos, fases distintas) — atrás do sino =====
-  const whip = atkPulse * 3;   // no ataque os tentáculos chicoteiam pro lado do facing
-  const whipDir = u.facing === "left" ? -1 : 1;
-  for (let i = 0; i < 8; i++) {
-    const bx = Math.round((i - 3.5) * (bellW / 4.2));
-    const phase = t / 260 + i * 0.9;
-    const len = 8 + (i % 3);
+  // ===== CAUDA DE SERPENTE — 3 voltas empilhadas + ponta com chocalho =====
+  // volta de BAIXO (a mais larga)
+  rect(-10, 1, 20, 3, SC_K);
+  rect(-9, 1, 18, 2, SC_M);
+  rect(-9, 1, 18, 1, SC_L);
+  // volta do MEIO (deslocada pelo wag)
+  const w1 = Math.round(tailWag * 1.5);
+  rect(-8 + w1, -2, 16, 3, SC_K);
+  rect(-7 + w1, -2, 14, 2, SC_M);
+  rect(-7 + w1, -2, 14, 1, SC_L);
+  // volta de CIMA (menor, sustenta o torso)
+  const w2 = Math.round(tailWag * -1);
+  rect(-6 + w2, -5, 12, 3, SC_K);
+  rect(-5 + w2, -5, 10, 2, SC_M);
+  rect(-5 + w2, -5, 10, 1, SC_L);
+  // escamas em losango nas voltas
+  for (let i = -7; i <= 7; i += 3) {
+    px(i, 1, SC_W);
+    px(i + 1, 2, SC_S);
+  }
+  for (let i = -6; i <= 6; i += 3) {
+    px(i + w1, -2, SC_W);
+    px(i + 1 + w1, -1, SC_S);
+  }
+  // VENTRE dourado (escudos horizontais — marca de serpente)
+  rect(-6, 2, 12, 1, BR_M);
+  px(-4, 2, BR_L); px(0, 2, BR_L); px(4, 2, BR_L);
+  rect(-5 + w1, -1, 10, 1, BR_D);
+  px(-2 + w1, -1, BR_M); px(2 + w1, -1, BR_M);
+  // PONTA da cauda saindo da volta de baixo (curva animada + chocalho)
+  const tipSide = -flip;
+  for (let seg = 0; seg < 5; seg++) {
+    const tx = (10 + seg * 2) * tipSide;
+    const ty = 2 - Math.round(Math.abs(Math.sin(t / 300 + seg * 0.5)) * (seg * 0.7));
+    rect(tx, ty, 2, 2, seg < 3 ? SC_M : SC_S);
+    if (seg === 2) px(tx, ty, SC_W);
+  }
+  const rx = (20) * tipSide;
+  const ry = 2 - Math.round(Math.abs(Math.sin(t / 300 + 2.5)) * 2.8);
+  px(rx, ry, BR_L);   // chocalho brilha
+  px(rx + tipSide, ry, BR_M);
+
+  // ===== TORSO escamado + PEITORAL de bronze =====
+  rect(-4, -14 + bob, 8, 9, SC_K);
+  rect(-4, -14 + bob, 8, 8, SC_M);
+  rect(-4, -14 + bob, 8, 3, SC_L);
+  rect(-4, -14 + bob, 8, 1, SC_W);
+  // escamas do torso
+  px(-2, -10 + bob, SC_W); px(2, -10 + bob, SC_W); px(0, -9 + bob, SC_W);
+  px(-3, -9 + bob, SC_S); px(3, -9 + bob, SC_S);
+  // peitoral de bronze (faixa superior + gema)
+  rect(-4, -14 + bob, 8, 2, BR_M);
+  rect(-4, -14 + bob, 8, 1, BR_L);
+  px(0, -14 + bob, "#fff4c0");
+  // gema-olho no peito (gorgoneion) — pisca junto com o olhar
+  const gazeCycle = (t % 2600) / 2600;               // ciclo do olhar petrificante
+  const gazing = gazeCycle < 0.16;                   // janela de ~420ms
+  rect(-1, -12 + bob, 2, 2, gazing ? EYE_W : "#3a7838");
+  px(0, -12 + bob, gazing ? "#ffffff" : EYE);
+  // cinto de bronze na cintura
+  rect(-4, -6, 8, 1, BR_D);
+  px(-1, -6, BR_L); px(1, -6, BR_M);
+
+  // ===== BRAÇOS =====
+  const armSwing = pose.walking ? Math.round(Math.sin(t / 200) * 1.5) : 0;
+  // braço do escudo (atrás)
+  const shSide = -flip;
+  rect(5 * shSide, -13 + bob - armSwing, 2, 5, SC_K);
+  rect(5 * shSide, -13 + bob - armSwing, 2, 4, SC_M);
+  px(5 * shSide, -13 + bob - armSwing, SC_L);
+  // ESCUDO redondo de bronze com serpente gravada
+  const shX = 8 * shSide;
+  rect(shX - 1, -13 + bob - armSwing, 3, 7, BR_K);
+  rect(shX - 1, -12 + bob - armSwing, 3, 5, BR_M);
+  rect(shX - 1, -12 + bob - armSwing, 3, 1, BR_L);
+  px(shX, -10 + bob - armSwing, SC_L);   // serpente gravada
+  px(shX, -9 + bob - armSwing, SC_M);
+  px(shX, -8 + bob - armSwing, SC_L);
+  // braço da arma (frente)
+  rect(4 * flip, -13 + bob + armSwing, 2, 5, SC_K);
+  rect(4 * flip, -13 + bob + armSwing, 2, 4, SC_M);
+  px(4 * flip, -13 + bob + armSwing, SC_L);
+  // bracelete
+  px(4 * flip, -10 + bob + armSwing, BR_M);
+
+  // ===== CABEÇA (rosto de górgona) =====
+  rect(-3, -20 + bob, 7, 6, SC_K);
+  rect(-3, -20 + bob, 7, 5, SC_M);
+  rect(-3, -20 + bob, 7, 2, SC_L);
+  rect(-3, -20 + bob, 7, 1, SC_W);
+  // pescoço
+  rect(-1, -15 + bob, 3, 1, SC_M);
+  // ===== OLHOS PETRIFICANTES (grandes, com aura e flash cíclico) =====
+  const eyeGlow = gazing ? 1 : 0.55 + Math.sin(t / 180) * 0.2;
+  offCtx.globalAlpha = eyeGlow * 0.45;
+  rect(-3, -19 + bob, 3, 3, EYE);       // aura esquerda
+  rect(1, -19 + bob, 3, 3, EYE);        // aura direita
+  offCtx.globalAlpha = Math.min(1, eyeGlow);
+  rect(-2, -18 + bob, 2, 1, gazing ? "#ffffff" : EYE_W);
+  rect(1, -18 + bob, 2, 1, gazing ? "#ffffff" : EYE_W);
+  offCtx.globalAlpha = 1;
+  // pupila vertical (some no flash)
+  if (!gazing) { px(-2, -18 + bob, SC_K); px(2, -18 + bob, SC_K); }
+  // PULSO DE PETRIFICAÇÃO: anel verde expandindo dos olhos na janela do olhar
+  if (gazing && !game.paused) {
+    const gp = gazeCycle / 0.16;   // 0→1 dentro da janela
+    offCtx.globalAlpha = 0.5 * (1 - gp);
+    offCtx.strokeStyle = EYE;
+    offCtx.lineWidth = 1;
+    offCtx.beginPath();
+    offCtx.arc(cx, cy - 18 + bob, 3 + gp * 14, 0, Math.PI * 2);
+    offCtx.stroke();
+    offCtx.globalAlpha = 1;
+  }
+  // boca com PRESAS + língua bífida ocasional
+  rect(-1, -16 + bob, 3, 1, "#1a0a0a");
+  px(-1, -15 + bob, "#e8e8d8");   // presa esq
+  px(1, -15 + bob, "#e8e8d8");    // presa dir
+  if ((Math.sin(t / 420) + 1) * 0.5 > 0.62) {
+    px(0, -14 + bob, "#ff4040");
+    px(flip, -13 + bob, "#ff4040");
+    px(flip * 2, -13 + bob, "#a01010");
+  }
+
+  // ===== COROA DE SERPENTES (13 — a assinatura da Górgona) =====
+  // Leque largo a partir do topo/laterais da cabeça; cada serpente tem 5-7
+  // segmentos com fase própria, cabeça 2px com olho e língua vermelha piscando.
+  for (let i = 0; i < 13; i++) {
+    const angOff = (i - 6) * 0.30;                       // -1.8 .. 1.8 (leque)
+    const phase = t / 190 + i * 0.85;
+    const baseX = Math.round(Math.sin(angOff) * 4.2);
+    const baseY = -20 + bob - Math.round(Math.cos(angOff) * 1.5);
+    const len = 6 + (i % 3);                             // 6-8 segmentos
+    let hx = baseX, hy = baseY;
     for (let seg = 0; seg < len; seg++) {
-      const swy = Math.sin(phase + seg * 0.55);
-      const sx = bx + Math.round(swy * (0.6 + seg * 0.28)) + Math.round(whip * whipDir * (seg / len));
-      const sy = -12 + hover + seg;
-      const col = seg < 2 ? JM : (seg < 5 ? JS : (seg % 2 ? JM : JS));
-      px(sx, sy, col);
-      if (seg === len - 1) px(sx, sy, JL);   // pontinha clara
+      const amp = 0.7 + seg * 0.34;
+      hx = baseX + Math.round(Math.sin(angOff) * seg * 0.9 + Math.sin(phase + seg * 0.6) * amp);
+      hy = baseY - seg;
+      px(hx, hy, seg < 2 ? SC_S : (seg % 2 ? SC_M : SC_L));
+      if (seg === Math.floor(len / 2)) px(hx, hy, SC_W);  // brilho no meio do corpo
+    }
+    // cabeça da serpente (2 px) + olho + língua
+    rect(hx, hy - 1, 2, 2, SC_L);
+    px(hx, hy - 1, SC_W);
+    px(hx + 1, hy, SC_K);                                 // olhinho
+    if ((Math.sin(t / 260 + i * 1.3) + 1) * 0.5 > 0.72) {
+      px(hx + (i % 2 ? 1 : -1), hy - 2, "#ff4040");       // língua bífida
     }
   }
-  // ===== 2 BRAÇOS ORAIS (grossos, centrais, mais lentos) =====
-  for (let i = 0; i < 2; i++) {
-    const bx = i === 0 ? -2 : 2;
-    const phase = t / 380 + i * 2.2;
-    for (let seg = 0; seg < 7; seg++) {
-      const sx = bx + Math.round(Math.sin(phase + seg * 0.45) * (0.5 + seg * 0.22)) + Math.round(whip * whipDir * (seg / 7));
-      const sy = -12 + hover + seg;
-      rect(sx, sy, 2, 1, seg < 3 ? JM : JS);
-      if (seg % 3 === 0) px(sx, sy, JL);
+  // 2 SERPENTES GRANDES laterais (emolduram a silhueta, saem dos ombros)
+  for (let sSide = -1; sSide <= 1; sSide += 2) {
+    const phase = t / 240 + (sSide + 1) * 1.7;
+    for (let seg = 0; seg < 9; seg++) {
+      const sx = sSide * (5 + Math.round(seg * 0.55 + Math.sin(phase + seg * 0.5) * (1 + seg * 0.22)));
+      const sy = -13 + bob - seg;
+      rect(sx, sy, 2, 1, seg < 3 ? SC_S : (seg % 2 ? SC_M : SC_L));
     }
+    const hX = sSide * (5 + Math.round(9 * 0.55 + Math.sin(phase + 4.5) * 3));
+    rect(hX, -23 + bob, 2, 2, SC_L);
+    px(hX, -23 + bob, SC_W);
+    px(hX + sSide, -22 + bob, SC_K);
   }
 
-  // ===== SINO translúcido (cúpula em camadas com alpha) =====
-  // camada externa (mais transparente)
-  offCtx.globalAlpha = 0.45;
-  for (let row = 0; row < bellH; row++) {
-    const f = row / bellH;                       // 0 topo → 1 base
-    const w = Math.round(bellW * Math.sqrt(Math.max(0.08, f * (2 - f))));
-    rect(-w, top + row, w * 2, 1, JM);
-  }
-  offCtx.globalAlpha = 1;
-  // camada interna (menor, mais opaca)
-  offCtx.globalAlpha = 0.7;
-  for (let row = 1; row < bellH - 1; row++) {
-    const f = row / bellH;
-    const w = Math.round((bellW - 2) * Math.sqrt(Math.max(0.08, f * (2 - f))));
-    rect(-w, top + row, w * 2, 1, JL);
-  }
-  offCtx.globalAlpha = 1;
-  // brilho no topo do sino (reflexo)
-  const topW = Math.max(2, Math.round(bellW * 0.5));
-  offCtx.globalAlpha = 0.8;
-  rect(-Math.round(topW / 2) - 1, top + 1, topW, 1, JW);
-  px(-1, top, JW);
-  offCtx.globalAlpha = 1;
-
-  // ===== NÚCLEO bioluminescente (pulsa forte no ataque) =====
-  const coreGlow = 0.55 + 0.3 * Math.sin(t / 190) + atkPulse * 0.4;
-  offCtx.globalAlpha = Math.min(1, coreGlow) * 0.5;
-  rect(-3, top + Math.round(bellH * 0.45) - 1, 6, 4, CORE);
-  offCtx.globalAlpha = Math.min(1, coreGlow);
-  rect(-2, top + Math.round(bellH * 0.45), 4, 2, CORE);
-  px(0, top + Math.round(bellH * 0.45), "#ffffff");
-  offCtx.globalAlpha = 1;
-  // 4 pontos luminosos na borda do sino (padrão de água-viva)
-  const dotGlow = 0.5 + 0.5 * Math.sin(t / 240);
-  offCtx.globalAlpha = dotGlow;
-  px(-bellW + 1, top + bellH - 2, JW);
-  px(-Math.round(bellW / 3), top + bellH - 1, JW);
-  px(Math.round(bellW / 3), top + bellH - 1, JW);
-  px(bellW - 1, top + bellH - 2, JW);
-  offCtx.globalAlpha = 1;
-
-  // ===== SAIA franjada (borda inferior do sino, ondula) =====
-  for (let fx = -bellW; fx <= bellW; fx += 2) {
-    const fy = top + bellH + ((Math.sin(t / 200 + fx * 1.3) > 0) ? 1 : 0);
-    px(fx, fy - 1, JM);
-    px(fx, fy, JS);
+  // ===== CIMITARRA DE BRONZE (anim de ataque com trail verde) =====
+  const swordSide = flip;
+  const atkM = pose.attackProg || 0;
+  const atkSwing = atkM > 0 ? Math.sin(atkM * Math.PI) : 0;
+  const swingX = Math.round(atkSwing * 5);
+  const swingY = Math.round(atkSwing * -3);
+  const idleSway = pose.walking ? Math.round(Math.sin(t / 200) * 0.7) : 0;
+  const swing = swingY + idleSway;
+  const swX = (7 + swingX) * swordSide;
+  // cabo
+  rect(swX, -10 + bob + swing, 1, 3, BR_K);
+  // guarda
+  rect(swX - swordSide, -11 + bob + swing, 3, 1, BR_M);
+  px(swX, -11 + bob + swing, BR_L);
+  // lâmina curva de bronze
+  rect(swX, -16 + bob + swing, 1, 4, BR_M);
+  px(swX, -16 + bob + swing, BR_L);
+  px(swX + swordSide, -17 + bob + swing, BR_M);
+  px(swX + swordSide, -18 + bob + swing, BR_L);
+  px(swX + swordSide * 2, -19 + bob + swing, BR_L);
+  px(swX + swordSide * 2, -20 + bob + swing, "#fff4c0");
+  // trail venenoso no swing
+  if (atkSwing > 0.3) {
+    offCtx.globalAlpha = 0.55;
+    offCtx.fillStyle = SC_L;
+    fillCircle(cx + swX * 1, cy + (-18 + bob + swing), Math.round(2 + atkSwing * 2));
+    offCtx.globalAlpha = 1;
   }
 
-  // ===== Pingos de veneno (mantidos — ela é POISONSTACK) =====
-  if (Math.random() < 0.10) {
+  // ===== Pingos de veneno + faísca de pedra (flavor do olhar) =====
+  // R7 (verificação): gate !game.paused — sem ele os sparks acumulavam durante a pausa
+  // (render roda, update que expira lifetime não).
+  if (!game.paused && Math.random() < 0.10) {
     game.effects.push({
       type: "spark", color: "#80d060",
-      x: u.x + (Math.random() - 0.5) * 12, y: u.y - 14 + hover,
+      x: u.x + (Math.random() - 0.5) * 14, y: u.y - 26,
       vx: (Math.random() - 0.5) * 4, vy: 4 + Math.random() * 4,
       lifetime: 350, maxLifetime: 500, size: 1,
       update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 50*dt/1000; },
     });
   }
-  // Bolhas subindo ocasionais (leitura aquática)
-  if (Math.random() < 0.045) {
+  if (!game.paused && gazing && Math.random() < 0.25) {
     game.effects.push({
-      type: "spark", color: "#c0e8d0",
-      x: u.x + (Math.random() - 0.5) * 10, y: u.y - 8,
-      vx: (Math.random() - 0.5) * 2, vy: -8 - Math.random() * 6,
-      lifetime: 600, maxLifetime: 800, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
+      type: "spark", color: "#a8a8a0",   // lasquinhas de pedra
+      x: u.x + flip * (10 + Math.random() * 14), y: u.y - 14 + (Math.random() - 0.5) * 10,
+      vx: (Math.random() - 0.5) * 6, vy: -4 - Math.random() * 6,
+      lifetime: 420, maxLifetime: 500, size: 1,
+      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 60*dt/1000; },
     });
   }
 }
@@ -53828,98 +54676,364 @@ function drawLeviatao(cx, cy, t, u, c, pose) {
 }
 
 // Dispatch: mapeia unitClass → função de desenho. Se não estiver aqui, cai em drawWarrior.
-// ===== 2026-06-15 — BIOMA AQUÁTICO: sprites pixel dedicados (frente/arma em -x) =====
+// ===== 2026-06-15 — BIOMA AQUÁTICO: sprites pixel dedicados =====
+// REWORK AQUÁTICO HD (2026-07-02): 5 drawers reescritos com unitRectFactoryHD,
+// frente/arma em +x (o lote antigo desenhava a frente em -x, invertido vs. u.facing).
+// Unidades comuns (homemPeixe/caranguejoGigante/sereia/profundo) são CACHEÁVEIS:
+// zero Math.random e zero game.effects.push — animação só determinística em t/pose.
+// leviataProfundo é draw direto (em _SPRITE_CACHE_BLOCK) e pode usar efeitos.
 function drawHomemPeixe(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 0.85;
-  const { rect, px } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 270) * 0.5);
+  // T1 batedor — ~15 alto × 12 largo. Spawna em massa → estritamente cacheável.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 270) * 0.6);
   const sw = pose.walking ? Math.round(Math.sin(t / 110)) : 0;
-  const atk = (pose.attackProg || 0) > 0.4 ? 1 : 0;
+  const p = pose.attackProg || 0;
+  const thrust = Math.round((p > 0 ? Math.sin(p * Math.PI) : 0) * 3);
+  const fl = Math.round(Math.sin(t / 190));
+  const cf = pose.walking ? Math.round(Math.sin(t / 160) * 0.8) : 0;
+  // Sombra própria
   offCtx.globalAlpha = 0.22; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(4 * sc), cy + Math.round(2 * sc), Math.round(8 * sc), Math.round(1 * sc));
+  offCtx.fillRect(cx - 5, cy + 2, 10, 1);
   offCtx.globalAlpha = 1;
-  rect(-2, 0 + bob + sw, 1, 2, c.bodyD); rect(1, 0 + bob - sw, 1, 2, c.bodyD);
-  rect(-3, 2 + bob + sw, 2, 1, c.accent); rect(1, 2 + bob - sw, 2, 1, c.accent);   // pés-nadadeira
-  // 2026-06-23 — cauda de PEIXE: nadadeira caudal bifurcada atrás (+x), ondulando com o passo
-  rect(2, 0 + bob - sw, 1, 2, c.accent); px(3, -1 + bob - sw, c.accent); px(3, 2 + bob - sw, c.accent);
-  rect(-2, -4 + bob, 4, 4, c.body); rect(-2, -4 + bob, 4, 1, c.armor);
-  px(-1, -2 + bob, c.armorD); px(1, -3 + bob, c.armorD);                            // escamas
-  px(2, -5 + bob, c.accent); px(2, -4 + bob, c.accent); px(2, -3 + bob, c.armor);   // crista dorsal
-  px(3, -4 + bob, c.accent);                                                         // 2026-06-23 — ponta da barbatana dorsal (leque)
-  px(2, -2 + bob, c.armor); px(3, -2 + bob, c.accent);                               // 2026-06-23 — nadadeira peitoral no flanco
-  rect(-4, -7 + bob, 4, 3, c.body); rect(-5, -6 + bob, 1, 1, c.bodyD);              // cabeça + focinho
-  px(-3, -6 + bob, "#fff");                                                          // olho
-  px(-1, -5 + bob, c.bodyD); px(-1, -4 + bob, c.bodyD); px(0, -4 + bob, c.armorD);   // guelras (2 fendas branquiais)
-  px(-5, -5 + bob, c.bodyD);                                                          // 2026-06-23 — boca de peixe na ponta do focinho
-  px(-2, -8 + bob, c.accent); px(-1, -8 + bob, c.accent);                            // crista cabeça
-  rect(-1, -3 + bob, 2, 1, c.bodyD);                                                 // braço
-  px(-4 - atk, -5 + bob, c.weaponColor || "#50b8d0"); px(-4 - atk, -6 + bob, c.weaponColor || "#50b8d0"); // adaga
+  // Pernas + pés-nadadeira em leque
+  rect(-2, 0 + sw, 2, 2, c.bodyD); rect(1, 0 - sw, 2, 2, c.bodyD);
+  rect(-4, 2 + sw, 3, 1, c.armor); px(-4, 2 + sw, c.accent);
+  rect(2, 2 - sw, 3, 1, c.armor); px(4, 2 - sw, c.accent);
+  // Cauda de peixe atrás (-x) + caudal bifurcada com flick
+  rect(-6, -6 + bob, 3, 2, c.body);
+  px(-8, -8 + bob + fl, c.armor); px(-9, -9 + bob + fl, c.accent);
+  px(-8, -4 + bob - fl, c.armor); px(-9, -3 + bob - fl, c.accent);
+  // Torso + ventre claro + escamas em dither no dorso
+  rect(-3, -10 + bob, 6, 8, c.body);
+  rect(-1, -8 + bob, 3, 5, "#b8e0d8");
+  px(-3, -9 + bob, c.armor); px(-2, -7 + bob, c.armor); px(-3, -5 + bob, c.armor); px(-2, -3 + bob, c.armor);
+  // Barbatana peitoral com flutter + espinhos dorsais
+  px(-3, -7 + bob, c.armor); px(-4, -7 + bob + Math.round(Math.sin(t / 210)), c.accent);
+  px(-3, -10 + bob, c.accent); px(-4, -8 + bob, c.accent);
+  // Cabeça + focinho para +x + olho grande lateral
+  rect(-2, -15 + bob, 6, 5, c.body);
+  px(4, -13 + bob, c.body); px(4, -12 + bob, c.bodyD);
+  px(2, -13 + bob, "#fff"); px(3, -13 + bob, "#083840");
+  // GUELRAS: 3 fendas branquiais em arco na bochecha; a 1ª "respira" (accent alternado)
+  px(0, -13 + bob, c.armorD); px(0, -12 + bob, c.armorD);
+  px(1, -12 + bob, c.armorD); px(1, -11 + bob, c.armorD);
+  px(2, -11 + bob, c.armorD);
+  if (Math.floor(t / 500) % 2 === 0) px(0, -13 + bob, c.accent);
+  // CRISTA dorsal em leque com membrana (flutter quando anda)
+  px(-1, -17 + bob + cf, c.accent); px(0, -18 + bob + cf, c.accent);
+  px(1, -17 + bob + cf, c.accent); px(2, -16 + bob, c.accent);
+  px(-1, -16 + bob, c.armorD); px(0, -17 + bob, c.armorD); px(1, -16 + bob, c.armorD);
+  // Braço frontal + adaga de coral com thrust (campo certo é c.weapon — c.weaponColor não existe)
+  rect(1, -9 + bob, 2, 1, c.body);
+  px(3 + thrust, -9 + bob, c.armorD);
+  px(4 + thrust, -9 + bob, c.weapon || "#50b8d0"); px(5 + thrust, -10 + bob, c.weapon || "#50b8d0");
+  if (p > 0.4 && p < 0.65) px(6 + thrust, -10 + bob, "#fff");
 }
 function drawCaranguejoGigante(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 1.15;
-  const { rect, px } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 320) * 0.4);
-  const legP = pose.walking ? Math.round(Math.sin(t / 100)) : 0;
-  const clawO = (pose.attackProg || 0) > 0.4 ? 1 : 0;
+  // T2 tank — ~34 largo × 18 alto, garra gigante assimétrica na frente (+x).
+  // Cabe no tile de cache (x∈[-17..+24]) → mantém-se cacheável: tudo determinista.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.abs(Math.sin(t / 140)) * (pose.walking ? 1 : 0)) + Math.round(Math.sin(t / 320) * 0.5);
+  const p = pose.attackProg || 0;
+  // Sombra dupla larga
   offCtx.globalAlpha = 0.24; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(6 * sc), cy + Math.round(2 * sc), Math.round(12 * sc), Math.round(1 * sc));
+  offCtx.fillRect(cx - 14, cy + 2, 28, 2);
+  offCtx.fillRect(cx - 10, cy + 4, 20, 1);
   offCtx.globalAlpha = 1;
-  for (let i = 0; i < 3; i++) { const lx = -4 + i * 3; px(lx, 1 + bob + (i % 2 ? legP : -legP), c.bodyD); px(lx, 2 + bob, c.armorD); }
-  rect(-5, -3 + bob, 10, 4, c.body); rect(-5, -3 + bob, 10, 1, c.armor); rect(-5, 0 + bob, 10, 1, c.bodyD);
-  px(-2, -2 + bob, c.armorD); px(2, -2 + bob, c.armorD); px(0, -1 + bob, c.accent);
-  px(-1, -5 + bob, c.bodyD); px(1, -5 + bob, c.bodyD); px(-1, -6 + bob, "#fff"); px(1, -6 + bob, "#fff"); // olhos em haste
-  rect(-7, -2 + bob - clawO, 2, 2, c.bodyD); px(-8, -2 + bob - clawO, c.armor); rect(-8, 0 + bob + clawO, 2, 1, c.bodyD); // garra grande
-  rect(5, -2 + bob, 2, 2, c.bodyD); px(7, -2 + bob, c.armor);                                                            // garra menor
+  // 4 pares de patas: traseiras em silhueta escura (profundidade), frontais articuladas
+  for (let i = 0; i < 4; i++) {
+    const bx = -10 + i * 5;
+    px(bx + 1, -1 + bob, c.bodyD); px(bx + 1, 0 + bob, c.armorD);
+  }
+  for (let i = 0; i < 4; i++) {
+    const bx = -10 + i * 5;
+    const ph = pose.walking ? Math.round(Math.sin(t / 140 + i * 1.6) * 1.5) : 0;
+    rect(bx, 0 + bob, 2, 2, c.armor);   // fêmur
+    px(bx, 2 + ph, c.armor);            // tíbia
+    px(bx, 3 + ph, c.armorD);           // ponta afiada
+  }
+  // Carapaça em domo 26×10 + glint + textura fixa
+  rect(-13, -8 + bob, 26, 8, c.body);
+  rect(-11, -10 + bob, 22, 2, c.body);
+  rect(-13, 0 + bob, 26, 1, c.bodyD);
+  rect(-12, -2 + bob, 24, 2, c.bodyD);
+  rect(-9, -9 + bob, 15, 1, "#ffd8b0");
+  px(-8, -5 + bob, c.bodyD); px(-4, -7 + bob, c.bodyD); px(-1, -4 + bob, c.bodyD);
+  px(3, -6 + bob, c.bodyD); px(7, -5 + bob, c.bodyD); px(10, -3 + bob, c.bodyD);
+  px(-6, -8 + bob, c.accent); px(0, -6 + bob, c.accent); px(5, -8 + bob, c.accent);
+  // Espinhos na crista (os 2 centrais mais altos)
+  for (let sx = -10; sx <= 10; sx += 4) {
+    px(sx, -11 + bob, c.bodyD); px(sx, -12 + bob, c.accent);
+    if (sx === -2 || sx === 2) px(sx, -13 + bob, c.accent);
+  }
+  // Bordas dentadas laterais
+  px(-14, -5 + bob, c.bodyD); px(-14, -3 + bob, c.bodyD);
+  px(14, -5 + bob, c.bodyD); px(14, -3 + bob, c.bodyD);
+  // Olhos em haste, oscilando dessincronizados
+  const eb = Math.round(Math.sin(t / 300));
+  rect(6, -13 + bob + eb, 1, 3, c.bodyD); px(6, -14 + bob + eb, "#fff"); px(6, -13 + bob + eb, "#1a0808");
+  rect(9, -14 + bob - eb, 1, 4, c.bodyD); px(9, -15 + bob - eb, "#fff"); px(9, -14 + bob - eb, "#1a0808");
+  // Mandíbulas (mastigação)
+  px(11, -2 + bob + (Math.sin(t / 120) > 0 ? 1 : 0), c.armorD); px(12, -2 + bob, c.armorD);
+  // GARRA GIGANTE frontal (+x): braço + palma + pinça superior móvel
+  rect(12, -6 + bob, 4, 3, c.body); px(13, -4 + bob, c.bodyD);
+  rect(15, -8 + bob, 5, 5, c.body); rect(15, -3 + bob, 5, 1, c.bodyD);
+  const open = p > 0 && p <= 0.55 ? Math.round(Math.sin(Math.min(p / 0.55, 1) * Math.PI / 2) * 3) : 0;
+  rect(16, -10 + bob - open, 6, 2, c.body); px(22, -9 + bob - open, c.bodyD);
+  rect(16, -3 + bob, 6, 2, c.bodyD); px(22, -2 + bob, c.armorD);
+  px(17, -6 + bob, c.accent); px(19, -6 + bob, c.accent);   // dentes internos da palma
+  // Flash de impacto quando a pinça fecha de golpe
+  if (p > 0.55 && p < 0.78) { px(23, -6 + bob, "#fff"); px(24, -7 + bob, "#fff"); px(23, -8 + bob, c.accent); }
+  // Garra pequena traseira, dobrada junto ao corpo
+  rect(-16, -4 + bob, 3, 2, c.bodyD); px(-17, -5 + bob, c.body); px(-17, -3 + bob, c.armorD);
 }
 function drawSereia(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 0.95;
-  const { rect, px } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 240) * 0.6);
-  const tail = Math.round(Math.sin(t / 200));
-  const cast = (pose.attackProg || 0) > 0.4 ? 1 : 0;
+  // T2 ranged — sereia ereta sobre cauda em S, ~20 alto × 26 comprido. Cacheável.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 240) * 0.8);   // flutua — sem legSwing
+  const p = pose.attackProg || 0;
+  const fl = Math.round(Math.sin(t / 160));
+  // Sombra própria
   offCtx.globalAlpha = 0.2; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(3 * sc), cy + Math.round(2 * sc), Math.round(6 * sc), Math.round(1 * sc));
+  offCtx.fillRect(cx - 9, cy + 2, 18, 2);
   offCtx.globalAlpha = 1;
-  rect(-1, 0 + bob, 2, 2, c.body); rect(-2, 2 + bob + tail, 3, 1, c.bodyD);
-  rect(-3, 3 + bob + tail, 2, 1, c.accent); rect(1, 3 + bob - tail, 2, 1, c.accent);   // nadadeira bifurcada
-  rect(-1, -4 + bob, 3, 4, c.armor); rect(-1, -4 + bob, 3, 1, c.body);                  // torso
-  rect(-1, -7 + bob, 2, 2, "#e8c8a0"); px(0, -6 + bob, c.bodyD);                         // rosto + olho
-  rect(1, -8 + bob, 2, 4, c.body); px(2, -4 + bob + tail, c.accent); px(-2, -7 + bob, c.body); // cabelo
-  const ay = -5 + bob - cast;
-  px(-2, ay, "#e8c8a0"); px(2, ay, "#e8c8a0");                                           // braços
-  if (cast) { px(-3, ay - 1, c.accent); px(-4, ay - 2, "#b0e8ff"); }                     // orbe de água
+  // CAUDA EM S: 3 segmentos afinando com onda viajante (defasagem 0.9 rad)
+  const w0 = Math.round(Math.sin(t / 220) * 1.5);
+  const w1 = Math.round(Math.sin(t / 220 - 0.9) * 1.5);
+  const w2 = Math.round(Math.sin(t / 220 - 1.8) * 1.5);
+  // seg2 fino + caudal bifurcada com flick extra da ponta
+  rect(-13, -5 + bob + w2, 4, 2, c.bodyD); px(-11, -5 + bob + w2, c.armor);
+  rect(-16, -9 + bob + w2 + fl, 3, 3, c.armor); px(-17, -8 + bob + w2 + fl, c.accent);
+  rect(-16, -3 + bob + w2 - fl, 3, 3, c.armor); px(-17, -2 + bob + w2 - fl, c.accent);
+  px(-15, -5 + bob + w2, c.bodyD);   // membrana entre lobos
+  // seg1
+  rect(-9, -6 + bob + w1, 5, 3, c.body);
+  px(-8, -5 + bob + w1, c.armor); px(-6, -6 + bob + w1, c.armor);
+  rect(-9, -4 + bob + w1, 5, 1, c.bodyD);
+  // seg0 quadril + escamas em xadrez
+  rect(-4, -7 + bob + w0, 5, 4, c.body);
+  rect(-4, -3 + bob + w0, 5, 1, c.bodyD);
+  px(-4, -6 + bob + w0, c.armor); px(-2, -6 + bob + w0, c.armor); px(-3, -5 + bob + w0, c.armor);
+  // Torso ereto: pele + top de conchas + transição pele→escama
+  rect(-2, -13 + bob, 4, 5, "#e8c8a0");
+  rect(-2, -13 + bob, 4, 2, c.armor); px(0, -13 + bob, c.accent);
+  rect(-2, -8 + bob, 4, 2, c.body);
+  px(-2, -10 + bob, "#c09068");
+  // Cabeça (rosto para +x): olho, boca (abre no canto), tiara
+  rect(-2, -18 + bob, 4, 4, "#e8c8a0");
+  px(1, -17 + bob, "#fff");
+  px(2, -16 + bob, p > 0 ? "#103848" : "#c09068");
+  px(0, -19 + bob, c.accent);
+  // Cabelo fluindo para trás (-x), 3 mechas com sway defasado
+  const s0 = Math.round(Math.sin(t / 260));
+  const s1 = Math.round(Math.sin(t / 260 - 0.7));
+  const s2 = Math.round(Math.sin(t / 260 - 1.4));
+  px(-3, -19 + bob, c.armor); px(-4, -18 + bob + s0, c.armor); px(-5, -17 + bob + s0, c.accent); px(-6, -16 + bob + s0, c.accent);
+  px(-3, -16 + bob, c.armor); px(-4, -15 + bob + s1, c.armor); px(-5, -14 + bob + s1, c.armor); px(-6, -13 + bob + s1, c.accent); px(-7, -13 + bob + s1, c.accent);
+  px(-3, -14 + bob, c.armor); px(-4, -13 + bob + s2, c.accent);
+  if (p > 0) {
+    // Cast: braços erguem para +x + ONDAS DE CANTO (3 arcos concêntricos saindo da boca)
+    const lift = Math.round(Math.sin(p * Math.PI) * 2);
+    px(3, -13 + bob - lift, "#e8c8a0"); px(2, -14 + bob - lift, "#e8c8a0");
+    const bx = 3, by = -16 + bob;
+    for (let k = 0; k < 3; k++) {
+      const r = 3 + k * 3 + Math.round(p * 4);
+      offCtx.globalAlpha = Math.max(0, 0.85 - k * 0.22 - p * 0.2);
+      const col = k % 2 === 0 ? c.accent : "#fff";
+      px(bx + r, by, col);
+      px(bx + r - 1, by - 2, col); px(bx + r - 1, by + 2, col);
+      px(bx + r - 2, by - 3, col); px(bx + r - 2, by + 3, col);
+    }
+    offCtx.globalAlpha = 1;
+  } else {
+    // Braços caídos em idle
+    rect(-3, -12 + bob, 1, 3, "#e8c8a0"); rect(2, -12 + bob, 1, 3, "#e8c8a0");
+  }
+  // Brilho no peito (quantiza nos 4 buckets de idle — precedente do Ogro)
+  if (Math.sin(t / 300) > 0.2) px(0, -12 + bob, c.accent);
 }
 function drawProfundo(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 1.3;
-  const { rect, px } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 300) * 0.5);
-  const sw = pose.walking ? Math.round(Math.sin(t / 120)) : 0;
-  const tent = Math.round(Math.sin(t / 180));
+  // T3 melee — Deep One corcunda ~24 alto × 18 largo, bioluminescente. Cacheável.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 300) * 0.8);
+  const g = Math.round(pose.legSwing || 0);
+  const p = pose.attackProg || 0;
+  const atkS = p > 0 ? Math.sin(p * Math.PI) : 0;
+  // Sombra própria
   offCtx.globalAlpha = 0.24; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(4 * sc), cy + Math.round(2 * sc), Math.round(8 * sc), Math.round(1 * sc));
+  offCtx.fillRect(cx - 10, cy + 2, 20, 2);
   offCtx.globalAlpha = 1;
-  rect(-2, 0 + bob + sw, 2, 2, c.bodyD); rect(1, 0 + bob - sw, 2, 2, c.bodyD);
-  rect(-3, -4 + bob, 6, 5, c.body); rect(-3, -4 + bob, 6, 1, c.armor); px(-1, -2 + bob, c.armorD); px(1, -3 + bob, c.armorD);
-  rect(-3, -7 + bob, 5, 3, c.body);                                                    // cabeça bulbosa
-  px(-2, -6 + bob, c.accent); px(0, -6 + bob, c.accent);                                // olhos brilhantes
-  for (let i = 0; i < 3; i++) { px(-4, -4 + bob + i + (i % 2 ? tent : -tent), c.bodyD); px(-5, -3 + bob + i, c.armorD); } // tentáculos da boca
-  px(2, -6 + bob, c.accent); px(3, -5 + bob, c.accent);                                 // espinhos dorsais
-  px(-3, -2 + bob, c.armorD); px(3, -2 + bob, c.armorD);                                // garras
+  // Pernas digitígradas + pés-nadadeira palmados
+  rect(-4, -3 + g, 3, 6, c.bodyD);
+  rect(-6, 2 + g, 5, 1, c.armor); px(-6, 2 + g, c.accent);
+  rect(2, -3 - g, 3, 6, c.body); px(3, -1 - g, c.armorD);
+  rect(1, 2 - g, 5, 1, c.armor); px(5, 2 - g, c.accent);
+  px(3, -2 - g, c.accent); px(-3, -2 + g, c.accent);   // fotóforos nos joelhos
+  // Corpo corcunda (corcova alta atrás, peito baixo à frente) + ventre de anfíbio
+  rect(-7, -15 + bob, 12, 12, c.body);
+  rect(-6, -17 + bob, 8, 2, c.body);
+  rect(-7, -4 + bob, 12, 1, c.bodyD);
+  rect(-3, -10 + bob, 7, 6, c.armor);
+  rect(-2, -8 + bob, 5, 1, c.armorD); rect(-2, -6 + bob, 5, 1, c.armorD);
+  // BARBATANA DORSAL SERRILHADA: 4 raios com membrana, ondulação viajante pela crista
+  for (let i = 0; i < 4; i++) {
+    const rx = -7 + i * 2, h = 4 - i;
+    const yo = Math.round(Math.sin(t / 240 - i * 0.8));
+    rect(rx, -17 - h + bob + yo, 1, h, c.bodyD);
+    px(rx, -17 - h + bob + yo, c.accent);
+    px(rx + 1, -16 - h + bob + yo, c.armorD);
+  }
+  // Bioluminescência em cadeia: linha lateral de 5 fotóforos, cintilação correndo
+  const lit = Math.floor(t / 400);
+  const lxs = [-5, -3, -1, 1, 3];
+  for (let i = 0; i < 5; i++) px(lxs[i], -12 + bob, ((i + lit) % 2) === 0 ? c.accent : c.armorD);
+  // Braço traseiro (silhueta)
+  rect(-8, -12 + bob, 2, 7, c.bodyD);
+  if (p > 0) {
+    // ATAQUE: chicote de garra — braço frontal avança com rastro
+    const lunge = Math.round(atkS * 4);
+    rect(5 + lunge, -11 + bob, 3, 2, c.body);
+    px(8 + lunge, -12 + bob, "#cfeef5"); px(9 + lunge, -11 + bob, "#cfeef5"); px(8 + lunge, -10 + bob, "#cfeef5");
+    if (p > 0.3 && p < 0.7) { offCtx.globalAlpha = 0.5; px(4 + lunge, -10 + bob, c.accent); px(2 + lunge, -10 + bob, c.accent); offCtx.globalAlpha = 1; }
+  } else {
+    // Braço frontal longo até quase o chão + garras em leque + fotóforo no dorso da mão
+    rect(5, -12 + bob, 2, 7, c.body); px(5, -13 + bob, c.armor);
+    px(7, -5 + bob, "#cfeef5"); px(8, -6 + bob, "#cfeef5"); px(8, -4 + bob, "#cfeef5");
+    px(6, -8 + bob, c.accent);
+  }
+  // Cabeça bulbosa afundada nos ombros (sem pescoço)
+  rect(-3, -21 + bob, 9, 6, c.body);
+  rect(-2, -22 + bob, 7, 1, c.body);
+  // Olhos gigantes saltados sem pálpebra, brilho pulsante
+  rect(0, -20 + bob, 2, 2, c.accent); px(1, -20 + bob, "#a0e8f0");
+  rect(4, -20 + bob, 2, 2, c.accent); px(5, -20 + bob, "#a0e8f0");
+  if (Math.sin(t / 500) > 0.3) { px(0, -20 + bob, "#fff"); px(4, -20 + bob, "#fff"); }
+  // Guelras: 3 fendas na lateral da cabeça
+  px(-2, -19 + bob, c.armorD); px(-2, -18 + bob, c.armorD); px(-1, -17 + bob, c.armorD);
+  // Boca larga + TENTÁCULOS DE BOCA com onda viajante por pixel (serpenteio real)
+  rect(1, -16 + bob, 6, 1, "#060e1a");
+  const tentXs = [2, 4, 6, 1];
+  for (let j = 0; j < 4; j++) {
+    const tx = tentXs[j];
+    const L = j < 2 ? 6 : 4;
+    for (let k = 0; k < L; k++) {
+      const xo = Math.round(Math.sin(t / 180 - k * 0.9 + j * 1.3) * 1.2);
+      px(tx + xo, -15 + bob + k, j < 2 ? c.body : c.bodyD);
+    }
+    const xo = Math.round(Math.sin(t / 180 - L * 0.9 + j * 1.3) * 1.2);
+    px(tx + xo, -15 + bob + L, c.accent);   // ponta bioluminescente
+  }
 }
 function drawLeviataProfundo(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 1.85;
-  const { rect, px } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 320) * 0.6);
-  const undY = Math.round(Math.sin(t / 200));
-  const atk = (pose.attackProg || 0) > 0.4 ? 1 : 0;
-  offCtx.globalAlpha = 0.26; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(7 * sc), cy + Math.round(2 * sc), Math.round(14 * sc), Math.round(1 * sc));
+  // T4 SERPENTE MARINHA em 3 voltas (estilo Loch Ness), ~56×26 — DRAW DIRETO:
+  // está em _SPRITE_CACHE_BLOCK (ondulação defasada contínua + bolhas via
+  // game.effects exigem render por frame, mesma razão do necroSpider).
+  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = pose.walking ? Math.round(Math.abs(Math.sin(t / 170)) * 1.2) : Math.round(Math.sin(t / 600));
+  const atk = pose.attackProg || 0;
+  const atkSwing = atk > 0 ? Math.sin(atk * Math.PI) : 0;
+  const hx = Math.round(atkSwing * 4);   // bocada: cabeça avança +x
+  const jaw = Math.round(atkSwing * 3);  // mandíbula abre
+  // Onda viajante pelas 3 voltas (defasagem 1.4 rad); cauda chicoteia no atk
+  const c1 = Math.round(Math.sin(t / 280) * 1.5);
+  const c2 = Math.round(Math.sin(t / 280 - 1.4) * 2);
+  const c3 = Math.round(Math.sin(t / 280 - 2.8) * 2.5) + Math.round(atkSwing * 4);
+  // Sombra dupla larga
+  offCtx.globalAlpha = 0.35; offCtx.fillStyle = "#000";
+  offCtx.fillRect(cx - 24, cy + 2, 48, 2);
+  offCtx.fillRect(cx - 19, cy + 4, 38, 1);
   offCtx.globalAlpha = 1;
-  rect(0, -3 + bob, 4, 4, c.body); rect(3, -2 + bob + undY, 3, 3, c.bodyD); rect(5, -1 + bob - undY, 3, 2, c.bodyD); rect(7, 0 + bob + undY, 2, 1, c.accent); // corpo serpentino
-  px(1, -5 + bob, c.accent); px(2, -4 + bob, c.accent); px(4, -4 + bob + undY, c.accent); // barbatana dorsal
-  for (let i = 0; i < 3; i++) { px(-3, -2 + bob + i, c.bodyD); px(-4, -1 + bob + i + (i % 2 ? 1 : -1), c.armorD); } // tentáculos
-  rect(-3, -4 + bob, 4, 4, c.body); rect(-3, -4 + bob, 4, 1, c.armor); px(-2, -3 + bob, c.accent);  // cabeça + olho
-  if (atk) { px(-4, -2 + bob, "#fff"); px(-4, -1 + bob, "#fff"); px(-3, 0 + bob, "#fff"); } else { px(-3, 0 + bob, "#fff"); } // presas
+  // NADADEIRA CAUDAL vertical bifurcada na ponta (-x)
+  rect(-28, -18 + c3, 3, 5, c.armor); px(-29, -16 + c3, c.accent);
+  rect(-28, -11 + c3, 3, 5, c.armor); px(-29, -8 + c3, c.accent);
+  rect(-26, -13 + c3, 1, 2, c.bodyD);
+  // VOLTA 3 / cauda (mais fina)
+  rect(-25, -13 + c3, 11, 3, c.bodyD);
+  rect(-24, -14 + c3, 9, 1, c.body);
+  px(-22, -15 + c3, c.accent); px(-18, -15 + c3, c.accent);
+  // Vale 1 (corpo mergulha)
+  px(-13, -6 + bob, c.bodyD); px(-12, -5 + bob, c.bodyD);
+  // VOLTA 2: arco + laterais descendo + ventre pálido + escamas + dorsal
+  rect(-12, -18 + c2, 10, 4, c.body);
+  rect(-12, -14 + c2, 3, 8, c.armor);
+  rect(-5, -14 + c2, 3, 8, c.armor);
+  rect(-10, -14 + c2, 6, 1, "#5a8898");
+  px(-11, -17 + c2, c.armor); px(-9, -18 + c2, c.armor); px(-7, -17 + c2, c.armor); px(-4, -18 + c2, c.armor);
+  px(-9, -20 + c2, c.accent); px(-7, -21 + c2, c.accent); px(-5, -20 + c2, c.accent);
+  px(-8, -19 + c2, c.armorD); px(-6, -19 + c2, c.armorD);
+  // Vale 2
+  px(-1, -6 + bob, c.bodyD); px(0, -5 + bob, c.bodyD);
+  // VOLTA 1 (a maior): arco + laterais + ventre + contorno + escamas dither
+  rect(1, -22 + c1, 11, 5, c.body);
+  rect(1, -17 + c1, 3, 10, c.armor);
+  rect(9, -17 + c1, 3, 10, c.armor);
+  rect(3, -17 + c1, 6, 1, "#5a8898");
+  rect(1, -22 + c1, 11, 1, c.bodyD);
+  px(2, -20 + c1, c.armor); px(4, -21 + c1, c.armor); px(6, -20 + c1, c.armor); px(8, -21 + c1, c.armor); px(10, -20 + c1, c.armor);
+  // DORSAL GRANDE no ápice: 3 raios ondulantes + membrana
+  const dof = Math.round(Math.sin(t / 240));
+  px(4, -25 + c1 + dof, c.accent); px(6, -26 + c1 + dof, c.accent); px(8, -25 + c1 + dof, c.accent);
+  rect(4, -24 + c1, 5, 1, c.armorD);
+  // PESCOÇO subindo da volta 1 à cabeça + CRISTA em leque atrás da cabeça
+  rect(12, -18 + bob, 5, 8, c.body);
+  rect(12, -11 + bob, 5, 1, c.bodyD);
+  rect(13, -22 + bob, 2, 5, c.bodyD);
+  rect(15, -24 + bob, 2, 7, c.bodyD);
+  px(13, -22 + bob, c.accent); px(16, -24 + bob, c.accent);
+  // CABEÇA: crânio + topo escuro + sobrancelha óssea
+  rect(17 + hx, -20 + bob, 10, 8, c.body);
+  rect(17 + hx, -20 + bob, 10, 2, c.bodyD);
+  rect(18 + hx, -17 + bob, 8, 1, c.armorD);
+  // Olho ciano pulsante com pupila vertical + reflexo
+  offCtx.globalAlpha = 0.8 + Math.sin(t / 220) * 0.2;
+  rect(19 + hx, -15 + bob, 2, 2, c.accent);
+  offCtx.globalAlpha = 1;
+  px(20 + hx, -15 + bob, "#040a10");
+  px(19 + hx, -15 + bob, "#a0f0ff");
+  // MANDÍBULAS + PRESAS: superior fixa, inferior articulada (abre no atk)
+  rect(26 + hx, -15 + bob, 7, 3, c.body);
+  px(30 + hx, -14 + bob, "#040a10");
+  px(32 + hx, -14 + bob, c.bodyD);
+  rect(26 + hx, -12 + bob, 7, 1, "#040a10");
+  rect(26 + hx, -11 + bob + jaw, 6, 2, c.bodyD);
+  px(31 + hx, -10 + bob + jaw, c.bodyD);
+  px(27 + hx, -12 + bob, "#e8f4f0"); px(29 + hx, -12 + bob, "#e8f4f0"); px(31 + hx, -12 + bob, "#e8f4f0");
+  px(28 + hx, -12 + bob + jaw, "#e8f4f0"); px(28 + hx, -13 + bob + jaw, "#e8f4f0"); px(30 + hx, -12 + bob + jaw, "#e8f4f0");
+  px(27 + hx, -9 + bob + jaw + Math.round(Math.sin(t / 200)), c.accent);   // barbelas
+  // BIOLUMINESCÊNCIA em cadeia: 1 fotóforo por volta, pulso corre cauda→cabeça
+  const phB = Math.floor(t / 300) % 3;
+  px(-19, -15 + c3, phB === 0 ? c.accent : c.armorD);
+  px(-7, -19 + c2, phB === 1 ? c.accent : c.armorD);
+  px(6, -23 + c1, phB === 2 ? c.accent : c.armorD);
+  // ESPUMA na base das voltas (onde "entram na água"), shimmer por fase
+  const foamXs = [2, 11, -11, -4];
+  for (let i = 0; i < 4; i++) {
+    offCtx.globalAlpha = 0.5 + Math.sin(t / 150 + foamXs[i]) * 0.3;
+    px(foamXs[i], -2, "#5a8898");
+  }
+  offCtx.globalAlpha = 1;
+  // Bolhas da narina (sobem — água) + gotículas das voltas.
+  // Permitido: draw direto garantido pelo _SPRITE_CACHE_BLOCK (molde do drawLeviatao).
+  // R7 (verificação): gate !game.paused — render roda na pausa mas update (que expira
+  // lifetime e aplica fxCap) não; sem o gate os sparks acumulavam sem limite no pause.
+  if (!game.paused && Math.random() < 0.05) {
+    game.effects.push({
+      type: "spark", color: c.accent,
+      x: u.x + (flip === 1 ? 31 : -31), y: u.y - 14,
+      vx: (Math.random() - 0.5) * 4, vy: -6 - Math.random() * 4,
+      lifetime: 450, maxLifetime: 600, size: 1,
+      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy *= 0.97; },
+    });
+  }
+  if (!game.paused && Math.random() < 0.06) {
+    game.effects.push({
+      type: "spark", color: "#5a8898",
+      x: u.x + (Math.random() - 0.5) * 30, y: u.y - 18,
+      vx: (Math.random() - 0.5) * 8, vy: 3,
+      lifetime: 350, maxLifetime: 500, size: 1,
+      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 30 * dt / 1000; },
+    });
+  }
 }
 
 const BIOME_UNIT_DRAWERS = {
@@ -62318,6 +63432,86 @@ function drawEffect(e, camX, camY) {
     offCtx.globalAlpha = alpha;
     offCtx.fillStyle = alpha > 0.66 ? "#fff2a0" : alpha > 0.33 ? PAL.FIRE_L : PAL.FIRE;
     offCtx.fillRect(sx, sy, 1, 1);
+    offCtx.globalAlpha = 1;
+  } else if (e.type === "birdFlock") {
+    // FEEDBACK R7 (2026-07-02) — bando de pássaros em V (dia) ou morcegos (e.bat, noite)
+    const sx = Math.round(e.x - camX + BASE_W / 2);
+    const sy = Math.round(e.y - camY + BASE_H / 2);
+    // fade nas pontas (verificação): sem isso o bando dava pop-out ao expirar/ser capado
+    offCtx.globalAlpha = 0.85 * Math.min(1, e.lifetime / 800);
+    for (let i = 0; i < e.n; i++) {
+      let bx, by, flapT;
+      if (e.bat) {
+        // morcegos: cluster com jitter, flap mais rápido
+        bx = sx + Math.round(Math.sin(game.time / 90 + i * 2.3) * 3) - e.dir * i * 3;
+        by = sy + Math.round(Math.cos(game.time / 110 + i * 1.7) * 3);
+        flapT = 70;
+        offCtx.fillStyle = "#241a30";
+      } else {
+        // formação em V abrindo pra trás
+        const row = Math.ceil(i / 2), side = (i % 2) ? 1 : -1;
+        bx = sx - e.dir * row * 5;
+        by = sy + side * row * 3;
+        flapT = 120;
+        offCtx.fillStyle = "#1a1420";
+      }
+      const wY = Math.sin(game.time / flapT + i * 0.7) > 0 ? -1 : 0;
+      offCtx.fillRect(bx, by, 1, 1);
+      offCtx.fillRect(bx - 1, by + wY, 1, 1);
+      offCtx.fillRect(bx + 1, by + wY, 1, 1);
+    }
+    offCtx.globalAlpha = 1;
+  } else if (e.type === "firefly") {
+    // FEEDBACK R7 (2026-07-02) — vagalume piscando (fade nas pontas da vida)
+    const sx = Math.round(e.x - camX + BASE_W / 2);
+    const sy = Math.round(e.y - camY + BASE_H / 2);
+    const a = Math.min(1, e.lifetime / 1000, (e.maxLifetime - e.lifetime) / 600);
+    const blink = Math.sin(game.time / 300 + e._ph * 7);
+    offCtx.fillStyle = e.color;
+    if (blink > -0.2) {
+      offCtx.globalAlpha = a;
+      offCtx.fillRect(sx, sy, 1, 1);
+      offCtx.globalAlpha = 0.3 * a;
+      fillCircle(sx, sy, 2);
+    } else {
+      offCtx.globalAlpha = 0.15 * a;
+      offCtx.fillRect(sx, sy, 1, 1);
+    }
+    offCtx.globalAlpha = 1;
+  } else if (e.type === "crab") {
+    // FEEDBACK R7 (2026-07-02) — caranguejinho andando de lado em rajadas
+    const sx = Math.round(e.x - camX + BASE_W / 2);
+    const sy = Math.round(e.y - camY + BASE_H / 2);
+    // fade nas pontas (verificação): spawna/expira on-screen — sem ramp dava pop-in/out
+    const _ca = Math.min(1, e.lifetime / 800, (e.maxLifetime - e.lifetime) / 500);
+    offCtx.globalAlpha = 0.3 * _ca; offCtx.fillStyle = "#000"; offCtx.fillRect(sx - 1, sy + 1, 3, 1);
+    offCtx.globalAlpha = _ca;
+    offCtx.fillStyle = "#e8709a"; offCtx.fillRect(sx - 1, sy - 2, 3, 2);
+    offCtx.fillStyle = "#8a3a4a"; offCtx.fillRect(sx - 1, sy - 1, 3, 1);
+    offCtx.fillStyle = "#ff9ac0"; offCtx.fillRect(sx - 2, sy - 1, 1, 1); offCtx.fillRect(sx + 2, sy - 1, 1, 1);
+    offCtx.fillStyle = "#0d0810"; offCtx.fillRect(sx - 1, sy - 3, 1, 1); offCtx.fillRect(sx + 1, sy - 3, 1, 1);
+    if (e._moving) {
+      const lp = Math.sin(game.time / 90) > 0 ? 1 : 0;
+      offCtx.fillStyle = "#8a3a4a";
+      offCtx.fillRect(sx - 1 + lp, sy, 1, 1);
+      offCtx.fillRect(sx + 1 - lp, sy, 1, 1);
+    }
+    offCtx.globalAlpha = 1;
+  } else if (e.type === "emberMoth") {
+    // FEEDBACK R7 (2026-07-02) — mariposa de brasa em espiral subindo
+    const sx = Math.round(e.x - camX + BASE_W / 2);
+    const sy = Math.round(e.y - camY + BASE_H / 2);
+    const a = Math.min(1, e.lifetime / 1000, (e.maxLifetime - e.lifetime) / 600);
+    const fw = Math.sin(game.time / 70 + e._ph) > 0;
+    offCtx.globalAlpha = a;
+    offCtx.fillStyle = "#ffb030"; offCtx.fillRect(sx, sy, 1, 1);
+    if (fw) {
+      offCtx.fillStyle = "#ff8030";
+      offCtx.fillRect(sx - 1, sy, 1, 1); offCtx.fillRect(sx + 1, sy, 1, 1);
+    }
+    offCtx.globalAlpha = 0.22 * a * (0.7 + 0.3 * Math.sin(game.time / 180 + e._ph));
+    offCtx.fillStyle = "#ff5a20";
+    fillCircle(sx, sy, 2);
     offCtx.globalAlpha = 1;
   } else if (e.type === "spark") {
     // Faísca — usa e.color se setado, fallback gold dourado de armadura.
@@ -71504,6 +72698,10 @@ const BOSSES_FOR_CODEX = [
 // "framebuffer" temporário. A estratégia: salvar o pedaço do offCanvas que
 // vamos sujar, chamar drawWarrior, copiar pro canvas de destino e restaurar
 // o offCanvas — assim não interferimos no game loop caso esteja rodando.
+// R7 (verificação) — drawers HD de tamanho FIXO ignoram u.scale: o Leviatã Menor novo
+// (~66px de span) estourava a região 44×44 do retrato (bestiário mostrava ele decapitado).
+// Encolhemos via transform de canvas ancorado em (cx, cy) só no retrato.
+const _PORTRAIT_HD_SCALE = { leviataProfundo: 0.55, caranguejoGigante: 0.85 };
 function renderUnitPortrait(classId, pxSize = 80) {
   const out = document.createElement("canvas");
   out.width = pxSize;
@@ -71601,7 +72799,17 @@ function renderUnitPortrait(classId, pxSize = 80) {
     if (cls.isBoss && typeof drawBossSprite === "function") {
       drawBossSprite(cx, cy, t, fakeU, colors, pose);
     } else if (typeof BIOME_UNIT_DRAWERS !== "undefined" && BIOME_UNIT_DRAWERS[classId]) {
-      BIOME_UNIT_DRAWERS[classId](cx, cy, t, fakeU, colors, pose);
+      const _hdS = _PORTRAIT_HD_SCALE[classId] || 1;
+      if (_hdS !== 1) {
+        offCtx.save();
+        offCtx.translate(cx, cy);
+        offCtx.scale(_hdS, _hdS);
+        offCtx.translate(-cx, -cy);
+        BIOME_UNIT_DRAWERS[classId](cx, cy, t, fakeU, colors, pose);
+        offCtx.restore();
+      } else {
+        BIOME_UNIT_DRAWERS[classId](cx, cy, t, fakeU, colors, pose);
+      }
     } else {
       drawWarrior(cx, cy, "right", colors, pose);
     }
