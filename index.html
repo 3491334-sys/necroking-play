@@ -6540,17 +6540,27 @@ function setupCorridorLevel(biomeIdx, level) {
   let _mod = CAMPAIGN_LEVEL_MODS[0];
   for (const m of CAMPAIGN_LEVEL_MODS) { _modRoll -= m.w; if (_modRoll <= 0) { _mod = m; break; } }
   game._levelMod = _mod;
-  // TERRITÓRIO HOSTIL: 3ª feature = mais uma arena de emboscada no trecho final
+  // TERRITÓRIO HOSTIL: 3ª feature = mais uma arena de emboscada no trecho final.
+  // FEEDBACK R6 (verificação) — a arena extra quase sempre SOBREPUNHA a 2ª feature
+  // (secondX+w chega a 3430; a arena começava em 2710): sobre um choke ela CANCELAVA
+  // o estreitamento; sobre uma arena os mults compunham até ×3.6 (paredes fora da
+  // tela). Agora posiciona com folga garantida após a 2ª feature.
   if (_mod.id === "ambush") {
-    _corridorFeatures.push({ type: "arena", x: 3050 + rng() * 150, w: 280 + rng() * 60, mult: 1.6 + rng() * 0.2, triggered: false });
+    const second = _corridorFeatures[1];
+    const wAmb = 280 + rng() * 60;
+    const xAmb = Math.min(3560, Math.max(3050 + rng() * 150, second.x + second.w + wAmb + 60));
+    _corridorFeatures.push({ type: "arena", x: xAmb, w: wAmb, mult: 1.6 + rng() * 0.2, triggered: false });
   }
 }
 
 // Anuncia o modificador do nível (chamado após setupCorridorLevel nos 3 fluxos)
+let _announceLevelModTimer = null;   // R6: dedup — transições rápidas duplicavam o toast
 function announceLevelMod() {
   const m = game._levelMod;
   if (!m || !m.name) return;
-  setTimeout(() => {
+  if (_announceLevelModTimer) clearTimeout(_announceLevelModTimer);
+  _announceLevelModTimer = setTimeout(() => {
+    _announceLevelModTimer = null;
     if (game.runActive && !game.gameOver && game.campaignLinear) {
       showToast("☁ " + m.name + " — " + m.desc, 3400, "magic");
     }
@@ -6622,11 +6632,17 @@ function updateCorridorAmbience(dt) {
   if (game._ambienceT > 0) return;
   game._ambienceT = def.rate * (storm ? 0.33 : 1);
   const lerp = (a, b) => a + Math.random() * (b - a);
+  // FEEDBACK R6 (verificação) — partículas clampadas à banda do corredor: antes
+  // spawnavam na caixa da câmera inteira e flutuavam POR CIMA das paredes pretas.
+  const _ax = game.camera.x + (Math.random() - 0.5) * (BASE_W + 80);
+  const _acy = corridorCenterY(_ax);
+  const _ah = corridorHalfAt(_ax) + 10;
+  const _ay = Math.max(_acy - _ah, Math.min(_acy + _ah, game.camera.y + (Math.random() - 0.5) * (BASE_H + 60)));
   game.effects.push({
     type: "spark",
     color: def.colors[Math.random() < 0.5 ? 0 : 1],
-    x: game.camera.x + (Math.random() - 0.5) * (BASE_W + 80),
-    y: game.camera.y + (Math.random() - 0.5) * (BASE_H + 60),
+    x: _ax,
+    y: _ay,
     vx: lerp(def.vx[0], def.vx[1]), vy: lerp(def.vy[0], def.vy[1]),
     lifetime: 1600 + Math.random() * 1200, maxLifetime: 2800, size: 1,
     _sway: Math.random() * Math.PI * 2,
@@ -6672,7 +6688,9 @@ function corridorHalfAt(wx) {
       h *= 1 + (f.mult - 1) * s;
     }
   }
-  return Math.max(58, h);
+  // FEEDBACK R6 (verificação) — teto de segurança: features sobrepostas compunham
+  // mults até ×3.6 (~450px de meia-altura, paredes fora do enquadramento).
+  return Math.max(58, Math.min(h, corridorHalf() * 1.95));
 }
 
 // ============================================================================
@@ -12547,35 +12565,63 @@ function showRegionMap(justUnlockedId) {
 // os nós de região nas coordenadas reais dos covis e liga tudo com um caminho
 // pontilhado na ordem da campanha.
 let _campaignMapCache = null;   // { canvas, layout: [{id, u, v}] }
+// FEEDBACK R6 — MAPA DE JORNADA AUTORAL: o layout anterior derivava do mundo
+// procedural (seed 42) e o caminho da campanha zigue-zagueava sem sentido pelo
+// continente ("a estrada e o mapa não fazem sentido"). Agora as 7 regiões têm
+// POSIÇÕES DESENHADAS ao longo de uma jornada em S (sudoeste → norte), cada nó
+// senta no SEU território (voronoi das posições autorais com borda orgânica) e
+// a estrada flui região a região na ORDEM da campanha. Independente do mundo
+// das runs — sem re-seed, sem restauração frágil.
+const CAMPAIGN_MAP_LAYOUT = [
+  { id: "deserto",  u: 0.18, v: 0.82 },
+  { id: "gelo",     u: 0.44, v: 0.70 },
+  { id: "inferno",  u: 0.72, v: 0.78 },
+  { id: "pantano",  u: 0.80, v: 0.50 },
+  { id: "cogumelo", u: 0.56, v: 0.36 },
+  { id: "catedral", u: 0.30, v: 0.26 },
+  { id: "aquatico", u: 0.58, v: 0.12 },
+];
 function buildCampaignMapCache() {
   if (_campaignMapCache) return _campaignMapCache;
-  // Amostra o mundo CANÔNICO independente do mundo da run atual: re-semeia pra 42,
-  // renderiza, e restaura (generateWorldSeeds é determinística → restauração exata).
-  const prevSeed = WORLD_SEED;
-  const prevAllowed = WORLD_ALLOWED ? WORLD_ALLOWED.slice() : null;   // preserva o filtro do mundo da run
-  const prevLinear = game.campaignLinear;   // biomeAt curto-circuita no modo corredor
-  game.campaignLinear = false;
-  if (prevSeed !== 42 || prevAllowed) generateWorldSeeds(42);   // mapa canônico = mundo COMPLETO
   const S = 288;
   const cv = document.createElement("canvas"); cv.width = S; cv.height = S;
   const ctx = cv.getContext("2d");
   const img = ctx.createImageData(S, S);
-  const R = WORLD_RADIUS_MAX;
   const VOID = [10, 7, 20];
-  // 1º passe: grade de ids (pra escurecer fronteiras no 2º passe)
+  const pts = CAMPAIGN_MAP_LAYOUT;
+  const colOf = pts.map(p => _regHexRgb((BIOMES[p.id] && BIOMES[p.id].miniColor) || "#2a3420"));
+  // 1º passe: território = nó autoral mais próximo, com ruído orgânico na amostra
+  // (reusa o value-noise do mundo) + costa em blob ao redor do "continente".
   const ids = new Array(S * S);
-  const idList = ["neutro"].concat(BIOME_ORDER);
-  const idIndex = {}; idList.forEach((id, k) => { idIndex[id] = k + 1; });
   for (let py = 0; py < S; py++) {
     for (let px = 0; px < S; px++) {
-      const wx = ((px / (S - 1)) * 2 - 1) * R;
-      const wy = ((py / (S - 1)) * 2 - 1) * R;
-      const d = Math.sqrt(wx * wx + wy * wy);
-      const edge = worldEdgeRadiusFor(Math.atan2(wy, wx));
-      ids[py * S + px] = (d > edge) ? 0 : (idIndex[biomeAt(wx, wy)] || 1);
+      const u0 = px / (S - 1), v0 = py / (S - 1);
+      // perturbação orgânica das fronteiras
+      const nx = _biomeValueNoise(u0 * 9.0 + 3.7, v0 * 9.0 + 8.1) * 0.045;
+      const ny = _biomeValueNoise(u0 * 9.0 + 21.3, v0 * 9.0 + 14.9) * 0.045;
+      const u = u0 + nx, v = v0 + ny;
+      // território: nó autoral mais próximo (calculado antes — também define o bojo da costa)
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const ddx = u - pts[i].u, ddy = v - pts[i].v;
+        const d = ddx * ddx + ddy * ddy;
+        if (d < bestD) { bestD = d; best = i + 1; }
+      }
+      // costa: elipse central + BOJO de terra ao redor de cada nó da jornada —
+      // garante que TODA região autoral fica em terra firme, com contorno orgânico.
+      const dx = u - 0.50, dy = v - 0.48;
+      const ang = Math.atan2(dy, dx);
+      const coastR = 0.46 + _biomeValueNoise(Math.cos(ang) * 2.2 + 5.5, Math.sin(ang) * 2.2 + 2.3) * 0.055;
+      const inEllipse = (dx * dx) / (coastR * coastR) + (dy * dy) / ((coastR * 0.92) * (coastR * 0.92)) <= 1;
+      const NODE_BULGE = 0.135;
+      if (!inEllipse && bestD > NODE_BULGE * NODE_BULGE) {
+        ids[py * S + px] = 0;   // oceano/void
+        continue;
+      }
+      ids[py * S + px] = best;
     }
   }
-  const colOf = idList.map(id => _regHexRgb((BIOMES[id] && BIOMES[id].miniColor) || "#2a3420"));
+  // 2º passe: pinta com escurecimento de fronteira
   for (let py = 0; py < S; py++) {
     for (let px = 0; px < S; px++) {
       const k = py * S + px;
@@ -12584,7 +12630,6 @@ function buildCampaignMapCache() {
       if (id === 0) { rr = VOID[0]; gg = VOID[1]; bb = VOID[2]; }
       else {
         const c = colOf[id - 1];
-        // fronteira: escurece quando algum vizinho é de outro bioma
         const nb = (px > 0 && ids[k - 1] !== id) || (px < S - 1 && ids[k + 1] !== id)
                 || (py > 0 && ids[k - S] !== id) || (py < S - 1 && ids[k + S] !== id);
         const m = nb ? 0.55 : 1;
@@ -12595,13 +12640,7 @@ function buildCampaignMapCache() {
     }
   }
   ctx.putImageData(img, 0, 0);
-  const layout = BIOME_ORDER.map(id => {
-    const c = BIOME_MAIN_SEED[id];
-    return { id, u: (c.x / R + 1) / 2, v: (c.y / R + 1) / 2 };
-  });
-  // Restaura o mundo da run EXATAMENTE como estava (mesmo seed + MESMO filtro de biomas)
-  if (prevSeed !== 42 || prevAllowed) generateWorldSeeds(prevSeed, prevAllowed);
-  game.campaignLinear = prevLinear;
+  const layout = CAMPAIGN_MAP_LAYOUT.map(p => ({ id: p.id, u: p.u, v: p.v }));
   _campaignMapCache = { canvas: cv, layout };
   return _campaignMapCache;
 }
@@ -12612,32 +12651,16 @@ function renderRegionMap(justUnlockedId) {
   host.innerHTML = "";
   const rp = (progress && progress.regionProgress) || {};
   const furthestIdx = (progress && progress.campaignBiomeIndex) || 0;
-  // Mapa-múndi: canvas de geografia + caminho SVG + nós posicionados
+  // Mapa-múndi: canvas de geografia AUTORAL + estrada curva + nós posicionados
   const mapCache = buildCampaignMapCache();
-  // Repulsão leve entre nós próximos (posições geográficas podem colidir) —
-  // afasta pares a menos de 17% até a distância mínima, sem sair do quadro.
-  const layout = mapCache.layout.map(p => ({ id: p.id, u: p.u, v: p.v }));
-  const MIN_D = 0.17;
-  for (let pass = 0; pass < 4; pass++) {
-    for (let a = 0; a < layout.length; a++) {
-      for (let b = a + 1; b < layout.length; b++) {
-        const dx = layout[b].u - layout[a].u, dy = layout[b].v - layout[a].v;
-        const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
-        if (d < MIN_D) {
-          const push = (MIN_D - d) / 2;
-          const ux = dx / d, uy = dy / d;
-          layout[a].u -= ux * push; layout[a].v -= uy * push;
-          layout[b].u += ux * push; layout[b].v += uy * push;
-        }
-      }
-    }
-  }
-  for (const p of layout) { p.u = Math.max(0.09, Math.min(0.91, p.u)); p.v = Math.max(0.11, Math.min(0.89, p.v)); }
+  const layout = mapCache.layout;   // posições desenhadas — sem repulsão, sem colisão
   const wrap = document.createElement("div");
   wrap.className = "region-worldmap";
   mapCache.canvas.className = "region-worldmap-canvas";
   wrap.appendChild(mapCache.canvas);
-  // caminho da campanha (pontilhado; trecho já conquistado fica dourado)
+  // FEEDBACK R6 — a ESTRADA da campanha agora é um caminho CURVO região a região
+  // (bezier quadrática com controle perpendicular alternado — serpenteia como uma
+  // trilha de verdade). Trecho conquistado: dourado sólido; à frente: pontilhado.
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("class", "region-path");
@@ -12645,13 +12668,31 @@ function renderRegionMap(justUnlockedId) {
   svg.setAttribute("preserveAspectRatio", "none");
   for (let i = 1; i < layout.length; i++) {
     const a = layout[i - 1], b = layout[i];
-    const seg = document.createElementNS(NS, "line");
-    seg.setAttribute("x1", (a.u * 100).toFixed(2)); seg.setAttribute("y1", (a.v * 100).toFixed(2));
-    seg.setAttribute("x2", (b.u * 100).toFixed(2)); seg.setAttribute("y2", (b.v * 100).toFixed(2));
+    const ax = a.u * 100, ay = a.v * 100, bx = b.u * 100, by = b.v * 100;
+    // controle da curva: ponto médio deslocado na perpendicular (lado alterna)
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const side = (i % 2 === 0) ? 1 : -1;
+    const bend = Math.min(9, len * 0.28) * side;
+    const cx2 = mx + (-dy / len) * bend, cy2 = my + (dx / len) * bend;
     const done = ((rp[BIOME_ORDER[i - 1]] || {}).maxLevel || 0) >= 4;
-    seg.setAttribute("stroke", done ? "rgba(247,217,111,0.85)" : "rgba(200,180,140,0.30)");
-    seg.setAttribute("stroke-width", done ? "1.1" : "0.8");
-    seg.setAttribute("stroke-dasharray", done ? "none" : "2.2 2.6");
+    // sombra da estrada (contorno escuro por baixo, dá leitura de trilha)
+    const shadow = document.createElementNS(NS, "path");
+    shadow.setAttribute("d", `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cx2.toFixed(1)} ${cy2.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`);
+    shadow.setAttribute("fill", "none");
+    shadow.setAttribute("stroke", "rgba(10,6,14,0.55)");
+    shadow.setAttribute("stroke-width", done ? "2.6" : "2.2");
+    shadow.setAttribute("stroke-linecap", "round");
+    shadow.setAttribute("vector-effect", "non-scaling-stroke");
+    svg.appendChild(shadow);
+    const seg = document.createElementNS(NS, "path");
+    seg.setAttribute("d", `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cx2.toFixed(1)} ${cy2.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`);
+    seg.setAttribute("fill", "none");
+    seg.setAttribute("stroke", done ? "rgba(247,217,111,0.95)" : "rgba(216,196,150,0.45)");
+    seg.setAttribute("stroke-width", done ? "1.3" : "1.0");
+    if (!done) seg.setAttribute("stroke-dasharray", "2.4 2.8");
+    seg.setAttribute("stroke-linecap", "round");
     seg.setAttribute("vector-effect", "non-scaling-stroke");
     svg.appendChild(seg);
   }
@@ -12911,6 +12952,16 @@ function startNewRun(preselectedSpellIds, opts) {
   game.bossesDefeated = 0;
   game.bossItemsThisRun = [];   // relíquias colhidas por matar chefes
   game.activeRelics = [];       // Fase 15: IDs das relíquias ativas (efeitos reais)
+  // FEEDBACK R6 — relíquias PERMANENTES da campanha (1 por bioma vencido) voltam
+  // ativas em toda run de campanha. Sem isso a relíquia do boss evaporava na run
+  // seguinte e a campanha não tinha progressão de poder nenhuma.
+  if (game.campaignMode && progress.campaignRelics) {
+    for (const rid in progress.campaignRelics) {
+      if (progress.campaignRelics[rid] && RELICS[rid] && !game.activeRelics.includes(rid)) {
+        game.activeRelics.push(rid);
+      }
+    }
+  }
   game.endlessMode = false;     // ETAPA C: ativa após matar NecroKing nesta run
   game.endlessStartTime = 0;
   // ETAPA C: spawn aleatório de covis no mapa durante endless mode
@@ -13210,8 +13261,11 @@ function spawnCorridorScenery() {
       // deixa ~640px livres antes do PORTAL (fim do corredor) pra ele não ficar abafado
       const x = 240 + rng() * (CAMPAIGN_LEVEL_LENGTH - 800);
       const side = rng() < 0.5 ? -1 : 1;
-      // margens do corredor SINUOSO: offset a partir da linha-central curva neste x.
-      const y = corridorCenterY(x) + side * (82 + rng() * Math.max(8, corridorHalfAt(x) - 84));
+      // margens do corredor SINUOSO: offset PROPORCIONAL à banda efetiva neste x.
+      // FEEDBACK R6 (verificação) — o offset fixo de 82px enterrava decos na parede
+      // nos chokes (meia-altura ~62-91px). Agora fica sempre entre 62% e ~96% da banda.
+      const _dh = corridorHalfAt(x);
+      const y = corridorCenterY(x) + side * (_dh * 0.62 + rng() * Math.max(6, _dh * 0.34 - 4));
       let pick = rng() * total, chosen = entries[0][0];
       for (const [type, w] of entries) { pick -= w; if (pick <= 0) { chosen = type; break; } }
       game.decorations.push({ x, y, type: chosen, variant: Math.floor(rng() * 3), biome: biomeId });
@@ -13228,8 +13282,10 @@ function spawnCorridorScenery() {
   if (lmKit && lmKit.length) {
     let side = rng() < 0.5 ? -1 : 1;
     for (let x = 480 + rng() * 160; x < CAMPAIGN_LEVEL_LENGTH - 620; x += 480 + rng() * 320) {
-      // landmarks ancorados na MARGEM curva (base fora da estrada sinuosa)
-      const y = corridorCenterY(x) + side * (Math.max(86, corridorHalfAt(x) - 18));
+      // landmarks ancorados na MARGEM curva (base fora da estrada sinuosa).
+      // R6: clamp à banda efetiva — o floor fixo de 86px enterrava landmarks no choke.
+      const _lh = corridorHalfAt(x);
+      const y = corridorCenterY(x) + side * Math.max(Math.min(86, _lh * 0.78), _lh - 18);
       const lmType = lmKit[Math.floor(rng() * lmKit.length)];
       game.decorations.push({ x: x + (rng() * 60 - 30), y, type: lmType, variant: Math.floor(rng() * 3), biome: biomeId, landmark: true });
       if (rng() < 0.75) side = -side;   // 25% de repetir o lado (quebra a alternância mecânica)
@@ -13238,9 +13294,10 @@ function spawnCorridorScenery() {
   // FEEDBACK 2026-07-02 (R4) — mods de CONTEÚDO do nível:
   // TERRA ASSOMBRADA: 8-12 cadáveres antigos necromanciáveis ao longo da estrada
   if (_mod.id === "haunted") {
-    const pool = (typeof biomeEnemyPool === "function")
-      ? biomeEnemyPool(biomeId).filter(id => CLASSES[id] && CLASSES[id].tier <= 2 && !CLASSES[id].isBoss && !CLASSES[id].neverCoreSpawn)
-      : [];
+    // R6 (verificação): pool direto do bioma (biomeEnemyPool injetava crossover com
+    // Math.random(), quebrando o determinismo seeded do MESMO nível entre restarts).
+    const _biomeList = (BIOMES[biomeId] && BIOMES[biomeId].enemies) || [];
+    const pool = _biomeList.filter(id => CLASSES[id] && CLASSES[id].tier <= 2 && !CLASSES[id].isBoss && !CLASSES[id].neverCoreSpawn);
     const nC = 8 + Math.floor(rng() * 5);
     for (let i = 0; i < nC && pool.length; i++) {
       const cx = 400 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1100);
@@ -13251,6 +13308,7 @@ function spawnCorridorScenery() {
         tier: CLASSES[cls].tier || 1, unitClass: cls, scale: 1,
         lifetime: 600000, fade: 1, facing: rng() < 0.5 ? "left" : "right",
         isBossCorpse: false, bossBiome: null,
+        _ancient: true,   // R6: só ESTES marcam o minimapa do haunted
       });
     }
   }
@@ -15040,7 +15098,28 @@ function updateLairs(dt) {
       g.holdMax = PORTAL_HOLD;
       const inPortal = !!k && Math.abs(k.x - g.x) <= (g.standRadius || 46)
                             && Math.abs(k.y - g.y) <= (g.standRadiusY || (corridorHalfAt(g.x) - 10));
+      // FEEDBACK R6 (auditoria) — GATE DO PORTAL: antes bastava ficar 3s parado no
+      // portal, sem NENHUMA checagem de combate — correr direto pulava (e até reduzia)
+      // todos os inimigos do nível. Agora o portal só arma com o orçamento do nível
+      // esgotado E sem inimigo vivo num raio de 340 px do portal.
+      let portalLocked = false;
       if (inPortal) {
+        const budgetLeft = isFinite(game.campaignEnemyBudget) ? (game.campaignEnemyBudget || 0) : 0;
+        let nearEnemies = 0;
+        for (const u of game.units) {
+          if (isAlive(u) && u.faction === "enemy" && !u.isWagon) {
+            const dx = u.x - g.x, dy = u.y - g.y;
+            if (dx * dx + dy * dy < 340 * 340) nearEnemies++;
+          }
+        }
+        portalLocked = budgetLeft > 0 || nearEnemies > 0;
+        if (portalLocked && (!game._portalLockToastT || game.runTime - game._portalLockToastT > 4)) {
+          game._portalLockToastT = game.runTime;
+          const remaining = budgetLeft + nearEnemies;
+          if (typeof showToast === "function") showToast("🔒 PORTAL SELADO — derrote os inimigos (" + remaining + " restantes)", 2400, "danger");
+        }
+      }
+      if (inPortal && !portalLocked) {
         g.inPortal = true;
         g.standTimer = Math.min(PORTAL_HOLD, (g.standTimer || 0) + dt);
         if (g.standTimer >= PORTAL_HOLD) {
@@ -23195,6 +23274,19 @@ function update(dt) {
   // estar fora — skip transcendentais inteiramente. Só quem está perto da borda paga.
   const _WORLD_SAFE_INNER = 1100;  // raio interno seguro (squared = 1.21M, < raio min^2)
   const _WORLD_SAFE_INNER_2 = _WORLD_SAFE_INNER * _WORLD_SAFE_INNER;
+  if (game.campaignLinear) {
+    // FEEDBACK R6 (auditoria) — o clamp de corredor valia SÓ pro Rei: aliados em flock,
+    // inimigos aggro, knockback e dash de boss atravessavam as paredes nas curvas fortes
+    // (e ranged parava ALÉM da parede, inalcançável pelo Rei clampado). Agora TODAS as
+    // units respeitam a banda ±corridorHalfAt. Custo O(n): 2 sin() por unit.
+    for (const u of game.units) {
+      if (u.x < 0) u.x = 0; else if (u.x > CAMPAIGN_LEVEL_LENGTH) u.x = CAMPAIGN_LEVEL_LENGTH;
+      const cc = corridorCenterY(u.x);
+      const hh = corridorHalfAt(u.x) - 2;
+      if (u.y < cc - hh) u.y = cc - hh;
+      else if (u.y > cc + hh) u.y = cc + hh;
+    }
+  } else {
   for (const u of game.units) {
     // AABB rough check: se ambos |x| e |y| < safe, NUNCA fora — skip
     const ax = u.x < 0 ? -u.x : u.x;
@@ -23210,6 +23302,7 @@ function update(dt) {
       const f = maxR / r;
       u.x *= f; u.y *= f;
     }
+  }
   }
 
   // === Waves: pulso de pressão a cada WAVE_INTERVAL segundos ===
@@ -23233,13 +23326,22 @@ function update(dt) {
     game.campaignEnemyBudget = campaignLevelEnemyBudget();
     game.campaignEnemyTotal = game.campaignEnemyBudget;
     game._areaClearAnnounced = false;
+    game._maxKingX = 0;   // FEEDBACK R6 — progresso máximo do Rei no corredor (pacing)
   }
   game.spawnTimer -= dt;
   if (game.spawnTimer <= 0) {
     if (game.units.length < 360) {
       if (game.campaignLinear) {
-        // só spawna enquanto houver "orçamento" de inimigos do nível (sem spawn infinito)
-        if ((game.campaignEnemyBudget || 0) > 0) spawnSquadLinear();
+        // FEEDBACK R6 (auditoria) — PACING POR DISTÂNCIA: antes o orçamento inteiro
+        // spawnava por timer nos primeiros ~15-25 s e o resto dos 4200 px ficava vazio.
+        // Agora o orçamento libera proporcionalmente ao avanço do Rei no corredor —
+        // combate espaçado ao longo do nível; rushar concentra os squads perto do portal.
+        if (game.king) game._maxKingX = Math.max(game._maxKingX || 0, game.king.x);
+        const _total = game.campaignEnemyTotal || 0;
+        const _prog = Math.min(1, ((game._maxKingX || 0) + 400) / (CAMPAIGN_LEVEL_LENGTH * 0.78));
+        const _allowed = isFinite(_total) ? Math.ceil(_total * _prog) : Infinity;
+        const _spawned = isFinite(_total) ? _total - (game.campaignEnemyBudget || 0) : 0;
+        if ((game.campaignEnemyBudget || 0) > 0 && _spawned < _allowed) spawnSquadLinear();
       }
       else if (shouldSpawnCaravan()) spawnCaravan();
       else spawnSquad();
@@ -25888,6 +25990,18 @@ function onBossDefeated(u) {
     // Aplica efeitos ON-EQUIP (uma vez):
     onRelicEquipped(relicId);
   }
+  // FEEDBACK R6 (auditoria) — a relíquia era RUN-scoped e evaporava na run seguinte
+  // (cada bioma novo = startNewRun → activeRelics=[]). Agora bosses de CAMPANHA gravam
+  // a relíquia em progress.campaignRelics; startNewRun re-injeta quando campaignMode —
+  // vira a espinha de progressão da campanha: 1 relíquia permanente por bioma vencido.
+  if (game.campaignMode && relicId) {
+    progress.campaignRelics = progress.campaignRelics || {};
+    if (!progress.campaignRelics[relicId]) {
+      progress.campaignRelics[relicId] = true;
+      if (typeof saveProgress === "function") saveProgress();
+      if (typeof showToast === "function") showToast("✦ RELÍQUIA PERMANENTE DA CAMPANHA: " + relic, 3400, "magic");
+    }
+  }
   game.bossesDefeated = (game.bossesDefeated || 0) + 1;
   // 2026-04-27 TASK G+H: tracking de boss + achievement check
   progress.bossesDefeatedTotal = (progress.bossesDefeatedTotal || 0) + 1;
@@ -26016,7 +26130,11 @@ function onBossDefeated(u) {
     queueRelicDraft("relic", { rarities: ["epico", "lendario", "raro"], weights: [55, 15, 30] });
   }
   // Fase 14: drop de ALMAS (moeda da árvore Legado). NecroKing dá 10, demais 3.
-  const soulsDrop = (u.unitClass === "bossNecroKing") ? 10 : 3;
+  // FEEDBACK R6 (auditoria) — ECONOMIA DE ALMAS: renda era 3/boss contra custos de
+  // 200-1011 (companion lvl10 = 1011 ✦ ≈ 337 bosses; revive = 200 ✦ ≈ 67 bosses).
+  // Agora bosses pagam 15 + 5·bossTier (18-30) e NecroKing 60 — maxar um companion
+  // vira ~8-10 campanhas, revive ~8 bosses. Escala com o desafio, não com o grind.
+  const soulsDrop = (u.unitClass === "bossNecroKing") ? 60 : (15 + (u.bossTier || 1) * 5);
   progress.souls = (progress.souls || 0) + soulsDrop;
   saveProgress();
   showToast("+" + soulsDrop + " ALMAS  ✦  TOTAL: " + progress.souls, 3200, "magic");
@@ -36598,6 +36716,24 @@ function render() {
     offCtx.globalAlpha = 1;
   }
 
+  // FEEDBACK R6 (verificação) — overlay de FOG/STORM movido de drawBackground pra cá:
+  // antes era desenhado ANTES das entidades, então units/projéteis ficavam 100% visíveis
+  // por cima do "nevoeiro" — o modificador NEVOEIRO DENSO não reduzia visão nenhuma.
+  // Aqui (depois do passe de entidades) sprites fora do raio do Rei realmente somem.
+  if (game.campaignLinear && game._levelMod && game.king) {
+    if (game._levelMod.id === "fog") {
+      const kx = game.king.x - camX + BASE_W / 2;
+      const ky = game.king.y - camY + BASE_H / 2;
+      const g = offCtx.createRadialGradient(kx, ky, 78, kx, ky, 200);
+      g.addColorStop(0, "rgba(10,8,16,0)");
+      g.addColorStop(1, "rgba(10,8,16,0.82)");
+      offCtx.fillStyle = g;
+      offCtx.fillRect(0, 0, BASE_W, BASE_H);
+    } else if (game._levelMod.id === "storm") {
+      offCtx.fillStyle = "rgba(8,10,20,0.16)";
+      offCtx.fillRect(0, 0, BASE_W, BASE_H);
+    }
+  }
   // COMBO 9 B1 — clima ambiente (partículas screen-space) por cima de tudo
   // mas antes de cursor/HUD.
   drawWeather(camX, camY);
@@ -37951,6 +38087,40 @@ function drawBackground(camX, camY) {
     // curva por coluna; o miolo (a ESTRADA sinuosa) fica livre. Rim dourado acompanha a curva.
     const STEP = 6;
     const colX = sx => sx + camX - BASE_W / 2;                       // x do mundo nesta coluna
+    // FEEDBACK R6 — ESTRADA DE TERRA literal ao longo do eixo do corredor: antes o
+    // "caminho" era só a faixa entre paredes; agora uma trilha batida (2 bandas +
+    // marcas de desgaste) conduz o olho até o portal. Desenhada ANTES das paredes.
+    {
+      const cyAt = wx => corridorCenterY(wx) - camY + BASE_H / 2;
+      // banda externa (barranco da trilha, mais escura)
+      offCtx.strokeStyle = "rgba(30,22,16,0.50)";
+      offCtx.lineWidth = 15;
+      offCtx.lineJoin = "round";
+      offCtx.beginPath();
+      for (let sx = -STEP; sx <= BASE_W + STEP; sx += STEP) {
+        const y = cyAt(colX(sx));
+        if (sx === -STEP) offCtx.moveTo(sx, y); else offCtx.lineTo(sx, y);
+      }
+      offCtx.stroke();
+      // banda interna (terra batida clara)
+      offCtx.strokeStyle = "rgba(98,76,50,0.42)";
+      offCtx.lineWidth = 10;
+      offCtx.beginPath();
+      for (let sx = -STEP; sx <= BASE_W + STEP; sx += STEP) {
+        const y = cyAt(colX(sx));
+        if (sx === -STEP) offCtx.moveTo(sx, y); else offCtx.lineTo(sx, y);
+      }
+      offCtx.stroke();
+      // marcas de desgaste (sulcos de carroça / pegadas) — determinísticas por posição no mundo
+      offCtx.fillStyle = "rgba(40,30,20,0.45)";
+      const wearStart = Math.floor((camX - BASE_W / 2) / 26) * 26;
+      for (let wx = wearStart; wx < camX + BASE_W / 2 + 26; wx += 26) {
+        const h = ((wx * 2654435761) >>> 0) % 1000 / 1000;   // hash determinístico
+        const sx = wx - camX + BASE_W / 2;
+        const y = cyAt(wx) + (h - 0.5) * 7;
+        offCtx.fillRect(Math.round(sx), Math.round(y), 3 + Math.round(h * 3), 1);
+      }
+    }
     // REWORK 2026-07 — as paredes seguem a meia-altura EFETIVA (arena alarga, choke aperta)
     const topAt = wx => (corridorCenterY(wx) - corridorHalfAt(wx)) - camY + BASE_H / 2;
     const botAt = wx => (corridorCenterY(wx) + corridorHalfAt(wx)) - camY + BASE_H / 2;
@@ -37971,22 +38141,8 @@ function drawBackground(camX, camY) {
     offCtx.beginPath();
     for (let sx = 0; sx <= BASE_W; sx += STEP) { const y = botAt(colX(sx)); if (sx === 0) offCtx.moveTo(sx, y); else offCtx.lineTo(sx, y); }
     offCtx.stroke();
-    // FEEDBACK 2026-07-02 (R4) — CLIMA do modificador do nível:
-    // NEVOEIRO: vinheta radial fechada no Rei · TEMPESTADE: escurecimento leve
-    if (game._levelMod && game.king) {
-      if (game._levelMod.id === "fog") {
-        const kx = game.king.x - camX + BASE_W / 2;
-        const ky = game.king.y - camY + BASE_H / 2;
-        const g = offCtx.createRadialGradient(kx, ky, 78, kx, ky, 200);
-        g.addColorStop(0, "rgba(10,8,16,0)");
-        g.addColorStop(1, "rgba(10,8,16,0.62)");
-        offCtx.fillStyle = g;
-        offCtx.fillRect(0, 0, BASE_W, BASE_H);
-      } else if (game._levelMod.id === "storm") {
-        offCtx.fillStyle = "rgba(8,10,20,0.16)";
-        offCtx.fillRect(0, 0, BASE_W, BASE_H);
-      }
-    }
+    // FEEDBACK R6 — overlay de fog/storm MOVIDO para render() (depois das entidades);
+    // aqui ele era desenhado antes das units e não escondia nada.
     // 2026-06-15 — PORTAL DE SAÍDA (níveis 1-3): fique 3s dentro dele pra concluir o nível.
     if (game.levelGoal && (game.campaignLevel || 1) <= 3) {
       const goal = game.levelGoal;
@@ -53336,266 +53492,133 @@ function drawMortoAfogado(cx, cy, t, u, c, pose) {
 }
 
 function drawMedusa(cx, cy, t, u, c, pose) {
-  // MEDUSA HD v2 (2026-05-04) — traços mais finos, silhueta mais elegante.
-  // Cauda de serpente em "S" 5 tons (era 3), torso humanoide proporcional
-  // com peitoral dourado detalhado, cabeça menor + tiara dourada com gemas,
-  // 10 cobras no cabelo com mais movimento, escudo + cimitarra finos.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = pose.walking ? Math.round(Math.abs(Math.sin(t / 200)) * 1.5) : Math.round(Math.sin(t / 600) * 0.8);
-  const armSwing = pose.walking ? Math.round(Math.sin(t / 200) * 2) : 0;
-  const tailWag = Math.sin(t / 280);
-  // 5 tons de pele/escama (era 3)
-  const SC_W = "#c0e8a8";
-  const SC_L = c.body || "#80c060";
-  const SC_M = c.bodyD || "#3a6028";
-  const SC_S = "#1a3818";
-  const SC_K = "#080a04";
-  // Dourado
-  const G_L = "#fff080";
-  const G_M = "#d4a637";
-  const G_D = "#a87830";
-  const G_K = "#5a3818";
-  const RUBI = "#d83048";
-  const RUBI_L = "#ff8060";
+  // FEEDBACK R6 (2026-07-02) — MEDUSA = ÁGUA-VIVA. O sprite antigo era uma Górgona
+  // (cobras no cabelo, cimitarra) — "não tem nada a ver com uma medusa". Redesenhada
+  // como água-viva do pântano: sino translúcido PULSANTE, núcleo bioluminescente,
+  // saia franjada e 8 tentáculos ondulantes + 2 braços orais. Flutua (sem pernas);
+  // o ataque é uma contração do sino com chicote de tentáculos.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  // 5 tons verde-veneno (identidade do pântano preservada)
+  const JW = "#d8ffc8";   // brilho
+  const JL = c.body || "#80d060";
+  const JM = c.bodyD || "#3a7838";
+  const JS = "#1a4020";
+  const JK = "#0a2010";
+  const CORE = "#eaffb0";
 
-  // ===== Sombra =====
-  offCtx.globalAlpha = 0.35;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 9, cy + 3, 18, 1);
-  offCtx.globalAlpha = 1;
-
-  // ===== CAUDA DE SERPENTE em "S" (5 camadas + escamas detalhadas) =====
-  // Volta inferior (mais larga, atrás)
-  rect(-9, 0, 18, 3, SC_K);
-  rect(-9, 0, 18, 3, SC_M);
-  rect(-9, 0, 18, 1, SC_L);
-  rect(-9, 1, 18, 1, SC_W);
-  // Anel central da volta inferior
-  rect(-7, -2, 14, 2, SC_K);
-  rect(-7, -2, 14, 2, SC_M);
-  rect(-7, -2, 14, 1, SC_L);
-  // Volta intermediária (offset pelo wag)
-  const ow = Math.round(tailWag * 2);
-  rect(-6 + ow, -5, 12, 3, SC_K);
-  rect(-6 + ow, -5, 12, 3, SC_M);
-  rect(-6 + ow, -5, 12, 1, SC_L);
-  rect(-5 + ow, -4, 10, 1, SC_W);
-  // Escamas claras na cauda (padrão de losangos finos — 8 marcas)
-  for (let i = -5; i <= 5; i += 2) {
-    px(i + ow, -3, SC_W);
-    px(i, 0, SC_W);
-    px(i + 1 + ow, -2, SC_S);
-    px(i + 1, 1, SC_S);
-  }
-  // Ventre dourado (faixa horizontal na cauda — 3 camadas)
-  rect(-5, 1, 10, 1, G_M);
-  rect(-3, 2, 6, 1, G_L);
-  rect(-3, 2, 6, 1, G_D);
-  px(-2, 1, G_L);
-  px(2, 1, G_L);
-
-  // ===== CINTO + CINTURA (3 camadas + gemas) =====
-  rect(-4, -7, 8, 2, G_K);
-  rect(-4, -7, 8, 2, G_M);
-  rect(-4, -7, 8, 1, G_L);
-  // Gemas (rubi + verde + rubi)
-  px(-2, -6, RUBI);
-  px(0, -6, "#80c060");
-  px(2, -6, RUBI);
-  px(-2, -7, RUBI_L);
-  px(2, -7, RUBI_L);
-
-  // ===== TORSO peitoral escamado (5 camadas + gem central) =====
-  rect(-4, -14 + bob, 8, 7, SC_K);
-  rect(-4, -14 + bob, 8, 7, SC_M);
-  rect(-4, -14 + bob, 8, 2, SC_L);
-  rect(-4, -14 + bob, 8, 1, SC_W);
-  rect(-4, -8 + bob, 8, 1, SC_S);
-  // Peitoral dourado decorativo (top)
-  rect(-4, -14 + bob, 8, 2, G_M);
-  rect(-4, -14 + bob, 8, 1, G_L);
-  px(-3, -14 + bob, G_L);
-  px(0, -14 + bob, "#fff8c0");
-  px(3, -14 + bob, G_L);
-  // GEMA RUBI central grande (peitoral)
-  rect(-1, -13 + bob, 2, 2, RUBI);
-  px(0, -13 + bob, RUBI_L);
-  px(0, -12 + bob, "#fff");
-  // Escamas no torso (padrão de losangos)
-  px(-2, -11 + bob, SC_W);
-  px(2, -11 + bob, SC_W);
-  px(0, -10 + bob, SC_W);
-  px(-3, -10 + bob, SC_S);
-  px(3, -10 + bob, SC_S);
-  px(-1, -9 + bob, SC_S);
-  px(1, -9 + bob, SC_S);
-  // Curvas laterais (sombreamento corporal — feminina)
-  px(-4, -11 + bob, SC_K);
-  px(3, -11 + bob, SC_K);
-
-  // ===== BRAÇOS finos (3 camadas) =====
-  // Braço atrás (escudo)
-  rect(-6, -13 + bob - armSwing, 2, 5, SC_K);
-  rect(-6, -13 + bob - armSwing, 2, 5, SC_M);
-  rect(-6, -13 + bob - armSwing, 2, 1, SC_L);
-  // Bracelete dourado
-  rect(-6, -10 + bob - armSwing, 2, 1, G_M);
-  px(-5, -10 + bob - armSwing, G_L);
-  // Mão do escudo
-  rect(-7, -8 + bob - armSwing, 2, 2, SC_M);
-  rect(-7, -8 + bob - armSwing, 2, 1, SC_L);
-  // Braço frente (espada)
-  rect(4, -13 + bob + armSwing, 2, 5, SC_K);
-  rect(4, -13 + bob + armSwing, 2, 5, SC_M);
-  rect(4, -13 + bob + armSwing, 2, 1, SC_L);
-  rect(4, -10 + bob + armSwing, 2, 1, G_M);
-  px(5, -10 + bob + armSwing, G_L);
-  rect(5, -8 + bob + armSwing, 2, 2, SC_M);
-  rect(5, -8 + bob + armSwing, 2, 1, SC_L);
-
-  // ===== CABEÇA (rosto feminino — 5 camadas) =====
-  rect(-3, -19 + bob, 6, 5, SC_K);
-  rect(-3, -19 + bob, 6, 5, SC_M);
-  rect(-3, -19 + bob, 6, 2, SC_L);
-  rect(-3, -19 + bob, 6, 1, SC_W);
-  rect(-3, -15 + bob, 6, 1, SC_S);
-  // Pescoço fino
-  rect(-2, -15 + bob, 4, 1, SC_M);
-  rect(-2, -15 + bob, 4, 1, SC_L);
-
-  // ===== TIARA dourada com 3 picos + gemas =====
-  rect(-3, -20 + bob, 6, 1, G_M);
-  rect(-3, -20 + bob, 6, 1, G_L);
-  px(-3, -21 + bob, G_M);
-  px(0, -22 + bob, G_L);
-  px(0, -21 + bob, RUBI);
-  px(3, -21 + bob, G_M);
-  // Detalhes na tiara
-  px(-2, -20 + bob, G_D);
-  px(2, -20 + bob, G_D);
-
-  // ===== Olhos amarelos hipnóticos (com aura) =====
-  const eg = 0.85 + Math.sin(t / 180) * 0.15;
-  offCtx.globalAlpha = eg * 0.4;
-  rect(-3, -18 + bob, 2, 2, "#fff070");
-  rect(2, -18 + bob, 2, 2, "#fff070");
-  offCtx.globalAlpha = 1;
-  offCtx.globalAlpha = eg;
-  rect(-2, -17 + bob, 1, 1, "#fff070");
-  rect(2, -17 + bob, 1, 1, "#fff070");
-  offCtx.globalAlpha = 1;
-  // Brilho central (cobra)
-  px(-2, -17 + bob, "#fff8a0");
-  px(2, -17 + bob, "#fff8a0");
-  // Pupila vertical de cobra
-  px(-2, -17 + bob, SC_S);
-  px(2, -17 + bob, SC_S);
-
-  // === Sobrancelhas finas
-  px(-3, -18 + bob, SC_K);
-  px(3, -18 + bob, SC_K);
-  // Nariz pequeno
-  px(0, -16 + bob, SC_M);
-  // Boca + língua bifária ocasional
-  rect(-1, -15 + bob, 3, 1, "#1a0a0a");
-  if ((Math.sin(t / 380) + 1) * 0.5 > 0.55) {
-    px(-1, -14 + bob, "#ff4040");
-    px(0, -14 + bob, "#ff4040");
-    px(1, -14 + bob, "#ff4040");
-    px(0, -13 + bob, "#a01010");
-  }
-
-  // ===== CABELO DE SERPENTES (10 cobras) =====
-  for (let i = 0; i < 10; i++) {
-    const phase = t / 200 + i * 0.7;
-    const sway1 = Math.sin(phase);
-    const sway2 = Math.sin(phase + 1.2);
-    const sway3 = Math.sin(phase + 2.1);
-    const sway4 = Math.sin(phase + 2.8);
-    const angOff = (i - 4.5) * 0.36;
-    const baseX = Math.round(angOff * 1.4);
-    const baseY = -20 + bob + Math.round(Math.abs(angOff) * 0.6);
-    const sw1 = Math.round(sway1 * 1.5);
-    const sw2 = Math.round(sway2 * 2);
-    const sw3 = Math.round(sway3 * 2.2);
-    const sw4 = Math.round(sway4 * 2.5);
-    px(baseX, baseY, SC_K);
-    px(baseX, baseY - 1, SC_S);
-    px(baseX + sw1, baseY - 2, SC_M);
-    px(baseX + sw1, baseY - 3, SC_M);
-    px(baseX + sw2, baseY - 4, SC_L);
-    px(baseX + sw2, baseY - 5, SC_M);
-    px(baseX + sw3, baseY - 6, SC_L);
-    const headX = baseX + sw4;
-    const headY = baseY - 8;
-    rect(headX, headY, 2, 2, SC_W);
-    rect(headX, headY, 2, 1, SC_K);
-    if ((Math.sin(t / 300 + i * 0.7) + 1) * 0.5 > 0.4) {
-      px(headX, headY + 1, "#ff4040");
-      if ((Math.sin(t / 280 + i) + 1) * 0.5 > 0.7) {
-        px(headX, headY + 1, "#ffa040");
-      }
-    }
-    if ((Math.sin(t / 350 + i * 0.9) + 1) * 0.5 > 0.78) {
-      px(headX, headY - 1, "#ff4040");
-      px(headX + 1, headY - 1, "#ff4040");
-    }
-  }
-
-  // ===== ESCUDO atrás (dourado com gem) =====
-  const shieldSide = -flip;
-  const shX = 7 * shieldSide;
-  rect(shX, -12 + bob - armSwing, 2, 6, G_K);
-  rect(shX, -12 + bob - armSwing, 2, 6, G_M);
-  rect(shX, -12 + bob - armSwing, 2, 1, G_L);
-  px(shX, -10 + bob - armSwing, "#fff080");
-  px(shX, -8 + bob - armSwing, RUBI);  // gem central
-
-  // ===== CIMITARRA verde-veneno (com anim de ataque) =====
-  const swordSide = flip;
+  // ===== Pulso do sino: respiração lenta + CONTRAÇÃO forte no ataque =====
   const atkM = pose.attackProg || 0;
-  const atkSwingM = atkM > 0 ? Math.sin(atkM * Math.PI) : 0;
-  const swingX = Math.round(atkSwingM * 4);
-  const swingY = Math.round(atkSwingM * -2);
-  const idleSway = pose.walking ? Math.round(Math.sin(t / 200) * 0.7) : 0;
-  const swing = swingY + idleSway;
-  const swX = (7 + swingX) * swordSide;
-  // Cabo madeira
-  rect(swX, -10 + bob + swing, 1, 3, "#3a2818");
-  // Guarda dourada
-  rect(swX - swordSide, -11 + bob + swing, 3, 1, G_M);
-  px(swX, -11 + bob + swing, G_L);
-  // Lâmina curva (aumenta tamanho + brilho durante swing)
-  rect(swX, -16 + bob + swing, 1, 4, "#80d060");
-  px(swX + swordSide, -17 + bob + swing, "#80d060");
-  px(swX + swordSide, -18 + bob + swing, "#80d060");
-  px(swX + swordSide * 2, -19 + bob + swing, "#80d060");
-  px(swX + swordSide * 2, -20 + bob + swing, "#80d060");
-  // Highlight da lâmina
-  px(swX, -16 + bob + swing, "#d8ffb0");
-  px(swX, -15 + bob + swing, "#d8ffb0");
-  px(swX + swordSide * 2, -21 + bob + swing, "#ffffff");
-  // TRAIL verde durante swing
-  if (atkSwingM > 0.3) {
-    offCtx.globalAlpha = 0.6;
-    offCtx.fillStyle = "#80d060";
-    fillCircle(cx + swX * flip, cy + (-18 + bob + swing), Math.round(2 + atkSwingM * 2));
-    offCtx.globalAlpha = 1;
-    px(swX + swordSide * 2, -22 + bob + swing, "#d8ffb0");
+  const atkPulse = atkM > 0 ? Math.sin(atkM * Math.PI) : 0;
+  const breathe = Math.sin(t / 340);
+  const squash = breathe * 0.14 + atkPulse * 0.42;          // >0 = sino achatado/largo
+  const bellW = Math.round(7 + squash * 3);                 // meia-largura 7..10
+  const bellH = Math.round(9 - squash * 3);                 // altura 6..10
+  const hover = Math.round(Math.sin(t / 520) * 1.5);        // flutuação vertical
+  const top = -13 - bellH + hover;                          // y do topo do sino
+
+  // ===== Sombra (menor e mais fraca — ela FLUTUA) =====
+  offCtx.globalAlpha = 0.22;
+  offCtx.fillStyle = "#000";
+  offCtx.fillRect(cx - 6, cy + 3, 12, 1);
+  offCtx.globalAlpha = 1;
+
+  // ===== TENTÁCULOS (8 finos, fases distintas) — atrás do sino =====
+  const whip = atkPulse * 3;   // no ataque os tentáculos chicoteiam pro lado do facing
+  const whipDir = u.facing === "left" ? -1 : 1;
+  for (let i = 0; i < 8; i++) {
+    const bx = Math.round((i - 3.5) * (bellW / 4.2));
+    const phase = t / 260 + i * 0.9;
+    const len = 8 + (i % 3);
+    for (let seg = 0; seg < len; seg++) {
+      const swy = Math.sin(phase + seg * 0.55);
+      const sx = bx + Math.round(swy * (0.6 + seg * 0.28)) + Math.round(whip * whipDir * (seg / len));
+      const sy = -12 + hover + seg;
+      const col = seg < 2 ? JM : (seg < 5 ? JS : (seg % 2 ? JM : JS));
+      px(sx, sy, col);
+      if (seg === len - 1) px(sx, sy, JL);   // pontinha clara
+    }
+  }
+  // ===== 2 BRAÇOS ORAIS (grossos, centrais, mais lentos) =====
+  for (let i = 0; i < 2; i++) {
+    const bx = i === 0 ? -2 : 2;
+    const phase = t / 380 + i * 2.2;
+    for (let seg = 0; seg < 7; seg++) {
+      const sx = bx + Math.round(Math.sin(phase + seg * 0.45) * (0.5 + seg * 0.22)) + Math.round(whip * whipDir * (seg / 7));
+      const sy = -12 + hover + seg;
+      rect(sx, sy, 2, 1, seg < 3 ? JM : JS);
+      if (seg % 3 === 0) px(sx, sy, JL);
+    }
   }
 
-  // ===== Pingos de veneno =====
+  // ===== SINO translúcido (cúpula em camadas com alpha) =====
+  // camada externa (mais transparente)
+  offCtx.globalAlpha = 0.45;
+  for (let row = 0; row < bellH; row++) {
+    const f = row / bellH;                       // 0 topo → 1 base
+    const w = Math.round(bellW * Math.sqrt(Math.max(0.08, f * (2 - f))));
+    rect(-w, top + row, w * 2, 1, JM);
+  }
+  offCtx.globalAlpha = 1;
+  // camada interna (menor, mais opaca)
+  offCtx.globalAlpha = 0.7;
+  for (let row = 1; row < bellH - 1; row++) {
+    const f = row / bellH;
+    const w = Math.round((bellW - 2) * Math.sqrt(Math.max(0.08, f * (2 - f))));
+    rect(-w, top + row, w * 2, 1, JL);
+  }
+  offCtx.globalAlpha = 1;
+  // brilho no topo do sino (reflexo)
+  const topW = Math.max(2, Math.round(bellW * 0.5));
+  offCtx.globalAlpha = 0.8;
+  rect(-Math.round(topW / 2) - 1, top + 1, topW, 1, JW);
+  px(-1, top, JW);
+  offCtx.globalAlpha = 1;
+
+  // ===== NÚCLEO bioluminescente (pulsa forte no ataque) =====
+  const coreGlow = 0.55 + 0.3 * Math.sin(t / 190) + atkPulse * 0.4;
+  offCtx.globalAlpha = Math.min(1, coreGlow) * 0.5;
+  rect(-3, top + Math.round(bellH * 0.45) - 1, 6, 4, CORE);
+  offCtx.globalAlpha = Math.min(1, coreGlow);
+  rect(-2, top + Math.round(bellH * 0.45), 4, 2, CORE);
+  px(0, top + Math.round(bellH * 0.45), "#ffffff");
+  offCtx.globalAlpha = 1;
+  // 4 pontos luminosos na borda do sino (padrão de água-viva)
+  const dotGlow = 0.5 + 0.5 * Math.sin(t / 240);
+  offCtx.globalAlpha = dotGlow;
+  px(-bellW + 1, top + bellH - 2, JW);
+  px(-Math.round(bellW / 3), top + bellH - 1, JW);
+  px(Math.round(bellW / 3), top + bellH - 1, JW);
+  px(bellW - 1, top + bellH - 2, JW);
+  offCtx.globalAlpha = 1;
+
+  // ===== SAIA franjada (borda inferior do sino, ondula) =====
+  for (let fx = -bellW; fx <= bellW; fx += 2) {
+    const fy = top + bellH + ((Math.sin(t / 200 + fx * 1.3) > 0) ? 1 : 0);
+    px(fx, fy - 1, JM);
+    px(fx, fy, JS);
+  }
+
+  // ===== Pingos de veneno (mantidos — ela é POISONSTACK) =====
   if (Math.random() < 0.10) {
     game.effects.push({
       type: "spark", color: "#80d060",
-      x: u.x + (Math.random() - 0.5) * 14, y: u.y - 26,
+      x: u.x + (Math.random() - 0.5) * 12, y: u.y - 14 + hover,
       vx: (Math.random() - 0.5) * 4, vy: 4 + Math.random() * 4,
       lifetime: 350, maxLifetime: 500, size: 1,
       update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 50*dt/1000; },
     });
   }
+  // Bolhas subindo ocasionais (leitura aquática)
+  if (Math.random() < 0.045) {
+    game.effects.push({
+      type: "spark", color: "#c0e8d0",
+      x: u.x + (Math.random() - 0.5) * 10, y: u.y - 8,
+      vx: (Math.random() - 0.5) * 2, vy: -8 - Math.random() * 6,
+      lifetime: 600, maxLifetime: 800, size: 1,
+      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
+    });
+  }
 }
-
 function drawLeviatao(cx, cy, t, u, c, pose) {
   // LEVIAT\u00c3 HD (2026-04-25) \u2014 desenhado em screen-pixel space (HD factory)
   // pra ter ~80 pixels de detalhe ao inv\u00e9s de 14 escalados. Cauda CONECTADA
@@ -57338,6 +57361,9 @@ function drawCompanionSprite(cx, cy, t, u, c, pose) {
   else if (cid === "necroPhantom") drawCompNecroPhantom(cx, cy, t, u, c, pose);
   else if (cid === "golemAncestral") drawCompGolemAncestral(cx, cy, t, u, c, pose);
   else if (cid === "sombraReal")  drawCompSombraReal(cx, cy, t, u, c, pose);
+  // FEEDBACK R6 (auditoria) — cacadorReal não tinha branch e caía no drawWarrior
+  // genérico: o sniper de elite renderizava como soldado T1 com espada+escudo.
+  else if (cid === "cacadorReal") drawCompCacadorReal(cx, cy, t, u, c, pose);
   else drawWarrior(cx, cy, u.facing, c, pose);
 }
 
@@ -57954,6 +57980,106 @@ function drawCompGolemAncestral(cx, cy, t, u, c, pose) {
 }
 
 // SOMBRA REAL — pequeno assassino encapuzado, dash trail
+// FEEDBACK R6 — CAÇADOR REAL: sniper de elite com arco longo, capuz/manto verde de
+// caçador, aljava nas costas e pena dourada. Ataque = puxada de corda + flecha visível.
+function drawCompCacadorReal(cx, cy, t, u, c, pose) {
+  const flip = u.facing === "left" ? -1 : 1;
+  const walking = pose.walking;
+  const bob = walking ? Math.round(Math.abs(Math.sin(t / 160)) * 1) : Math.round(Math.sin(t / 600) * 0.6);
+  cy += bob;
+  const GRN_D = "#142818", GRN = "#2c5238", GRN_L = "#3c6e2c", LEAF = "#9ad860";
+  const BRW_D = "#3a2818", BRW = "#5a4028", SKIN = "#c09068", GOLD = "#e8c860";
+  // Sombra
+  offCtx.globalAlpha = 0.4;
+  offCtx.fillStyle = "#000";
+  offCtx.beginPath();
+  offCtx.ellipse(cx, cy + 5, 6, 1.5, 0, 0, Math.PI * 2);
+  offCtx.fill();
+  offCtx.globalAlpha = 1;
+  // Pernas (calça marrom) + botas de couro
+  const legSwing = walking ? Math.round(Math.sin(t / 160) * 1.5) : 0;
+  offCtx.fillStyle = BRW_D;
+  offCtx.fillRect(cx - 2, cy + 2 + Math.max(0, legSwing), 1, 3 - Math.abs(legSwing));
+  offCtx.fillRect(cx + 1, cy + 2 + Math.max(0, -legSwing), 1, 3 - Math.abs(legSwing));
+  offCtx.fillStyle = BRW;
+  offCtx.fillRect(cx - 3, cy + 4, 2, 1);
+  offCtx.fillRect(cx + 1, cy + 4, 2, 1);
+  // ALJAVA nas costas (atrás do torso) com 3 flechas de pena dourada
+  const qx = cx - flip * 3;
+  offCtx.fillStyle = BRW_D;
+  offCtx.fillRect(qx - 1, cy - 6, 2, 5);
+  offCtx.fillStyle = BRW;
+  offCtx.fillRect(qx - 1, cy - 6, 1, 5);
+  offCtx.fillStyle = GOLD;
+  offCtx.fillRect(qx - 1, cy - 8, 1, 2);
+  offCtx.fillRect(qx, cy - 7, 1, 1);
+  offCtx.fillStyle = LEAF;
+  offCtx.fillRect(qx + 1, cy - 8, 1, 2);
+  // Torso: manto verde de caçador (2 tons) + cinto
+  offCtx.fillStyle = GRN_D;
+  offCtx.fillRect(cx - 3, cy - 3, 6, 5);
+  offCtx.fillStyle = GRN;
+  offCtx.fillRect(cx - 3, cy - 3, 5, 4);
+  offCtx.fillStyle = GRN_L;
+  offCtx.fillRect(cx - 3, cy - 3, 2, 2);   // highlight no ombro
+  offCtx.fillStyle = BRW;
+  offCtx.fillRect(cx - 3, cy + 1, 6, 1);   // cinto
+  offCtx.fillStyle = GOLD;
+  offCtx.fillRect(cx, cy + 1, 1, 1);       // fivela dourada
+  // Cabeça com CAPUZ verde pontudo (rosto parcialmente visível)
+  offCtx.fillStyle = GRN_D;
+  offCtx.fillRect(cx - 3, cy - 8, 6, 5);
+  offCtx.fillStyle = GRN;
+  offCtx.fillRect(cx - 3, cy - 8, 5, 4);
+  offCtx.fillRect(cx - flip * 4, cy - 9, 2, 2);   // ponta do capuz caída atrás
+  offCtx.fillStyle = SKIN;
+  offCtx.fillRect(cx + (flip === 1 ? 0 : -2), cy - 6, 2, 2);  // rosto
+  // Olho atento (brilha ao mirar)
+  const aimGlow = 0.6 + Math.sin(t / 240) * 0.25;
+  offCtx.globalAlpha = aimGlow;
+  offCtx.fillStyle = GOLD;
+  offCtx.fillRect(cx + (flip === 1 ? 1 : -1), cy - 6, 1, 1);
+  offCtx.globalAlpha = 1;
+  // Pena dourada no capuz
+  offCtx.fillStyle = GOLD;
+  offCtx.fillRect(cx + flip * 2, cy - 10, 1, 2);
+  offCtx.fillStyle = LEAF;
+  offCtx.fillRect(cx + flip * 2, cy - 9, 1, 1);
+  // ===== ARCO LONGO (na frente, curva de 3 segmentos) + corda =====
+  const atkP = pose.attackProg || 0;
+  const drawPull = atkP > 0 ? Math.sin(Math.min(1, atkP * 1.6) * Math.PI * 0.5) : 0;  // puxada
+  const bx = cx + flip * 5;
+  offCtx.fillStyle = BRW;
+  offCtx.fillRect(bx, cy - 8, 1, 2);
+  offCtx.fillRect(bx + flip, cy - 6, 1, 5);
+  offCtx.fillRect(bx, cy - 1, 1, 2);
+  offCtx.fillStyle = BRW_D;
+  offCtx.fillRect(bx, cy - 8, 1, 1);
+  offCtx.fillRect(bx, cy, 1, 1);
+  // corda (recua na puxada)
+  const pullOff = Math.round(drawPull * 3);
+  offCtx.strokeStyle = "#d8d0c0";
+  offCtx.globalAlpha = 0.9;
+  offCtx.beginPath();
+  offCtx.moveTo(bx + 0.5, cy - 7.5);
+  offCtx.lineTo(bx + 0.5 - flip * pullOff, cy - 2.5);
+  offCtx.lineTo(bx + 0.5, cy + 1.5);
+  offCtx.stroke();
+  offCtx.globalAlpha = 1;
+  // flecha encaixada durante a puxada
+  if (drawPull > 0.15) {
+    const alen = Math.max(2, pullOff + 2);
+    const ax0 = flip === 1 ? bx - pullOff : bx + pullOff - alen + 1;
+    offCtx.fillStyle = "#d8d0c0";
+    offCtx.fillRect(ax0, cy - 3, alen, 1);
+    offCtx.fillStyle = GOLD;
+    offCtx.fillRect(flip === 1 ? ax0 : ax0 + alen - 1, cy - 3, 1, 1);   // pena na nock
+  }
+  // Braço puxando (pele)
+  offCtx.fillStyle = SKIN;
+  offCtx.fillRect(cx + flip * (2 - Math.round(drawPull * 2)), cy - 3, 2, 1);
+}
+
 function drawCompSombraReal(cx, cy, t, u, c, pose) {
   const flip = u.facing === "left" ? -1 : 1;
   const walking = pose.walking;
@@ -64080,6 +64206,7 @@ function drawMinimap() {
     if (game.corpses && game._levelMod && game._levelMod.id === "haunted") {
       ctx.fillStyle = "#b8a8e8";
       for (const c of game.corpses) {
+        if (!c._ancient) continue;   // R6: cadáveres frescos de combate não poluem o mapa
         ctx.fillRect(Math.round(toX(c.x)), Math.round(toY(c.y)), 1, 1);
       }
     }
@@ -65422,15 +65549,57 @@ function acceptRevival() {
   showToast("Inimigos próximos foram empurrados.", 2400, "good");
 }
 
+// FEEDBACK R6 (auditoria) — coleta das recompensas de quest extraída pra função:
+// antes só o caminho NÃO-campanha do showGameOver pagava; morrer/vencer na campanha
+// completava objetivos com fanfarra e nunca entregava nada.
+function collectQuestRewards() {
+  let souls = 0, coins = 0, done = 0;
+  if (game.activeQuests) {
+    for (const q of game.activeQuests) {
+      if (q.completed && !q._rewardPaid) {
+        q._rewardPaid = true;
+        souls += q.soulReward || 0;
+        coins += q.coinReward || 0;
+        done++;
+      }
+    }
+  }
+  if (souls > 0) progress.souls = (progress.souls || 0) + souls;
+  if (coins > 0) progress.coins = (progress.coins || 0) + coins;
+  if (done > 0) {
+    progress.questsCompletedTotal = (progress.questsCompletedTotal || 0) + done;
+    setTimeout(() => {
+      try { showToast(done + "/3 OBJETIVOS — +" + souls + " ✦ +" + coins + " ◈", 5000, "magic"); } catch (e) {}
+    }, 800);
+  }
+  return done;
+}
+
 function showGameOver() {
   // 2026-06-14 — CAMPANHA: morrer abre a INTERMISSION (compra + tentar o bioma de novo),
   // em vez da tela de game over padrão. (Concluir bioma NÃO passa por aqui — não é morte.)
   if (game.campaignMode && !game._campaignBiomeCleared) {
     if (window.PokiHelpers) { PokiHelpers.gameplayStop(); }
     clearSavedRun(game.activeSaveSlot);
+    // FEEDBACK R6 — paga quests completas também no caminho de morte da campanha.
+    collectQuestRewards();
+    // FEEDBACK R6 — recap de morte: o modo de APRENDIZADO não dizia o que matou o
+    // jogador (o "MORTO POR X" só existia na tela de game over padrão).
+    let _deathLine = "Compre melhorias e cartas — depois tente o bioma novamente.";
+    if (game._lastDamageSource) {
+      const src = game._lastDamageSource;
+      let attackerName = src.name || "INIMIGO";
+      if (src.isBoss && typeof getBossName === "function") attackerName = getBossName(src.unitClass) || attackerName;
+      else if (typeof getUnitName === "function") attackerName = getUnitName(src.unitClass) || attackerName;
+      const _s = Math.floor(game.runTime);
+      const _mm = String(Math.floor(_s / 60)).padStart(2, "0");
+      const _ss = String(_s % 60).padStart(2, "0");
+      _deathLine = "☠ Morto por " + attackerName.toUpperCase() + " · nível " + (game.campaignLevel || 1)
+        + " · " + _mm + ":" + _ss + " · " + (game.killsThisRun || 0) + " abates. Compre melhorias e tente de novo.";
+    }
     openCampaignIntermission({
       title: "VOCÊ CAIU",
-      subtitle: "Compre melhorias e cartas — depois tente o bioma novamente.",
+      subtitle: _deathLine,
       continueLabel: "TENTAR DE NOVO",
       onContinue: () => {
         // REWORK 2026-07 FIX (auditoria): morrer reiniciava SEMPRE no nível 1 do
@@ -65466,33 +65635,8 @@ function showGameOver() {
       }
     }
   }
-  // Coletar recompensas das quests COMPLETAS
-  let questSouls = 0;
-  let questCoins = 0;
-  let questsCompleted = 0;
-  if (game.activeQuests) {
-    for (const q of game.activeQuests) {
-      if (q.completed) {
-        questSouls += q.soulReward || 0;
-        questCoins += q.coinReward || 0;
-        questsCompleted++;
-      }
-    }
-  }
-  if (questSouls > 0) {
-    progress.souls = (progress.souls || 0) + questSouls;
-  }
-  if (questCoins > 0) {
-    progress.coins = (progress.coins || 0) + questCoins;
-  }
-  if (questsCompleted > 0) {
-    progress.questsCompletedTotal = (progress.questsCompletedTotal || 0) + questsCompleted;
-    setTimeout(() => {
-      try {
-        showToast(questsCompleted + "/3 OBJETIVOS — +" + questSouls + " ✦ +" + questCoins + " ◈", 5000, "magic");
-      } catch(e) {}
-    }, 800);
-  }
+  // Coletar recompensas das quests COMPLETAS (R6: função compartilhada com dedup)
+  collectQuestRewards();
   Sfx.stopMusic();
   Sfx.gameOver();
   const s = Math.floor(game.runTime);
@@ -70365,6 +70509,44 @@ function markRegionLevel(biomeId, level) {
   if (typeof saveProgress === "function") saveProgress();
 }
 
+// FEEDBACK R6 (auditoria) — TRANSIÇÃO DE NÍVEL LIMPA: antes NADA era limpo ao avançar
+// de nível (1→2→3→4): inimigos vivos (com aggro permanente), hazards de lago com
+// totalLife Infinity, baús/moedas/cadáveres do nível anterior persistiam em coordenadas
+// da curva ANTIGA — incluindo zonas de dano INVISÍVEIS no meio da estrada nova. Além
+// disso só o REI era teleportado (x=120); o exército ficava no portal (~x 4040) e levava
+// 50-95 s pra voltar andando, enquanto os squads novos caíam no Rei sozinho.
+// Agora: purga inimigos + objetos de chão e o exército viaja em formação junto do Rei.
+// Chamar SEMPRE DEPOIS de setupCorridorLevel (usa a curva NOVA em corridorCenterY).
+function resetCampaignLevelState() {
+  game.units = game.units.filter(u => u === game.king || (u.faction === "ally" && u.hp > 0));
+  game.hazards = [];
+  game.corpses = [];
+  game.pickups = [];
+  game.coins = [];
+  game.projectiles = [];
+  game.effects = [];
+  game.damageNums = [];
+  game.relicPickups = [];
+  game.targetEnemy = null;
+  game.selectedUnit = null;
+  if (game.king) {
+    game.king.x = 120; game.king.y = corridorCenterY(120);
+    let i = 0;
+    for (const u of game.units) {
+      if (u === game.king || u.faction !== "ally") continue;
+      const ang = (i * 0.83) % (Math.PI * 2);
+      const rad = 26 + (i % 5) * 12;
+      u.x = game.king.x + Math.cos(ang) * rad + 10;
+      const cy = corridorCenterY(u.x);
+      u.y = Math.max(cy - 42, Math.min(cy + 42, game.king.y + Math.sin(ang) * rad));
+      u.vx = 0; u.vy = 0;
+      u.target = null;
+      i++;
+    }
+  }
+  if (game.camera) { game.camera.x = 120; game.camera.y = game.king ? game.king.y : 0; }
+}
+
 function campaignLevelComplete() {
   if (!game.campaignMode) return;
   const lvl = game.campaignLevel || 1;
@@ -70385,15 +70567,13 @@ function campaignLevelComplete() {
         if (Array.isArray(game.lairs)) {
           for (const L of game.lairs) { L.y = corridorCenterY(L.x); }
         }
+        // FEEDBACK R6 — limpa estado do nível anterior + teleporta Rei E exército pra
+        // entrada. ANTES do spawnDecorations (senão apagaria os hazards do nível novo).
+        resetCampaignLevelState();
         if (typeof spawnDecorations === "function") spawnDecorations();
         // FIX 2026-06-23 — zera o portal ao entrar no nível do boss (o portal já fica
         // desativado em nível 4 pela guarda campaignLevel<=3, mas resetamos por garantia).
         if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
-        // FIX 2026-06-24 (auditoria) — teleporta o Rei pra ENTRADA do corredor (como em 1→2/2→3).
-        // Sem isso o Rei terminava o nível 3 COLADO no portal/covil (x≈4040) → o covil "soca"
-        // sozinho e o boss desperta no frame 0, fazendo o toast "VÁ ATÉ O COVIL" mentir.
-        if (game.king) { game.king.x = 120; game.king.y = corridorCenterY(120); }
-        if (game.camera) game.camera.x = 120;
         game._campaignLevelDone = false;
         if (typeof showToast === "function") showToast("⚔ VÁ ATÉ O COVIL E DESPERTE O BOSS!", 3200, "danger");
       },
@@ -70410,14 +70590,13 @@ function campaignLevelComplete() {
         if (typeof setupCorridorLevel === "function") setupCorridorLevel(game.campaignBiomeLevel, lvl + 1);
         if (typeof announceLevelMod === "function") announceLevelMod();
         if (game.levelGoal) { game.levelGoal.y = corridorCenterY(game.levelGoal.x); }
+        // FEEDBACK R6 — limpa estado do nível anterior + teleporta Rei E exército pra
+        // entrada. ANTES do spawnDecorations (senão apagaria os hazards do nível novo).
+        resetCampaignLevelState();
         if (typeof spawnDecorations === "function") spawnDecorations();
-        // FIX 2026-06-23 — ao avançar de nível, teleporta o Rei de volta à ENTRADA do
-        // corredor e ZERA o portal. Sem isso o Rei continuava parado no portal com
-        // standTimer=3000 e o próximo nível concluía no mesmo frame → dava pra pular
-        // níveis 2/3 e cair direto no boss só clicando "continuar".
-        if (game.king) { game.king.x = 120; game.king.y = corridorCenterY(120); }
+        // FIX 2026-06-23 — ZERA o portal ao avançar (sem isso o standTimer=3000 persistia
+        // e o próximo nível concluía no mesmo frame → dava pra pular níveis 2/3).
         if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
-        if (game.camera) game.camera.x = 120;
         game._campaignLevelDone = false;
         if (typeof showToast === "function") showToast("NÍVEL " + (lvl + 1) + " / 3", 2000, "magic");
       },
@@ -70430,6 +70609,8 @@ function campaignBiomeCleared() {
   if (!game.campaignMode) return;
   markRegionLevel(game.campaignBiomeId, 4);  // 2026-06-15: BOSS derrotado → região completa
   game._campaignBiomeCleared = false;
+  // FEEDBACK R6 — paga quests completas também na VITÓRIA da campanha (não passa pelo showGameOver).
+  if (typeof collectQuestRewards === "function") collectQuestRewards();
   const isLast = game.campaignBiomeLevel >= BIOME_ORDER.length - 1;
   if (isLast) {
     progress.campaignClears = (progress.campaignClears || 0) + 1;
@@ -73535,6 +73716,7 @@ document.addEventListener("click", (e) => {
       if (!game.campaignMode) { hideAllMenus(); break; }
       showConfirmModal("REINICIAR o nível " + (game.campaignLevel || 1) + " deste bioma? O progresso do nível atual será perdido (moedas/upgrades persistem).", () => {
         _pendingCampaign = { biomeId: game.campaignBiomeId, biomeLevel: game.campaignBiomeLevel, level: game.campaignLevel || 1 };
+        progress.campaignAttempts = (progress.campaignAttempts || 0) + 1;   // R6: estatística de tentativas
         game.runActive = false;
         if (window.PokiHelpers) PokiHelpers.gameplayStop();
         openCardPickFlow();
@@ -73627,6 +73809,15 @@ document.addEventListener("click", (e) => {
 // ----- ESC pauses / closes menus -----
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  // FEEDBACK R6 (verificação) — ESC com o confirmModal aberto sobre o pauseMenu
+  // despausava o jogo e deixava o modal ÓRFÃO bloqueando todo o input (o Rei ficava
+  // indefeso atrás dele). ESC agora age como CANCELAR do modal e para aqui.
+  const _cm = document.getElementById("confirmModal");
+  if (_cm && _cm.style.display === "flex") {
+    _cm.style.display = "none";
+    e.preventDefault();
+    return;
+  }
   // FIX 2026-04-27: se um feitiço está armado, ESC só desarma a carta — NÃO abre
   // o menu de pause. O handler do update loop (linha ~11642) já chama disarmSpell;
   // aqui só precisamos abortar pra não abrir o pauseMenu junto.
