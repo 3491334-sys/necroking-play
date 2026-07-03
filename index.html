@@ -7140,7 +7140,9 @@ const COMPANION_LEVEL_DATA = [
   { lvl: 3,  hpMult: 2.0,  atkMult: 1.6,  cost: 35,  label: "LENDÁRIO", desc: "+100% HP, +60% ATK · Habilidade III + bônus único · abre a ÁRVORE DE TALENTOS" },
 ];
 function getCompanionLevel(cid) {
-  return (progress.companionLevels && progress.companionLevels[cid]) || 0;
+  // R10: clamp 0-3 (níveis 4-10 da trilha extinta migram pra árvore; se algum escapar
+  // da migração, o clamp evita cair no fallback BASE de COMPANION_LEVEL_DATA[lvl]).
+  return Math.min(3, (progress.companionLevels && progress.companionLevels[cid]) || 0);
 }
 function getCompanionLevelData(cid) {
   return COMPANION_LEVEL_DATA[getCompanionLevel(cid)] || COMPANION_LEVEL_DATA[0];
@@ -7377,7 +7379,7 @@ const COMPANION_ABILITIES = {
     null,
     { id: "boneVolley", name: "Salva de Flechas", lvl: 1, cd: 8000, targetType: "area",
       desc: "Dispara flechas em todas as direções (25 dmg cada)" },
-    { id: "skullBomb", name: "Flecha Explosiva", lvl: 2, cd: 12000, targetType: "enemy",
+    { id: "skullBomb", name: "Crânio Explosivo", lvl: 2, cd: 12000, targetType: "enemy",
       desc: "Flecha que explode numa AOE (60 dmg + slow 1.5s)" },
     { id: "boneArmy", name: "Convocar Batedores", lvl: 3, cd: 30000, targetType: "self",
       desc: "Invoca 3 esqueletos arqueiros T2 por 15s" },
@@ -7494,6 +7496,10 @@ function castCompanionAbility(u, ab) {
 // 5 ossos disparados em 360°, 25 dmg cada
 function abilityBoneVolley(u) {
   if (Sfx && Sfx.necromance) Sfx.necromance();
+  // R10 (revisão): dano da habilidade escala com a árvore (como os ataques básicos)
+  const _bvPf = u._perks || {};
+  const _bvNodes = (typeof companionTreeNodeCount === "function" && u.companionId) ? companionTreeNodeCount(u.companionId) : 0;
+  const _bvM = (_bvPf.dmgMult || 1) * Math.pow(1.065, _bvNodes);
   const COUNT = 5;
   for (let i = 0; i < COUNT; i++) {
     const ang = (i / COUNT) * Math.PI * 2 + Math.random() * 0.1;
@@ -7508,7 +7514,7 @@ function abilityBoneVolley(u) {
       x: u.x, y: u.y - 4,
       vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
       lifetime: 1200,
-      damage: 25,
+      damage: Math.round(25 * _bvM),
       ownerFaction: "ally",
       owner: u,
       angle: ang,
@@ -7543,6 +7549,11 @@ function abilitySkullBomb(u, target) {
   const dx = target.x - u.x, dy = target.y - u.y;
   const d = Math.hypot(dx, dy) || 1;
   game.projectiles = game.projectiles || [];
+  // R10 (revisão): habilidades escalam com a árvore como os ataques básicos
+  // (dmgMult dos talentos + crescimento implícito 1.065^nodes).
+  const _abPf = u._perks || {};
+  const _abNodes = (typeof companionTreeNodeCount === "function" && u.companionId) ? companionTreeNodeCount(u.companionId) : 0;
+  const _abM = (_abPf.dmgMult || 1) * Math.pow(1.065, _abNodes);
   // FEEDBACK R8 (2026-07-02): convertido em projétil AUTO-GERENCIADO (padrão
   // kind + update() SEM `type`, como o explosiveSkull de launchExplosiveSkulls):
   // o shape antigo tinha type:"magic" (não casava com nenhum branch do pipeline)
@@ -7551,7 +7562,8 @@ function abilitySkullBomb(u, target) {
     x: u.x, y: u.y - 6,
     vx: (dx / d) * 180, vy: (dy / d) * 180,
     lifetime: 1500,
-    damage: 60,
+    damage: Math.round(60 * _abM),
+    _aoeDmg: Math.round(30 * _abM),
     owner: u, ownerRef: u,
     ownerFaction: "ally",
     kind: "skullBomb", color: "#a040d0",
@@ -7566,16 +7578,18 @@ function abilitySkullBomb(u, target) {
         if (!isAlive(t) || t.isWagon || t.faction === "ally" || t.type === "king") continue;
         const ddx = t.x - this.x, ddy = t.y - this.y, rr = this.radius + (t.radius || 6);
         if (ddx * ddx + ddy * ddy <= rr * rr) {
-          // Dano direto no alvo atingido + detonação AoE
+          // Dano direto no alvo atingido + detonação AoE.
+          // R10 (revisão): o alvo primário é PULADO na AoE (tomava 60+30 = 90,
+          // contra os "60 dmg" do tooltip).
           applyDamage(this.owner, t, this.damage, { type: "magic" });
-          this._detonate();
+          this._detonate(t);
           this.lifetime = 0;
           return;
         }
       }
     },
     // Detonação = corpo do antigo _onHit, inlinado (AoE 60px: 30 dmg + slow 1.5s)
-    _detonate() {
+    _detonate(skipTarget) {
       const p = this;
       game.effects.push({
         type: "shockwave", x: p.x, y: p.y,
@@ -7583,9 +7597,10 @@ function abilitySkullBomb(u, target) {
       });
       for (const e of game.units) {
         if (!isAlive(e) || e.faction === "ally") continue;
+        if (e === skipTarget) { e.slowed = Math.max(e.slowed || 0, 1500); continue; }  // R10: sem dano duplo
         const ddx = e.x - p.x, ddy = e.y - p.y;
         if (ddx * ddx + ddy * ddy <= 60 * 60) {
-          applyDamage(p.owner, e, 30, { type: "magic" });  // dmg adicional na explosão
+          applyDamage(p.owner, e, p._aoeDmg || 30, { type: "magic" });  // dmg adicional na explosão
           e.slowed = Math.max(e.slowed || 0, 1500);
         }
       }
@@ -10117,6 +10132,35 @@ function cloneDefaultProgress() {
   return JSON.parse(JSON.stringify(DEFAULT_PROGRESS));
 }
 
+// FEEDBACK R10 (2026-07-03, revisão adversarial) — MIGRAÇÃO da trilha linear antiga
+// (companion níveis 4-10) para a árvore de talentos, extraída pra helper: é chamada em
+// loadProgress, _validateProgress (→ cobre buildEndlessProfile e a recuperação de
+// backup, que leem os slots crus) e é idempotente.
+const _MIGRATE_TRACK = {
+  lichPet:      { 4: "lp_foco", 5: "lp_ossos_afiados", 6: "lp_elo", 7: "lp_conjuracao", 8: "lp_barreira", 9: "lp_cranios", 10: "lp_arquilich" },
+  necroPhantom: { 4: "np_foice", 5: "np_passo", 6: "np_toque", 7: "np_rancor", 8: "np_nebulosa", 9: "np_vinculo", 10: "np_ceifador" },
+  cacadorReal:  { 4: "cr_pontaria", 5: "cr_farpadas", 6: "cr_aguia", 7: "cr_rajada", 8: "cr_marca", 9: "cr_brutal", 10: "cr_mestre" },
+  sombraReal:   { 4: "sr_laminav", 5: "sr_danca", 6: "sr_execucao", 7: "sr_reflexos", 8: "sr_sede", 9: "sr_golpe", 10: "sr_morte" },
+};
+function _migrateCompanionTrack(p) {
+  if (!p || !p.companionLevels) return p;
+  if (!p.companionTree || typeof p.companionTree !== "object") {
+    p.companionTree = { lichPet: {}, necroPhantom: {}, cacadorReal: {}, sombraReal: {} };
+  }
+  for (const cid in _MIGRATE_TRACK) {
+    const lvl = p.companionLevels[cid] || 0;
+    if (lvl > 3) {
+      p.companionTree[cid] = p.companionTree[cid] || {};
+      for (let l = 4; l <= Math.min(10, lvl); l++) {
+        const nodeId = _MIGRATE_TRACK[cid][l];
+        if (nodeId) p.companionTree[cid][nodeId] = true;
+      }
+      p.companionLevels[cid] = 3;
+    }
+  }
+  return p;
+}
+
 function loadProgress(slotIdx) {
   const slot = slotIdx != null ? slotIdx : (game && game.activeSaveSlot) || 0;
   try {
@@ -10150,23 +10194,10 @@ function loadProgress(slotIdx) {
     if (!result.companionTree || typeof result.companionTree !== "object") {
       result.companionTree = { lichPet: {}, necroPhantom: {}, cacadorReal: {}, sombraReal: {} };
     }
-    const _MIGRATE_TRACK = {
-      lichPet:      { 4: "lp_foco", 5: "lp_ossos_afiados", 6: "lp_elo", 7: "lp_conjuracao", 8: "lp_barreira", 9: "lp_cranios", 10: "lp_arquilich" },
-      necroPhantom: { 4: "np_foice", 5: "np_passo", 6: "np_toque", 7: "np_rancor", 8: "np_nebulosa", 9: "np_vinculo", 10: "np_ceifador" },
-      cacadorReal:  { 4: "cr_pontaria", 5: "cr_farpadas", 6: "cr_aguia", 7: "cr_rajada", 8: "cr_marca", 9: "cr_brutal", 10: "cr_mestre" },
-      sombraReal:   { 4: "sr_laminav", 5: "sr_danca", 6: "sr_execucao", 7: "sr_reflexos", 8: "sr_sede", 9: "sr_golpe", 10: "sr_morte" },
-    };
-    for (const cid in _MIGRATE_TRACK) {
-      const lvl = result.companionLevels[cid] || 0;
-      if (lvl > 3) {
-        result.companionTree[cid] = result.companionTree[cid] || {};
-        for (let l = 4; l <= Math.min(10, lvl); l++) {
-          const nodeId = _MIGRATE_TRACK[cid][l];
-          if (nodeId) result.companionTree[cid][nodeId] = true;
-        }
-        result.companionLevels[cid] = 3;
-      }
-    }
+    // R10 (revisão): a migração virou helper (_migrateCompanionTrack) chamado também
+    // dentro de _validateProgress — buildEndlessProfile e a recuperação de backup liam
+    // os slots CRUS e pulavam a migração (companion pré-R8 caía no fallback BASE).
+    _migrateCompanionTrack(result);
     return result;
   } catch (err) {
     // COMBO 11 G3 — JSON parse failure: tenta recuperar de backup
@@ -10282,6 +10313,9 @@ function _validateProgress(p) {
       }
     }
   }
+  // R10 (revisão): migra AQUI também — este é o único funil comum aos 3 caminhos de
+  // leitura (loadProgress, recuperação de backup e buildEndlessProfile).
+  if (typeof _migrateCompanionTrack === "function") _migrateCompanionTrack(out);
   for (const num of ["bossRushBestTime", "bossRushAttempts", "bossRushClears", "survivalBestTime", "survivalAttempts"]) {
     if (typeof p[num] === "number" && !isNaN(p[num])) out[num] = p[num];
   }
@@ -26992,7 +27026,7 @@ function renderRelicDraft() {
       const col = (typeof rarityColor === "function") ? rarityColor(r.rarity) : "#d4a637";
       card.style.borderColor = col;
       const cv = document.createElement("canvas");
-      cv.width = 80; cv.height = 80; cv.className = "pc-icon";  // R9: 1:1 com .pc-icon 80px
+      cv.width = 92; cv.height = 92; cv.className = "pc-icon";  // R10: o CSS do DRAFT (#relicDraftCards) é 92px — 1:1 de verdade
       try { if (typeof drawRelicIcon === "function") drawRelicIcon(cv, r.icon, r); } catch (e) {}
       card.appendChild(cv);
       // REWORK 2026-07 — chip de ARQUÉTIPO (tag de build) no topo do card
@@ -30369,6 +30403,13 @@ function renderCompanionTree(cid) {
 function buyCompanionTreeNode(cid, nodeId) {
   const tree = COMPANION_TREES[cid];
   if (!tree) return;
+  // R10 (revisão): no perfil ENDLESS (mesclado, em memória) saveProgressNow é no-op —
+  // a compra debitaria almas e EVAPORARIA no restart. Talento se compra na campanha.
+  if (game._endlessProfile) {
+    showToast("Talentos são comprados na CAMPANHA — o Endless herda os desbloqueios", 2600, "danger");
+    if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
+    return;
+  }
   if (getCompanionLevel(cid) < 3) {
     showToast("A Árvore de Talentos abre no nível 3 (LENDÁRIO)", 2200, "danger");
     if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
@@ -48276,8 +48317,9 @@ function drawUnit(u, camX, camY) {
     if (u.flashTime > 0) drawHitFlash(sx - 14, sy - 14, 28, 16, u.flashTime, u.flashColor);
     if (u.frozen > 0) drawFrozenOverlay(sx, sy, 14);
     drawStatusIcons(u, sx, sy - 18, t);
-    // Carro\u00e7a tem hitbox larga \u2014 HP bar maior tamb\u00e9m
-    drawHpBar(sx, sy - 18, u.hp, u.maxHp, "enemy", 18);
+    // Carro\u00e7a tem hitbox larga \u2014 HP bar maior tamb\u00e9m.
+    // R10 (revis\u00e3o): mesmo guard do caminho gen\u00e9rico \u2014 carro\u00e7a morrendo n\u00e3o pisca barra vazia.
+    if (u.state !== "dying" && u.hp > 0) drawHpBar(sx, sy - 18, u.hp, u.maxHp, "enemy", 18);
     return;
   }
 
@@ -48558,7 +48600,10 @@ function drawUnit(u, camX, camY) {
   // Sprites HD s\u00e3o muito mais altos \u2014 a barra precisa subir pra n\u00e3o cobrir o sprite.
   // 2026-04-26: bosses N\u00c3O renderizam HP bar flutuante \u2014 s\u00f3 a do topo da tela
   // (#bossHpBar via updateBossHUD) \u2014 evita polui\u00e7\u00e3o visual e sobreposi\u00e7\u00e3o com aura.
-  if (!u.isBoss) {
+  // FEEDBACK R10 (2026-07-03) — unidades MORRENDO não desenham mais a barra: durante a
+  // animação de morte (~0.9s) a barra vazia continuava piscando ao lado das barras das
+  // unidades vivas — lia como "barra de vida duplicada" em qualquer luta.
+  if (!u.isBoss && u.state !== "dying" && u.hp > 0) {
     const hpY = unitVisualTopY(u, sx, sy) - 4;
     const hpW = unitHpBarWidth(u);
     drawHpBar(sx, hpY, u.hp, u.maxHp, u.faction, hpW);
@@ -66468,7 +66513,7 @@ function renderSpellBar() {
     // COMBO 6 B1 — marca spellId pro tooltip global mostrar dano/CD/upgrades on hover
     if (spellId) div.dataset.spellId = spellId;
     // 2026-04-27: canvas aumentado de 56→96 (HD render @ 32-grid → U=3, simbolo grosso)
-    div.appendChild(createIconCanvas(iconKind, 96));
+    div.appendChild(createIconCanvas(iconKind, 84));   // R10: 1:1 com .card canvas 84px (96→84 borrava)
     if (key) {
       const keyEl = document.createElement("div");
       keyEl.className = "card-key";
@@ -67494,7 +67539,7 @@ function drawRelicIcon(canvas, kind, relic) {
       p(5,21,K,4,3); p(6,22,gd,2,1);                             // base
       p(16,3,K,7,1); p(15,4,K,1,5); p(23,4,K,1,5); p(16,9,K,7,1);
       p(16,4,or,7,5); p(17,4,oh,3,2); p(18,5,"#ffffff",1,1);     // orbe solar
-      p(14,2,gl,1,1); p(24,2,gl,1,1); p(19,1,gl,1,1); p(24,10,gl,1,1);  // raios
+      p(14,2,gl,1,1); p(23,2,gl,1,1); p(19,1,gl,1,1); p(23,10,gl,1,1);  // raios (R10: x=24 clipava no codex)
       break;
     }
     case "iceCrown": {
@@ -67530,7 +67575,7 @@ function drawRelicIcon(canvas, kind, relic) {
       for (let i = 0; i < 8; i++) {
         const h = 8 - i;
         p(10-i, 8+i, K, 2, h+2);
-        p(14+i-1+1, 8+i, K, 2, h+2);
+        p(13+i, 8+i, K, 2, h+2);   // R10: espelho correto (antes deslocado 1px)
       }
       for (let i = 0; i < 8; i++) {
         const h = 8 - i;
@@ -68889,7 +68934,6 @@ function drawShopIcon(canvas, kind) {
       const pl = "#f0ead8", pd = "#c8bca0", rd = "#d02840", rl = "#ff7080";
       const disc = (r, col) => { for (let yy = -r; yy <= r; yy++) { const hw = Math.floor(Math.sqrt(r*r - yy*yy)); p(16-hw, 16+yy, col, hw*2, 1); } };
       disc(12, K); disc(11, pl);
-      for (let yy = 5; yy <= 11; yy++) p(24 - Math.floor(Math.sqrt(121-(yy)*(yy)))/1, 16+yy, pd, 4, 1);
       p(13,7,K,6,18); p(7,13,K,18,6);
       p(14,8,rd,4,16); p(8,14,rd,16,4);
       p(14,8,rl,4,2); p(8,14,rl,2,4); p(14,8,rl,1,16);
@@ -74087,12 +74131,12 @@ function renderItemsMenu() {
         // icones que so existem em drawRelicIcon (nao drawShopIcon).
         const iconKind = r.icon || "scroll";
         const iconCanvas = document.createElement("canvas");
-        iconCanvas.width = 96;
-        iconCanvas.height = 96;
+        iconCanvas.width = 80;   // R10: 1:1 com .item-icon 80px (o loop de buffs já foi corrigido no R9)
+        iconCanvas.height = 80;
         if (typeof drawRelicIcon === "function") {
           drawRelicIcon(iconCanvas, iconKind, r);
         } else if (typeof createIconCanvas === "function") {
-          const fallback = createIconCanvas(iconKind, 96);
+          const fallback = createIconCanvas(iconKind, 80);   // R10: 1:1 com .item-icon
           iconCanvas.getContext("2d").drawImage(fallback, 0, 0);
         }
         iconCanvas.className = "item-icon";
