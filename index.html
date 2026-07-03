@@ -48314,9 +48314,29 @@ function _renderSpriteToCache(key, u, b, colors) {
       const id = cv.getContext("2d").getImageData(0, 0, _SPR_W, _SPR_H);
       if (_spriteTouchesEdge(id)) okEntry = { direct: true };
     } catch (e) { okEntry = { direct: true }; }
-    // FEEDBACK R12 (2026-07-03): o CONTORNO global de silhueta do R11 foi REMOVIDO a
-    // pedido do dono ('não gostei de como ficou'). A clareza fica por conta do anel de
-    // facção na sombra + paletas corrigidas + normalização de tier (mantidos).
+    // FEEDBACK R15 (2026-07-03) — CONTORNO GLOBAL DE VOLTA a pedido explícito do dono
+    // ("adicione o contorno a todas as unidades, incluindo os companions") — reverte a
+    // remoção do R12. Assado no bake (custo zero por frame): carimba o corpo 4×
+    // deslocado 1px, tinge via source-in e põe o corpo por cima. Rim ÚNICO #0d0810
+    // (o rim roxo de esqueleto aliado do R11 NÃO voltou — visual uniforme).
+    // Caminhos de draw DIRETO (companions, _SPRITE_CACHE_BLOCK, sentinela direct,
+    // falha de bake) ganham o mesmo rim per-frame via drawBodyWithOutline.
+    if (!okEntry.direct) {
+      try {
+        const oc = document.createElement("canvas");
+        oc.width = _SPR_W; oc.height = _SPR_H;
+        const octx = oc.getContext("2d");
+        octx.imageSmoothingEnabled = false;
+        octx.drawImage(cv, 1, 0); octx.drawImage(cv, -1, 0);
+        octx.drawImage(cv, 0, 1); octx.drawImage(cv, 0, -1);
+        octx.globalCompositeOperation = "source-in";
+        octx.fillStyle = "#0d0810";
+        octx.fillRect(0, 0, _SPR_W, _SPR_H);
+        octx.globalCompositeOperation = "source-over";
+        octx.drawImage(cv, 0, 0);
+        okEntry = { canvas: oc, ax: cx, ay: cy };
+      } catch (e) { /* sem contorno — mantém o corpo puro */ }
+    }
     if (_SPRITE_CACHE.size >= _SPRITE_CACHE_MAX) { const k0 = _SPRITE_CACHE.keys().next().value; _SPRITE_CACHE.delete(k0); }
     _SPRITE_CACHE.set(key, okEntry);
   }
@@ -48331,6 +48351,89 @@ function _renderSpriteToCache(key, u, b, colors) {
 // (t % 2600) + anel de pulso + partículas; no cache o flash assava CONGELADO nos buckets
 // (tFix=0 do ataque → gazing sempre true, anel estático carimbado no sprite).
 const _SPRITE_CACHE_BLOCK = { necroSpider: true, leviataProfundo: true, medusa: true }; // 2026-07-02: leviatã aquático tem ondulação contínua + bolhas
+// FEEDBACK R15 (2026-07-03) — CONTORNO PER-FRAME pros caminhos de draw DIRETO (o bake
+// do cache cobre o resto): companions (nunca cacheiam), _SPRITE_CACHE_BLOCK (VFX
+// contínuo), sentinela direct:true (sprite maior que o tile) e falha de bake.
+// Dois canvases scratch reusados: corpo → A; A carimbado 4× em B → source-in #0d0810
+// → corpo por cima → 1 drawImage no offCtx real. Partículas dos drawers usam coords
+// de MUNDO (u.x/u.y) e vão pra game.effects — o redirect do offCtx não as afeta.
+const _OUT_W = 128, _OUT_H = 128, _OUT_AX = 64, _OUT_AY = 92;
+let _outBodyCv = null, _outBodyCtx = null, _outRimCv = null, _outRimCtx = null,
+    _outMaskCv = null, _outMaskCtx = null;
+// opts.alphaThreshold (0-255): modo MÁSCARA — rim sólido só onde o corpo tem alpha ≥
+// threshold. Necessário pros companions ETÉREOS (lich tem glow translúcido em volta do
+// núcleo, fantasma é ~todo semi-transparente): no compose padrão o rim herda o alpha do
+// corpo e dilui no fundo. Medido (histograma): lich núcleo=255, glow≤63; fantasma corpo
+// 128-254, glow≤63 → threshold 96 separa corpo de glow nos dois. Se o fade do fantasma
+// cair abaixo, o contorno some JUNTO do corpo (comportamento certo pra um fantasma).
+// Custa 1 getImageData 128×128/frame — só no caminho de companion (1-2 units).
+function drawBodyWithOutline(sx, sy, drawBodyFn, opts) {
+  if (!_outBodyCv) {
+    _outBodyCv = document.createElement("canvas"); _outBodyCv.width = _OUT_W; _outBodyCv.height = _OUT_H;
+    _outBodyCtx = _outBodyCv.getContext("2d"); _outBodyCtx.imageSmoothingEnabled = false;
+    _outRimCv = document.createElement("canvas"); _outRimCv.width = _OUT_W; _outRimCv.height = _OUT_H;
+    _outRimCtx = _outRimCv.getContext("2d"); _outRimCtx.imageSmoothingEnabled = false;
+    _outMaskCv = document.createElement("canvas"); _outMaskCv.width = _OUT_W; _outMaskCv.height = _OUT_H;
+    _outMaskCtx = _outMaskCv.getContext("2d"); _outMaskCtx.imageSmoothingEnabled = false;
+  }
+  const realCtx = offCtx;
+  let ok = true;
+  try {
+    _outBodyCtx.setTransform(1, 0, 0, 1, 0, 0);   // defesa: transform residual de throw anterior
+    _outBodyCtx.globalAlpha = 1;
+    _outBodyCtx.globalCompositeOperation = "source-over";
+    _outBodyCtx.clearRect(0, 0, _OUT_W, _OUT_H);
+    offCtx = _outBodyCtx;
+    drawBodyFn(_OUT_AX, _OUT_AY);
+  } catch (e) {
+    ok = false;
+    // throw pode ter deixado save-stack/clip desbalanceados no scratch (setTransform não
+    // remove clip) — invalida o trio; a próxima chamada recria os 3 canvases limpos.
+    _outBodyCv = null;
+  }
+  finally { offCtx = realCtx; }
+  if (!ok) { try { drawBodyFn(sx, sy); } catch (e) { /* 1 frame sem a unidade > frame quebrado */ } return; }
+  _outRimCtx.globalCompositeOperation = "source-over";
+  _outRimCtx.clearRect(0, 0, _OUT_W, _OUT_H);
+  const thr = opts && opts.alphaThreshold;
+  if (thr) {
+    // Modo MÁSCARA: o rim tem que ficar POR CIMA do corpo — o glow translúcido dos
+    // companions etéreos pinta por cima do rim se ele ficar por baixo e o contorno
+    // some (medido: 2px sobreviviam no lich). Anel puro = máscara carimbada 4× MENOS
+    // o miolo (destination-out) pra não riscar o interior do corpo.
+    try {
+      const id = _outBodyCtx.getImageData(0, 0, _OUT_W, _OUT_H);
+      const d = id.data;
+      // Linhas abaixo da baseline+4 ficam FORA da máscara: sombras de chão dos drawers
+      // (golem: elipse alpha 0.55-0.66 em cy+8, acima do threshold) não ganham anel.
+      // Pés (cy+2..4) continuam dentro.
+      const _maskYMax = (_OUT_AY + 4) * _OUT_W * 4;
+      for (let i = 0; i < d.length; i += 4) {
+        if (i < _maskYMax && d[i + 3] >= thr) { d[i] = 13; d[i + 1] = 8; d[i + 2] = 16; d[i + 3] = 255; }
+        else d[i + 3] = 0;
+      }
+      _outMaskCtx.putImageData(id, 0, 0);
+      _outRimCtx.drawImage(_outMaskCv, 1, 0); _outRimCtx.drawImage(_outMaskCv, -1, 0);
+      _outRimCtx.drawImage(_outMaskCv, 0, 1); _outRimCtx.drawImage(_outMaskCv, 0, -1);
+      _outRimCtx.globalCompositeOperation = "destination-out";
+      _outRimCtx.drawImage(_outMaskCv, 0, 0);
+      _outRimCtx.globalCompositeOperation = "source-over";
+      offCtx.drawImage(_outBodyCv, sx - _OUT_AX, sy - _OUT_AY);   // corpo primeiro
+      offCtx.drawImage(_outRimCv, sx - _OUT_AX, sy - _OUT_AY);    // anel por cima
+      return;
+    } catch (e) { /* canvas tainted etc. → cai no corpo puro abaixo */ }
+    offCtx.drawImage(_outBodyCv, sx - _OUT_AX, sy - _OUT_AY);
+    return;
+  }
+  _outRimCtx.drawImage(_outBodyCv, 1, 0); _outRimCtx.drawImage(_outBodyCv, -1, 0);
+  _outRimCtx.drawImage(_outBodyCv, 0, 1); _outRimCtx.drawImage(_outBodyCv, 0, -1);
+  _outRimCtx.globalCompositeOperation = "source-in";
+  _outRimCtx.fillStyle = "#0d0810";
+  _outRimCtx.fillRect(0, 0, _OUT_W, _OUT_H);
+  _outRimCtx.globalCompositeOperation = "source-over";
+  _outRimCtx.drawImage(_outBodyCv, 0, 0);
+  offCtx.drawImage(_outRimCv, sx - _OUT_AX, sy - _OUT_AY);
+}
 // FEEDBACK R11 (2026-07-03) — NORMALIZAÇÃO DE TAMANHO POR TIER: os drawers HD artesanais
 // violavam a hierarquia (T1~12 < T2~18-20 < T3~22-26 < T4~30-40; medição empírica:
 // clerigoAreia T3 42px > colossoDunas T4 36px; bruxaPantano T2 34px; escorpiao T1 6px
@@ -48353,8 +48456,10 @@ function _drawBiomeUnitScaled(drawFn, cx, cy, t, u, colors, cpose) {
   offCtx.translate(cx, cy);
   offCtx.scale(f, f);
   offCtx.translate(-cx, -cy);
-  drawFn(cx, cy, t, u, colors, cpose);
-  offCtx.restore();
+  // R15 (verificação): finally garante o restore mesmo se o drawer lançar — sem isso um
+  // throw aqui deixava scale ×2 residente no ctx (scratch do contorno OU o offCtx real).
+  try { drawFn(cx, cy, t, u, colors, cpose); }
+  finally { offCtx.restore(); }
 }
 function drawUnitBodyCached(sx, sy, t, u, colors, pose) {
   if (game._spriteCache === false) return false;
@@ -48567,13 +48672,20 @@ function drawUnit(u, camX, camY) {
     }
   } else if (u.isCompanion) {
     // COMBO 15 — Companions têm sprites próprios e animações temáticas
-    drawCompanionSprite(sx, sy, t, u, colors, { breathe, legSwing, attackProg, walking: u.state === "walking" });
+    // R15: aura/orbs FORA do wrap (glow não ganha rim); só o corpo é contornado.
+    const _cpose = { breathe, legSwing, attackProg, walking: u.state === "walking" };
+    drawCompanionAuraOrbs(sx, sy, t, u, u.companionId || "lichPet");
+    if (game._spriteCache === false) drawCompanionBody(sx, sy, t, u, colors, _cpose);
+    else drawBodyWithOutline(sx, sy, (ax, ay) => drawCompanionBody(ax, ay, t, u, colors, _cpose), { alphaThreshold: 96 });
   } else if (u._isSummon && u.unitClass && CLASSES[u.unitClass] && CLASSES[u.unitClass].isCompanion) {
     // 2026-04-30 COMBO 36 — summon de classe companion (ex: golem) usa drawer companion
     // Dispatch direto via companionId (não passa por escort AI porque !u.isCompanion)
     const cid = CLASSES[u.unitClass].companionId || "lichPet";
     const fakeU = Object.assign({}, u, { companionId: cid });
-    drawCompanionSprite(sx, sy, t, fakeU, colors, { breathe, legSwing, attackProg, walking: u.state === "walking" });
+    const _spose = { breathe, legSwing, attackProg, walking: u.state === "walking" };
+    drawCompanionAuraOrbs(sx, sy, t, fakeU, cid);
+    if (game._spriteCache === false) drawCompanionBody(sx, sy, t, fakeU, colors, _spose);
+    else drawBodyWithOutline(sx, sy, (ax, ay) => drawCompanionBody(ax, ay, t, fakeU, colors, _spose), { alphaThreshold: 96 });
   } else if (u.isBoss) {
     drawBossSprite(sx, sy, t, u, colors, { breathe, legSwing, attackProg, walking: u.state === "walking" });
     // BUG FIX combo 7: pisca de fase (substitui phaseBanner). Pulsa branco
@@ -48600,13 +48712,24 @@ function drawUnit(u, camX, camY) {
     // de sprite (1 drawImage); se off/dinâmico/falha, cai no draw procedural direto.
     const _pose = { breathe, legSwing, attackProg, walking: u.state === "walking" };
     if (!drawUnitBodyCached(sx, sy, t, u, colors, _pose)) {
-      if (u.skeleton) {
-        drawSkeletonHD(sx, sy, u.facing, colors, _pose, Math.max(1, Math.min(3, u.tier || 1)));
-      } else if (BIOME_UNIT_DRAWERS[u.unitClass]) {
-        _drawBiomeUnitScaled(BIOME_UNIT_DRAWERS[u.unitClass], sx, sy, t, u, colors, _pose);   // R11: normalização de tier
-      } else {
-        drawWarrior(sx, sy, u.facing, colors, Object.assign({}, _pose, { scale: u.scale || 1, tier: u.tier || 0, unitClass: u.unitClass || "warrior" }));
-      }
+      // R15 — o caminho DIRETO também ganha contorno (cobre _SPRITE_CACHE_BLOCK,
+      // sentinela direct:true e falha de bake). Cache global desligado
+      // (game._spriteCache === false, modo debug) fica sem contorno de propósito.
+      const _direct = (ax, ay) => {
+        if (u.skeleton) {
+          drawSkeletonHD(ax, ay, u.facing, colors, _pose, Math.max(1, Math.min(3, u.tier || 1)));
+        } else if (BIOME_UNIT_DRAWERS[u.unitClass]) {
+          _drawBiomeUnitScaled(BIOME_UNIT_DRAWERS[u.unitClass], ax, ay, t, u, colors, _pose);   // R11: normalização de tier
+        } else {
+          drawWarrior(ax, ay, u.facing, colors, Object.assign({}, _pose, { scale: u.scale || 1, tier: u.tier || 0, unitClass: u.unitClass || "warrior" }));
+        }
+      };
+      // R15 (verificação): sob MODO PERF / auto-quality o wrap per-frame é dispensado
+      // AQUI (é o caminho que escala com horda — medusa é inimigo comum de squad e
+      // summonSpider põe ~10 aranhas em campo); unidades CACHEADAS mantêm o contorno
+      // de graça e companions continuam wrapeados (custo fixo 1-3 units).
+      if (game._spriteCache === false || game.perfMode || game._autoQualityLow) _direct(sx, sy);
+      else drawBodyWithOutline(sx, sy, _direct);
     }
   }
 
@@ -59084,12 +59207,12 @@ function _archetypeFor(cls, clsData) {
 //   Espectro Real   → fade in/out, sem pernas (etéreo), rastro de fumaça
 //   Golem Ancestral → grande, passos pesados, partículas de pedra ao andar
 //   Sombra Real     → pequeno, capuz cobrindo, dash trail
-function drawCompanionSprite(cx, cy, t, u, c, pose) {
+// FEEDBACK R15 (2026-07-03) — split aura × corpo: o CORPO do companion agora é
+// contornável via drawBodyWithOutline sem contornar a aura/orbs translúcidos
+// (rim em volta de glow ficaria feio). drawCompanionSprite segue existindo pra
+// call sites que querem o pacote completo (retratos etc.).
+function drawCompanionBody(cx, cy, t, u, c, pose) {
   const cid = u.companionId || "lichPet";
-  // 2026-04-29 COMBO 29 polish — companions ganham 2 orbs orbitando + ambient
-  // particles signature pra fortalecer identidade visual. Aura tripla seria
-  // demais (companions são pequenos), mas orbs + particles dão "presence".
-  drawCompanionAuraOrbs(cx, cy, t, u, cid);
   if (cid === "lichPet")          drawCompLichPet(cx, cy, t, u, c, pose);
   else if (cid === "necroPhantom") drawCompNecroPhantom(cx, cy, t, u, c, pose);
   else if (cid === "golemAncestral") drawCompGolemAncestral(cx, cy, t, u, c, pose);
@@ -59098,6 +59221,13 @@ function drawCompanionSprite(cx, cy, t, u, c, pose) {
   // genérico: o sniper de elite renderizava como soldado T1 com espada+escudo.
   else if (cid === "cacadorReal") drawCompCacadorReal(cx, cy, t, u, c, pose);
   else drawWarrior(cx, cy, u.facing, c, pose);
+}
+function drawCompanionSprite(cx, cy, t, u, c, pose) {
+  // 2026-04-29 COMBO 29 polish — companions ganham 2 orbs orbitando + ambient
+  // particles signature pra fortalecer identidade visual. Aura tripla seria
+  // demais (companions são pequenos), mas orbs + particles dão "presence".
+  drawCompanionAuraOrbs(cx, cy, t, u, u.companionId || "lichPet");
+  drawCompanionBody(cx, cy, t, u, c, pose);
 }
 
 // Helper compartilhado pra companions HD aura/orbs (light version do boss helper)
@@ -73898,6 +74028,12 @@ function renderUnitPortrait(classId, pxSize = 80) {
       offCtx.translate(-cx, -cy);
       drawBossSprite(cx, cy, t, fakeU, colors, pose);
       offCtx.restore();
+    } else if (cls.isCompanion && typeof drawCompanionSprite === "function") {
+      // R15 (achado colateral) — as 5 classes companion aparecem no codex (aba neutro)
+      // mas caíam no fallback drawWarrior: todo retrato era um soldado genérico.
+      // Dispatch pro drawer real via companionId (facção ally = cores do jogo).
+      const fakeC = Object.assign({}, fakeU, { companionId: cls.companionId || "lichPet", faction: "ally" });
+      drawCompanionSprite(cx, cy, t, fakeC, unitColors(fakeC), pose);
     } else if (typeof BIOME_UNIT_DRAWERS !== "undefined" && BIOME_UNIT_DRAWERS[classId]) {
       const _hdS = _PORTRAIT_HD_SCALE[classId] || 1;
       if (_hdS !== 1) {
