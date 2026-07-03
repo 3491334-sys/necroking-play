@@ -2844,6 +2844,17 @@
   .legacy-tree-reset:hover { background: rgba(120, 30, 30, 0.7); color: #ffd0c0; }
   .legacy-tree-reset:disabled { opacity: 0.4; cursor: not-allowed; }
   /* FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS dos companions */
+  /* FEEDBACK R14 — seletor de dificuldade no card pick */
+  .difficulty-selector { display: flex; gap: 8px; justify-content: center; margin: 4px 0 10px; }
+  .diff-btn {
+    font-family: inherit; font-size: 8px; cursor: pointer; padding: 6px 12px;
+    background: rgba(20,14,26,0.85); border: 1px solid #3a2820; color: #8a8070; border-radius: 4px;
+    transition: all 120ms;
+  }
+  .diff-btn:hover { border-color: #d4a637; color: #e8d8b0; }
+  .diff-btn.active { border-color: #f7d96f; color: #ffe890; background: rgba(60,45,18,0.8); box-shadow: 0 0 8px rgba(212,166,55,0.35); }
+  .diff-btn[data-diff="easy"].active { border-color: #60c880; color: #a0f0b0; background: rgba(18,50,28,0.8); box-shadow: 0 0 8px rgba(96,200,128,0.35); }
+  .diff-btn[data-diff="hard"].active { border-color: #ff6050; color: #ff9a90; background: rgba(60,16,14,0.8); box-shadow: 0 0 8px rgba(255,96,80,0.35); }
   .pcc-tree {
     display: inline-block; margin-top: 3px; padding: 2px 6px;
     font-family: inherit; font-size: 7px; cursor: pointer;
@@ -6423,7 +6434,13 @@
       <h2 class="menu-h2 font-pixel-med">ESCOLHA SUAS CARTAS</h2>
       <div class="pick-hint font-pixel" id="pickHint">Arraste cartas do grimório para os slots</div>
 
-      <div class="pick-slots" id="pickSlots"></div>
+      <!-- FEEDBACK R14 — seletor de DIFICULDADE (preferência global, vale pra todos os modos) -->
+    <div class="difficulty-selector" id="difficultySelector">
+      <button class="diff-btn" data-menu-action="set-difficulty" data-diff="easy">☀ FÁCIL</button>
+      <button class="diff-btn active" data-menu-action="set-difficulty" data-diff="normal">⚔ NORMAL</button>
+      <button class="diff-btn" data-menu-action="set-difficulty" data-diff="hard">💀 DIFÍCIL</button>
+    </div>
+    <div class="pick-slots" id="pickSlots"></div>
 
       <div class="pick-lower">
         <div class="pick-deck-wrap">
@@ -10036,6 +10053,8 @@ const DEFAULT_PROGRESS = {
   companionLevels: { lichPet: 0, necroPhantom: 0, cacadorReal: 0, sombraReal: 0 },
   // FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS: mapa nodeId→true por companion
   companionTree: { lichPet: {}, necroPhantom: {}, cacadorReal: {}, sombraReal: {} },
+  // FEEDBACK R14 — dificuldade escolhida (espelho do localStorage necroking_difficulty)
+  difficulty: "normal",
   // COMBO 10 C3 — DAILY CHALLENGE
   // dailySeed: YYYYMMDD da última tentativa
   // dailyAttempts: nº de tentativas hoje
@@ -10316,6 +10335,8 @@ function _validateProgress(p) {
   // R10 (revisão): migra AQUI também — este é o único funil comum aos 3 caminhos de
   // leitura (loadProgress, recuperação de backup e buildEndlessProfile).
   if (typeof _migrateCompanionTrack === "function") _migrateCompanionTrack(out);
+  // R14 — dificuldade (campo fora da whitelist é wipeado no load)
+  out.difficulty = (typeof p.difficulty === "string" && (p.difficulty === "easy" || p.difficulty === "normal" || p.difficulty === "hard")) ? p.difficulty : "normal";
   for (const num of ["bossRushBestTime", "bossRushAttempts", "bossRushClears", "survivalBestTime", "survivalAttempts"]) {
     if (typeof p[num] === "number" && !isNaN(p[num])) out[num] = p[num];
   }
@@ -13466,7 +13487,34 @@ function startNewRun(preselectedSpellIds, opts) {
 
 // Rebalance pos-relics: multiplier global pra alongar combates.
 // +60% HP / -20% damage / +25% atkCd \u2192 unidades duram ~2x mais em combate.
-const BALANCE = { hpMult: 1.6, atkMult: 0.80, atkCdMult: 1.25 };
+// FEEDBACK R14 (2026-07-03) — balance pass: hpMult 1.6→1.45. Simulação instrumentada
+// mostrou o loop de necromancia sufocado no early (exército não converte cadáver em
+// massa porque as kills demoram). Menos HP inimigo = mais cadáveres = o loop respira.
+const BALANCE = { hpMult: 1.45, atkMult: 0.80, atkCdMult: 1.25 };
+
+// FEEDBACK R14 (2026-07-03) — DIFICULDADES Easy/Normal/Hard (Fase 19).
+// Preferência GLOBAL (localStorage) — vale pra qualquer modo/slot; seletor na tela de
+// cartas pré-run. Compõe com TODOS os multiplicadores existentes (tier temporal, banda
+// espacial, NG+, elite, daily, nerf de campanha) — nunca substitui.
+const DIFF_MODES = {
+  easy:   { label: "FÁCIL",   icon: "☀",  hp: 0.75, atk: 0.75, spawnInt: 1.30, coin: 1.15 },
+  normal: { label: "NORMAL",  icon: "⚔",  hp: 1.0,  atk: 1.0,  spawnInt: 1.0,  coin: 1.0  },
+  hard:   { label: "DIFÍCIL", icon: "💀", hp: 1.30, atk: 1.25, spawnInt: 0.85, coin: 1.10 },
+};
+let _runDifficulty = (() => {
+  try { const v = localStorage.getItem("necroking_difficulty"); return DIFF_MODES[v] ? v : "normal"; }
+  catch (e) { return "normal"; }
+})();
+function currentDiffMode() { return DIFF_MODES[_runDifficulty] || DIFF_MODES.normal; }
+function setRunDifficulty(d) {
+  if (!DIFF_MODES[d]) return;
+  _runDifficulty = d;
+  try { localStorage.setItem("necroking_difficulty", d); } catch (e) {}
+  if (typeof progress !== "undefined" && progress) {
+    progress.difficulty = d;
+    if (typeof saveProgress === "function") saveProgress();
+  }
+}
 
 function makeAlly(x, y, unitClass = "soldado") {
   const b = game.bonuses;
@@ -14955,7 +15003,7 @@ function currentSpawnInterval() {
     const cdif = campaignDifficultyTier();
     let baseMs = 4200 - cdif * 350;        // dif1\u21923850ms ... dif5\u21922450ms
     if (armyCount < 6) baseMs *= 0.85;
-    return Math.max(1200, baseMs);
+    return Math.max(1200, baseMs) * ((typeof currentDiffMode === "function") ? currentDiffMode().spawnInt : 1);
   }
   const tier = (game.tier || 1);
   // Base: 9s no in\u00edcio \u2192 3.5s ap\u00f3s ~8min (antes 6.5\u21921.8s em 5min).
@@ -14978,8 +15026,16 @@ function currentSpawnInterval() {
   // 2026-06-14 — "MAIS CONFUSÃO" no Endless/clássico: spawns ~35% mais frequentes e piso
   // menor (hordas mais densas). NÃO afeta a Campanha (níveis curtos, balance próprio).
   let chaosMul = 1.0, floorMs = 800;
-  if (!game.campaignMode) { chaosMul = 0.65; floorMs = 550; }
-  return Math.max(floorMs, base * armyRelief * tierPush * chaosMul * 1000);
+  if (!game.campaignMode) {
+    // FEEDBACK R14 (simulação: 48 inimigos no MINUTO 1 com o exército ainda nascendo) —
+    // o "MAIS CONFUSÃO" agora entra em RAMPA nos primeiros 3 min (1.0→0.65; piso
+    // 800→550ms) em vez de valer desde t=0. Late game intacto.
+    const chaosRamp = Math.min(1, t / 180);
+    chaosMul = 1.0 - 0.35 * chaosRamp;
+    floorMs = 800 - 250 * chaosRamp;
+  }
+  const _dmSpawn = (typeof currentDiffMode === "function") ? currentDiffMode().spawnInt : 1;
+  return Math.max(floorMs, base * armyRelief * tierPush * chaosMul * 1000) * _dmSpawn;
 }
 
 function squadSize() {
@@ -15011,7 +15067,9 @@ function squadSize() {
   const tierFloor = Math.max(0, (tier - 1) * 2);
   // 2026-04-27: ESCALA principal agora \u00e9 70-90% do army count (era 40-80%)
   // Squads pequenos quando ex\u00e9rcito pequeno, squads grandes quando ex\u00e9rcito grande.
-  const armyScaleByTime = Math.min(0.9, 0.7 + t / 2400);
+  // R14 (sim: pool de 279 inimigos no min 3 — crescer era punido 1:1): espelhamento
+  // do exército mais suave no early; converge pro mesmo 0.9 no late.
+  const armyScaleByTime = Math.min(0.9, 0.55 + t / 1600);
   const armyProportional = Math.floor(armyCount * armyScaleByTime);
   // Floor agora considera o army proporcional como base, n\u00e3o fallback
   const minS = Math.max(2, Math.max(timeFloor, armyProportional - 2) + tierFloor);
@@ -15032,7 +15090,7 @@ function squadSize() {
   // 2026-06-14 — "MAIS CONFUSÃO" no Endless/clássico: squads maiores + cap maior (não na
   // Campanha). O cap GLOBAL de 360 unidades (loop de spawn) continua protegendo a perf.
   if (!game.campaignMode) {
-    const chaosBonus = 3 + Math.floor(t / 50);   // +3 inicial, crescendo com o tempo
+    const chaosBonus = Math.floor(t / 45);   // R14: sem o +3 flat (minuto 1 sufocava o exército nascente)
     lo += chaosBonus;
     hi += chaosBonus;
     cap = game.endlessMode ? 110 : 90;
@@ -15041,7 +15099,15 @@ function squadSize() {
   if (typeof perfCapMultiplier === "function") {
     cap = Math.max(4, Math.floor(cap * perfCapMultiplier()));
   }
-  return Math.max(2, Math.min(cap, lo + Math.floor(Math.random() * (hi - lo + 1))));
+  // FEEDBACK R14 — o squad também respeita o teto da válvula: com exército grande um
+  // ÚNICO squad chegava a 50-90 inimigos e estourava o teto do pool num spawn só.
+  let _hrE = 0, _hrA = 0;
+  for (const _u of game.units) {
+    if (!isAlive(_u)) continue;
+    if (_u.faction === "enemy") _hrE++; else if (_u !== game.king) _hrA++;
+  }
+  const _headroom = Math.max(3, (_hrA * 2 + 60) - _hrE);
+  return Math.max(2, Math.min(cap, Math.min(_headroom, lo + Math.floor(Math.random() * (hi - lo + 1)))));
 }
 
 // Distância mínima de spawn em relação a QUALQUER unidade aliada viva.
@@ -22252,7 +22318,16 @@ function updateWaveSystem(dt) {
         });
       }
     }
-    if (game.units.length < 360) spawnSquad();
+    // FEEDBACK R14 — o pulso de onda respeita a MESMA válvula de contrapressão do
+    // spawn contínuo (sim: o pulso furava o teto e o pool divergia mesmo assim).
+    if (game.units.length < 360) {
+      let _wE = 0, _wA = 0;
+      for (const _u of game.units) {
+        if (!isAlive(_u)) continue;
+        if (_u.faction === "enemy") _wE++; else if (_u !== game.king) _wA++;
+      }
+      if (_wE <= _wA * 2 + 60) spawnSquad();
+    }
     game.spawnTimer = Math.min(game.spawnTimer, 1800);
   }
 }
@@ -22335,8 +22410,10 @@ function spawnEnemyAt(x, y, classId) {
   // O +100% dano é aplicado em applyDamage (cobre melee + skills hardcoded).
   // Aqui só o HP — escala em cima de NG+/daily/etc.
   // 2026-05-04 — bossBuffHp removido (HP buffado agora baked direto na classe)
-  const hpMult = (skipBalance ? 1 : BALANCE.hpMult) * difHp * ngHp * eliteHp * dailyHpM;
-  const atkMult = (skipBalance ? 1 : BALANCE.atkMult) * difAtk * ngAtk * eliteAtk * dailyAtkM;
+  // FEEDBACK R14 — multiplicador global de DIFICULDADE (Easy 0.75 / Hard 1.30-1.25)
+  const _dm = (typeof currentDiffMode === "function") ? currentDiffMode() : { hp: 1, atk: 1 };
+  const hpMult = (skipBalance ? 1 : BALANCE.hpMult) * difHp * ngHp * eliteHp * dailyHpM * _dm.hp;
+  const atkMult = (skipBalance ? 1 : BALANCE.atkMult) * difAtk * ngAtk * eliteAtk * dailyAtkM * _dm.atk;
   const atkCdMult = skipBalance ? 1 : BALANCE.atkCdMult;
   const u = makeUnit({
     type: cls.special === "wagon" ? "wagon" : "warrior",
@@ -23731,7 +23808,17 @@ function update(dt) {
         if ((game.campaignEnemyBudget || 0) > 0 && _spawned < _allowed) spawnSquadLinear();
       }
       else if (shouldSpawnCaravan()) spawnCaravan();
-      else spawnSquad();
+      else {
+        // FEEDBACK R14 — VÁLVULA DE CONTRAPRESSÃO (sim: 279 inimigos vivos no min 3):
+        // com o pool já em 2× o exército + 60, segura o próximo squad — pressão
+        // constante sem acúmulo divergente (o cap global de 360 nem chega perto).
+        let _aliveE = 0, _aliveA = 0;
+        for (const _u of game.units) {
+          if (!isAlive(_u)) continue;
+          if (_u.faction === "enemy") _aliveE++; else if (_u !== game.king) _aliveA++;
+        }
+        if (_aliveE <= _aliveA * 2 + 60) spawnSquad();
+      }
     }
     game.spawnTimer = currentSpawnInterval();
   }
@@ -27381,6 +27468,8 @@ function dropCoin(x, y, value) {
   }
   // === Fase 15 — combina multiplicadores de relíquias ===
   // (desert_scepter, thieves_pouch, futuras...)
+  // R14 — dificuldade ajusta a renda (FÁCIL +15%, DIFÍCIL +10% de compensação)
+  if (typeof currentDiffMode === "function") value = Math.ceil(value * currentDiffMode().coin);
   value = relicCoinMultiplier(value);
   // Bolsa do Ladrão (Tirano, comum): 10% chance de drop duplo
   const doubleChance = relicDoubleDropChance();
@@ -30306,6 +30395,11 @@ function refreshCardPickMenu() {
 // COMBO 12 — Companion picker no card pick screen (substitui o menu standalone)
 // COMBO 15 — Adiciona indicador de nível + botão de upgrade
 function renderPickCompanion() {
+  // R14 — sincroniza o seletor de dificuldade com a preferência salva (roda em todo
+  // refresh do card pick, que é onde o seletor vive)
+  if (typeof _runDifficulty !== "undefined") {
+    document.querySelectorAll("#difficultySelector .diff-btn").forEach(b2 => b2.classList.toggle("active", b2.dataset.diff === _runDifficulty));
+  }
   const grid = document.getElementById("pickCompanionGrid");
   if (!grid || typeof COMPANION_DEFS === "undefined") return;
   grid.innerHTML = "";
@@ -67222,7 +67316,7 @@ function finishCutsceneIntoMenu() {
 
 // 2026-04-27: NEGOCIANTE DE ALMAS — oferece reviver o Rei 1x por run.
 // Custo: 200 almas (moeda meta-progression). Empurra inimigos próximos no revive.
-const REVIVAL_COST_SOULS = 200;
+const REVIVAL_COST_SOULS = 120;   // R14: 200 era ~3.3 bosses de grind pra UM revive
 
 function showRevivalModal() {
   const modal = document.getElementById("revivalModal");
@@ -75680,6 +75774,18 @@ document.addEventListener("click", (e) => {
       if (typeof saveProgress === "function") saveProgress();
       // Re-render só o companion grid (não fecha o card pick)
       if (typeof renderPickCompanion === "function") renderPickCompanion();
+      break;
+    }
+    // FEEDBACK R14 — seletor de dificuldade
+    case "set-difficulty": {
+      e.stopPropagation();
+      const d = btn.dataset.diff;
+      if (typeof setRunDifficulty === "function" && d) {
+        setRunDifficulty(d);
+        document.querySelectorAll("#difficultySelector .diff-btn").forEach(b2 => b2.classList.toggle("active", b2.dataset.diff === d));
+        const m = DIFF_MODES[d];
+        showToast(m.icon + " Dificuldade: " + m.label + (d === "easy" ? " — inimigos −25%" : d === "hard" ? " — inimigos +30% HP / +25% dano" : ""), 2200, d === "hard" ? "danger" : "magic");
+      }
       break;
     }
     // FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS do companion
