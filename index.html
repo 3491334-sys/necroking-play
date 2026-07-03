@@ -9105,7 +9105,7 @@ const CLASSES = {
     hp: 22, atk: 5, range: 12, atkCd: 550, speed: 92,
     scale: 0.78, radius: 4, coin: 2, armorBlock: 0,
     desc: "Diabrete em brasa — garra quente aplica burn breve.",
-    body: "#c05010", bodyD: "#400808", armor: "#601010", armorD: "#200404", accent: "#ffa040",
+    body: "#a02020", bodyD: "#400808", armor: "#601010", armorD: "#200404", accent: "#ffa040",
     weapon: "dagger",
     weaponColor: "#ff6020", weaponDark: "#802010",
     onHit: "burnStack",
@@ -10620,6 +10620,11 @@ function endlessAllowedBiomes() {
       out.push(id);
     }
   }
+  // FEEDBACK R12 (2026-07-03, decisão do DONO — 3º reporte de "catedral/aquático não
+  // aparecem no endless"): os DOIS biomas do anel externo existem SEMPRE no mundo
+  // endless, independente do progresso de campanha. Os 5 internos seguem gateados.
+  if (!out.includes("catedral")) out.push("catedral");
+  if (!out.includes("aquatico")) out.push("aquatico");
   return out;
 }
 
@@ -14103,6 +14108,15 @@ const POI_GUARD_RADIUS = 70;         // guardas nascem dentro desse raio do POI
 const POI_GUARD_BASE_COUNT = 4;      // cresce com tier
 
 function spawnSafeZoneAndPaths() {
+  // FEEDBACK R12 (2026-07-03, bug do dono): a campanha linear NÃO tem praça/altar/vila
+  // da guilda/POIs do mundo circular — a vila spawnava a partir de (0,0), podia cair
+  // perto do corredor e a LOJA AUTO-ABRIA no mobile no meio do nível.
+  if (game.campaignLinear) {
+    game.safeZone = null;
+    game.altar = null;
+    game.guildVillage = null;
+    return;
+  }
   game.safeZone = {
     x: 0, y: 0,
     r: SAFE_ZONE_RADIUS,
@@ -48206,27 +48220,9 @@ function _renderSpriteToCache(key, u, b, colors) {
       const id = cv.getContext("2d").getImageData(0, 0, _SPR_W, _SPR_H);
       if (_spriteTouchesEdge(id)) okEntry = { direct: true };
     } catch (e) { okEntry = { direct: true }; }
-    // FEEDBACK R11 (2026-07-03) — CONTORNO GLOBAL DE SILHUETA assado no bake (custo
-    // zero por frame): carimba o corpo 4× deslocado 1px, tinge via source-in e põe o
-    // corpo por cima. Resolve figura-fundo em TODOS os biomas (branco-no-gelo,
-    // mármore da catedral etc.) pra ~100% das unidades em combate. Esqueletos ALIADOS
-    // ganham rim ROXO (identidade do exército do jogador — osso sumia na neve/mármore).
-    if (!okEntry.direct) {
-      try {
-        const oc = document.createElement("canvas");
-        oc.width = _SPR_W; oc.height = _SPR_H;
-        const octx = oc.getContext("2d");
-        octx.imageSmoothingEnabled = false;
-        octx.drawImage(cv, 1, 0); octx.drawImage(cv, -1, 0);
-        octx.drawImage(cv, 0, 1); octx.drawImage(cv, 0, -1);
-        octx.globalCompositeOperation = "source-in";
-        octx.fillStyle = (u.skeleton && u.faction === "ally") ? "#4a2a6a" : "#0d0810";
-        octx.fillRect(0, 0, _SPR_W, _SPR_H);
-        octx.globalCompositeOperation = "source-over";
-        octx.drawImage(cv, 0, 0);
-        okEntry = { canvas: oc, ax: cx, ay: cy };
-      } catch (e) { /* sem contorno — mantém o corpo puro */ }
-    }
+    // FEEDBACK R12 (2026-07-03): o CONTORNO global de silhueta do R11 foi REMOVIDO a
+    // pedido do dono ('não gostei de como ficou'). A clareza fica por conta do anel de
+    // facção na sombra + paletas corrigidas + normalização de tier (mantidos).
     if (_SPRITE_CACHE.size >= _SPRITE_CACHE_MAX) { const k0 = _SPRITE_CACHE.keys().next().value; _SPRITE_CACHE.delete(k0); }
     _SPRITE_CACHE.set(key, okEntry);
   }
@@ -73685,6 +73681,7 @@ const BOSSES_FOR_CODEX = [
   // COMBO 5 D1 + D2
   "bossAnjoCaido",
   "bossAvatarVazio",
+  "bossLeviataRei",   // R12: boss do aquático (2026-06-15) faltava no bestiário
 ];
 
 // Renderiza o sprite do warrior em um canvas isolado usando offCanvas como
@@ -73790,7 +73787,18 @@ function renderUnitPortrait(classId, pxSize = 80) {
     //  2) Classes de bioma com drawer próprio → BIOME_UNIT_DRAWERS[classId]
     //  3) Fallback → drawWarrior (classes neutro + qualquer coisa sem drawer)
     if (cls.isBoss && typeof drawBossSprite === "function") {
+      // FEEDBACK R12 (2026-07-03, bug do dono: "chefes bugados no codex") —
+      // drawBossSprite aplica BOSS_VISUAL_SCALE interno (2.0; NecroKing 1.4) e IGNORA
+      // fakeU.scale → o retrato 44×44 mostrava só um pedaço do chefe. Contemos com um
+      // transform EXTERNO (mesma técnica do _PORTRAIT_HD_SCALE dos biomas).
+      const _bossInner = (classId === "bossNecroKing") ? 1.4 : 2.0;
+      const _bs = portraitScale / _bossInner;
+      offCtx.save();
+      offCtx.translate(cx, cy);
+      offCtx.scale(_bs, _bs);
+      offCtx.translate(-cx, -cy);
       drawBossSprite(cx, cy, t, fakeU, colors, pose);
+      offCtx.restore();
     } else if (typeof BIOME_UNIT_DRAWERS !== "undefined" && BIOME_UNIT_DRAWERS[classId]) {
       const _hdS = _PORTRAIT_HD_SCALE[classId] || 1;
       if (_hdS !== 1) {
@@ -74640,6 +74648,13 @@ function renderHowtoMenu() {
   const root = document.getElementById("howtoGrid");
   if (!root) return;
   root.innerHTML = "";
+
+  // -------- Card 0: MODOS DE JOGO (R12 — o codex não contava que existem 3 modos) --------
+  const card0 = _howtoCard(H("modes"), { wide: true });
+  const p0 = document.createElement("p");
+  p0.innerHTML = H("modesBody");
+  card0.appendChild(p0);
+  root.appendChild(card0);
 
   // -------- Card 1: OBJETIVO --------
   const card1 = _howtoCard(H("objective"), { wide: true });
@@ -76973,17 +76988,19 @@ function getSpellLoreI18n(spellId) {
 const HOWTO_I18N = {
   pt: {
     objective: "OBJETIVO",
-    objectiveBody: "Você é o <b style=\"color:#ffd080\">Necromante das Sombras</b>, um mago solitário cercado de inimigos. Ressuscite os caídos, comande seu exército e sobreviva até derrotar os <b style=\"color:#ffa040\">6 chefes de bioma</b> (Deserto, Gelo, Inferno, Pântano, Cogumelo, Catedral) e, por fim, enfrente o <b style=\"color:#b060f0\">NecroKing</b> no altar central. Bonus: ataque a Vila da Guilda pra liberar o <b style=\"color:#d4a637\">Chefe da Guilda</b> (boss secreto T5).",
+    modes: "MODOS DE JOGO",
+    modesBody: "<b style=\"color:#ffd080\">CAMPANHA</b>: 7 regiões num mapa-múndi, níveis lineares com portal (limpe os inimigos pra abrir), boss no nível 4 — cada boss concede uma relíquia PERMANENTE. Modo de aprendizado: sem itens aleatórios. <br><b style=\"color:#c868e0\">ENDLESS</b>: um MUNDO NOVO a cada run (seed própria), perigo e recompensa crescem longe do centro, draft de relíquias 1-de-3 — o modo de builds. Usa tudo que você desbloqueou nas campanhas. <br><b style=\"color:#ff9050\">BOSS RUSH / SURVIVAL / DAILY</b>: desafios de tempo e placar.",
+    objectiveBody: "Você é o <b style=\"color:#ffd080\">Necromante das Sombras</b>, um mago solitário cercado de inimigos. Ressuscite os caídos, comande seu exército e sobreviva até derrotar os <b style=\"color:#ffa040\">7 chefes de bioma</b> (Deserto, Gelo, Inferno, Pântano, Cogumelo, Catedral, Aquático) e, por fim, enfrente o <b style=\"color:#b060f0\">NecroKing</b> no altar central. Bonus: ataque a Vila da Guilda pra liberar o <b style=\"color:#d4a637\">Chefe da Guilda</b> (boss secreto T5).",
     army: "SEU EXÉRCITO",
     armyBody: "Inimigos derrotados viram <b style=\"color:#c8a0ff\">alminhas</b> que voltam até você para serem <b>ressuscitadas como aliados</b>. Recrute mais tropas em <b style=\"color:#ffd080\">covis</b> espalhados pelo mapa — cada covil tem um tier de dificuldade (I, II, III, IV).",
     cards: "CARTAS DE PODER",
     cardsBody: "Você dispõe de até <b>5 cartas mágicas</b> no HUD inferior. Cartas exigem <b style=\"color:#6fa8ff\">mana</b> e têm <b>cooldown</b>. Inclui: <b style=\"color:#c8a0ff\">Necromancia</b>, <b style=\"color:#ff7030\">Fogo</b>, <b style=\"color:#80c8ff\">Gelo</b>, <b style=\"color:#fff080\">Raio</b>, <b style=\"color:#80e080\">Veneno</b>, <b style=\"color:#60e060\">Cura</b>. Cartas de chefe (Portal, Espinhos, Furacão) aparecem ao derrotar bosses. Novas cartas aparecem em <b>baús raros</b> e caravanas.",
     map: "MAPA & BIOMAS",
-    mapBody: "O mapa tem <b>6 biomas</b> (Deserto, Gelo, Inferno, Pântano, Cogumelo, Catedral) + a <b style=\"color:#d4a637\">zona neutra</b> inicial onde fica o altar do NecroKing. Cada bioma tem unidades únicas e um chefe T4. Também há a <b style=\"color:#d4a637\">Vila da Guilda</b> (NPCs neutros mercantis) — atacar libera o boss secreto T5. <b>Montanhas</b> bloqueiam passagem.",
+    mapBody: "O mapa tem <b>7 biomas</b> (Deserto, Gelo, Inferno, Pântano, Cogumelo, Catedral, Aquático) + a <b style=\"color:#d4a637\">zona neutra</b> inicial onde fica o altar do NecroKing. Cada bioma tem unidades únicas e um chefe T4. Também há a <b style=\"color:#d4a637\">Vila da Guilda</b> (NPCs neutros mercantis) — atacar libera o boss secreto T5. <b>Montanhas</b> bloqueiam passagem.",
     chests: "BAÚS & RECURSOS",
-    chestsBody: "<li><span style=\"color:#ffd080\">■ Baú comum</span>: dropa <b>relíquia comum/incomum</b> aleatória.</li><li><span style=\"color:#c868e0\">■ Baú raro</span>: dropa <b>relíquia rara/incomum</b>.</li><li><span style=\"color:#ff5050\">■ Baú épico</span>: dropa <b>relíquia épica/rara</b> (chance de lendária).</li><li><span style=\"color:#ff9050\">■ Caravana/Guilda</span>: NPCs neutros — atacar dropa cartas.</li><li><span style=\"color:#d4a637\">■ Moedas</span>: droppadas por inimigos — gaste no shop entre runs.</li><li><span style=\"color:#a868ec\">■ Almas</span>: drop em chefes/elites — desbloqueiam Legacy/passivas.</li>",
+    chestsBody: "<li><span style=\"color:#ffd080\">■ Baús na CAMPANHA</span>: sempre <b>moedas</b> (◈) — a campanha é o modo de aprendizado, sem itens aleatórios.</li><li><span style=\"color:#c868e0\">■ Baús no ENDLESS</span>: <b>relíquia</b> da raridade do baú (comum→lendário) — longe do centro a raridade SOBE.</li><li><span style=\"color:#ff9050\">■ Caravana</span>: matar a carroça dropa baú com <b>carta de feitiço</b>.</li><li><span style=\"color:#d4a637\">■ Moedas</span>: gaste na loja entre runs e na intermission da campanha.</li><li><span style=\"color:#a868ec\">■ Almas (✦)</span>: drop de chefes — gaste no <b>Legado</b> e nos <b>Companions</b> (níveis + Árvore de Talentos).</li>",
     relics: "RELÍQUIAS",
-    relicsBody: "Itens permanentes durante a run que ativam <b>passivas únicas</b>. 5 raridades (comum/incomum/raro/épico/lendário). Algumas são <b>visuais ativas</b> — lâminas girando, lobo fantasma seguindo, estrelas orbitando, asas de fogo nas costas. Outras modificam jogabilidade (custo de mana, alcance, drops, regen). Equipe ao tocar a relíquia caída no chão.",
+    relicsBody: "São <b>24 relíquias</b> em 5 raridades, organizadas em <b>5 ARQUÉTIPOS de build</b>: 💀 <b>Horda</b> (exército de esqueletos), ⚔ <b>Legião</b> (tropas fortes), 🔮 <b>Arcano</b> (feitiços), 🩸 <b>Sangue</b> (risco/recompensa) e ◆ <b>Tirano</b> (ouro/elites). No <b>ENDLESS</b>: draft 1-de-3 no início da run, em elites e chefes — o draft PUXA relíquias dos arquétipos que você já tem (combine tags pra fechar builds). Na <b>CAMPANHA</b>: cada chefe de bioma concede a sua relíquia FIXA, permanente em todas as runs seguintes.",
     difficulty: "DIFICULDADE (TIER)",
     difficultyIntro: "Com o tempo, inimigos sobem de tier. Veja no HUD superior:",
     difficultyTip: "Bosses ganham <b>+50% HP</b> e <b>x2 ATK</b> base + escalam com tempo da run e NG+. Dica: ao ficar com poucas unidades, spawns desaceleram — use o fôlego pra recrutar.",
@@ -76994,24 +77011,26 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Ressuscitar corpo</b> inimigo sob o cursor (habilidade inata do Rei).",
     ctrlEsc: "<b>Pausar</b> / cancelar carta armada / fechar menu.",
     tips: "DICAS RÁPIDAS",
-    tipsBody: "<li>Mantenha seu Rei <b>atrás</b> das tropas — se ele morre, game over (a menos que tenha <b style=\"color:#ff5020\">Asas de Fogo</b>).</li><li>Limpe covis perto do spawn (tier I) antes de aventurar em biomas distantes.</li><li>Observe a <b>cor do bioma</b> no minimapa para planejar rotas.</li><li>Chefes têm 2 fases + signature attack (65% HP) + fúria final (30% HP) — afaste o Rei nos telegraphs vermelhos.</li><li>Guarde cartas poderosas para emergências — mana regenera devagar.</li><li><b>Reliquias com hitbox</b> (Lâminas, Espinhos, Crystal, Tempestade, Lobo) dão dano constante — ótimas pra defesa.</li><li>Ataque a <b style=\"color:#d4a637\">Vila da Guilda</b> só quando estiver forte — boss secreto T5 com 23k HP / 330 ATK.</li><li>Almas são gastas em <b>Legacy</b> (entre runs) pra desbloqueios permanentes.</li>",
+    tipsBody: "<li>Mantenha seu Rei <b>atrás</b> das tropas — se ele morre, game over (a menos que tenha <b style=\"color:#ff5020\">Asas de Fogo</b>).</li><li>Limpe covis perto do spawn (tier I) antes de aventurar em biomas distantes.</li><li>Observe a <b>cor do bioma</b> no minimapa para planejar rotas.</li><li>Chefes têm 2 fases + signature attack (65% HP) + fúria final (30% HP) — afaste o Rei nos telegraphs vermelhos.</li><li>Guarde cartas poderosas para emergências — mana regenera devagar.</li><li>No <b>ENDLESS</b>, monte builds fechando um <b>arquétipo</b> de relíquias — o draft puxa mais itens das tags que você já possui.</li><li>Ataque a <b style=\"color:#d4a637\">Vila da Guilda</b> só quando estiver forte — boss secreto T5 com 23k HP / 330 ATK.</li><li>Almas são gastas em <b>Legacy</b> (entre runs) pra desbloqueios permanentes.</li>",
     bSoldado: "ALIADO", bOgre: "INIMIGO", bBoss: "CHEFE",
     bDesert: "DESERTO", bIce: "GELO", bHell: "INFERNO", bSwamp: "PÂNTANO", bMushroom: "COGUMELO", bCathedral: "CATEDRAL",
     tierEasy: "FÁCIL", tierMedium: "MÉDIO", tierHard: "DIFÍCIL", tierVHard: "MUITO DIFÍCIL", tierBoss: "BOSS T5 (chefes finais e secretos)",
   },
   en: {
     objective: "OBJECTIVE",
-    objectiveBody: "You are the <b style=\"color:#ffd080\">Necromancer of Shadows</b>, a lone mage surrounded by enemies. Resurrect the fallen, command your army, and survive until you defeat the <b style=\"color:#ffa040\">6 biome bosses</b> (Desert, Ice, Inferno, Swamp, Mushroom, Cathedral) and finally face the <b style=\"color:#b060f0\">NecroKing</b> at the central altar. Bonus: attack the Guild Village to unlock the <b style=\"color:#d4a637\">Guild Master</b> (secret T5 boss).",
+    modes: "GAME MODES",
+    modesBody: "<b style=\"color:#ffd080\">CAMPAIGN</b>: 7 regions on a world map, linear levels with a portal (clear enemies to open it), boss at level 4 — each boss grants a PERMANENT relic. Learning mode: no random items. <br><b style=\"color:#c868e0\">ENDLESS</b>: a NEW WORLD every run (own seed), danger and rewards grow away from the center, 1-of-3 relic drafts — the build mode. Uses everything you unlocked in campaigns. <br><b style=\"color:#ff9050\">BOSS RUSH / SURVIVAL / DAILY</b>: time and leaderboard challenges.",
+    objectiveBody: "You are the <b style=\"color:#ffd080\">Necromancer of Shadows</b>, a lone mage surrounded by enemies. Resurrect the fallen, command your army, and survive until you defeat the <b style=\"color:#ffa040\">7 biome bosses</b> (Desert, Ice, Inferno, Swamp, Mushroom, Cathedral, Aquatic) and finally face the <b style=\"color:#b060f0\">NecroKing</b> at the central altar. Bonus: attack the Guild Village to unlock the <b style=\"color:#d4a637\">Guild Master</b> (secret T5 boss).",
     army: "YOUR ARMY",
     armyBody: "Defeated enemies turn into <b style=\"color:#c8a0ff\">tiny souls</b> that return to you to be <b>resurrected as allies</b>. Recruit more troops at <b style=\"color:#ffd080\">lairs</b> across the map — each lair has a difficulty tier (I, II, III, IV).",
     cards: "POWER CARDS",
     cardsBody: "You have up to <b>5 magic cards</b> in the bottom HUD. Cards require <b style=\"color:#6fa8ff\">mana</b> and have <b>cooldown</b>. Includes: <b style=\"color:#c8a0ff\">Necromancy</b>, <b style=\"color:#ff7030\">Fire</b>, <b style=\"color:#80c8ff\">Ice</b>, <b style=\"color:#fff080\">Lightning</b>, <b style=\"color:#80e080\">Poison</b>, <b style=\"color:#60e060\">Heal</b>. Boss cards (Portal, Thorns, Tornado) appear by defeating bosses. New cards appear in <b>rare chests</b> and caravans.",
     map: "MAP & BIOMES",
-    mapBody: "The map has <b>6 biomes</b> (Desert, Ice, Inferno, Swamp, Mushroom, Cathedral) + the initial <b style=\"color:#d4a637\">neutral zone</b> with the NecroKing's altar. Each biome has unique units and a T4 boss. There's also the <b style=\"color:#d4a637\">Guild Village</b> (neutral merchant NPCs) — attacking unlocks the secret T5 boss. <b>Mountains</b> block passage.",
+    mapBody: "The map has <b>7 biomes</b> (Desert, Ice, Inferno, Swamp, Mushroom, Cathedral, Aquatic) + the initial <b style=\"color:#d4a637\">neutral zone</b> with the NecroKing's altar. Each biome has unique units and a T4 boss. There's also the <b style=\"color:#d4a637\">Guild Village</b> (neutral merchant NPCs) — attacking unlocks the secret T5 boss. <b>Mountains</b> block passage.",
     chests: "CHESTS & RESOURCES",
-    chestsBody: "<li><span style=\"color:#ffd080\">■ Common chest</span>: drops random <b>common/uncommon relic</b>.</li><li><span style=\"color:#c868e0\">■ Rare chest</span>: drops <b>rare/uncommon relic</b>.</li><li><span style=\"color:#ff5050\">■ Epic chest</span>: drops <b>epic/rare relic</b> (chance of legendary).</li><li><span style=\"color:#ff9050\">■ Caravan/Guild</span>: neutral NPCs — attacking drops cards.</li><li><span style=\"color:#d4a637\">■ Coins</span>: dropped by enemies — spend in shop between runs.</li><li><span style=\"color:#a868ec\">■ Souls</span>: drop from bosses/elites — unlock Legacy/passives.</li>",
+    chestsBody: "<li><span style=\"color:#ffd080\">■ CAMPAIGN chests</span>: always <b>coins</b> (◈) — the campaign is the learning mode, no random items.</li><li><span style=\"color:#c868e0\">■ ENDLESS chests</span>: a <b>relic</b> of the chest's rarity (common→legendary) — rarity RISES far from the center.</li><li><span style=\"color:#ff9050\">■ Caravan</span>: killing the wagon drops a <b>spell card</b> chest.</li><li><span style=\"color:#d4a637\">■ Coins</span>: spend in the shop between runs and in the campaign intermission.</li><li><span style=\"color:#a868ec\">■ Souls (✦)</span>: dropped by bosses — spend on <b>Legacy</b> and <b>Companions</b> (levels + Talent Tree).</li>",
     relics: "RELICS",
-    relicsBody: "Permanent run items that activate <b>unique passives</b>. 5 rarities (common/uncommon/rare/epic/legendary). Some have <b>active visuals</b> — spinning blades, ghost wolf following, orbiting stars, fire wings on your back. Others modify gameplay (mana cost, range, drops, regen). Equip by touching the fallen relic on the ground.",
+    relicsBody: "There are <b>24 relics</b> in 5 rarities, organized into <b>5 build ARCHETYPES</b>: 💀 <b>Horde</b> (skeleton army), ⚔ <b>Legion</b> (strong troops), 🔮 <b>Arcane</b> (spells), 🩸 <b>Blood</b> (risk/reward) and ◆ <b>Tyrant</b> (gold/elites). In <b>ENDLESS</b>: 1-of-3 draft at run start, on elites and bosses — the draft FAVORS archetypes you already own (combine tags to complete builds). In the <b>CAMPAIGN</b>: each biome boss grants its FIXED relic, permanent across all future runs.",
     difficulty: "DIFFICULTY (TIER)",
     difficultyIntro: "Over time, enemies tier up. Check the top HUD:",
     difficultyTip: "Bosses gain <b>+50% HP</b> and <b>x2 ATK</b> base + scale with run time and NG+. Tip: when low on units, spawns slow down — use the breather to recruit.",
@@ -77022,24 +77041,26 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Resurrect corpse</b> under cursor (King's innate ability).",
     ctrlEsc: "<b>Pause</b> / cancel armed card / close menu.",
     tips: "QUICK TIPS",
-    tipsBody: "<li>Keep your King <b>behind</b> the troops — if he dies, game over (unless you have <b style=\"color:#ff5020\">Fire Wings</b>).</li><li>Clear lairs near spawn (tier I) before venturing into distant biomes.</li><li>Watch the <b>biome color</b> on the minimap to plan routes.</li><li>Bosses have 2 phases + signature attack (65% HP) + final fury (30% HP) — keep the King away from red telegraphs.</li><li>Save powerful cards for emergencies — mana regens slowly.</li><li><b>Relics with hitbox</b> (Blades, Thorns, Crystal, Storm, Wolf) deal constant damage — great for defense.</li><li>Attack the <b style=\"color:#d4a637\">Guild Village</b> only when strong — secret T5 boss with 23k HP / 330 ATK.</li><li>Souls are spent in <b>Legacy</b> (between runs) for permanent unlocks.</li>",
+    tipsBody: "<li>Keep your King <b>behind</b> the troops — if he dies, game over (unless you have <b style=\"color:#ff5020\">Fire Wings</b>).</li><li>Clear lairs near spawn (tier I) before venturing into distant biomes.</li><li>Watch the <b>biome color</b> on the minimap to plan routes.</li><li>Bosses have 2 phases + signature attack (65% HP) + final fury (30% HP) — keep the King away from red telegraphs.</li><li>Save powerful cards for emergencies — mana regens slowly.</li><li>In <b>ENDLESS</b>, build around one relic <b>archetype</b> — the draft favors tags you already own.</li><li>Attack the <b style=\"color:#d4a637\">Guild Village</b> only when strong — secret T5 boss with 23k HP / 330 ATK.</li><li>Souls are spent in <b>Legacy</b> (between runs) for permanent unlocks.</li>",
     bSoldado: "ALLY", bOgre: "ENEMY", bBoss: "BOSS",
     bDesert: "DESERT", bIce: "ICE", bHell: "INFERNO", bSwamp: "SWAMP", bMushroom: "MUSHROOM", bCathedral: "CATHEDRAL",
     tierEasy: "EASY", tierMedium: "MEDIUM", tierHard: "HARD", tierVHard: "VERY HARD", tierBoss: "BOSS T5 (final + secret bosses)",
   },
   es: {
     objective: "OBJETIVO",
-    objectiveBody: "Eres el <b style=\"color:#ffd080\">Nigromante de las Sombras</b>, un mago solitario rodeado de enemigos. Resucita a los caídos, comanda tu ejército y sobrevive hasta derrotar a los <b style=\"color:#ffa040\">6 jefes de bioma</b> (Desierto, Hielo, Infierno, Pantano, Hongo, Catedral) y, finalmente, enfrenta al <b style=\"color:#b060f0\">NecroKing</b> en el altar central. Bonus: ataca la Aldea del Gremio para liberar al <b style=\"color:#d4a637\">Jefe del Gremio</b> (jefe secreto T5).",
+    modes: "MODOS DE JUEGO",
+    modesBody: "<b style=\"color:#ffd080\">CAMPAÑA</b>: 7 regiones en un mapamundi, niveles lineales con portal (limpia los enemigos para abrirlo), jefe en el nivel 4 — cada jefe otorga una reliquia PERMANENTE. Modo de aprendizaje: sin objetos aleatorios. <br><b style=\"color:#c868e0\">ENDLESS</b>: un MUNDO NUEVO en cada run (semilla propia), el peligro y las recompensas crecen lejos del centro, drafts de reliquias 1-de-3 — el modo de builds. Usa todo lo desbloqueado en campañas. <br><b style=\"color:#ff9050\">BOSS RUSH / SURVIVAL / DAILY</b>: desafíos de tiempo y ranking.",
+    objectiveBody: "Eres el <b style=\"color:#ffd080\">Nigromante de las Sombras</b>, un mago solitario rodeado de enemigos. Resucita a los caídos, comanda tu ejército y sobrevive hasta derrotar a los <b style=\"color:#ffa040\">7 jefes de bioma</b> (Desierto, Hielo, Infierno, Pantano, Hongo, Catedral, Acuático) y, finalmente, enfrenta al <b style=\"color:#b060f0\">NecroKing</b> en el altar central. Bonus: ataca la Aldea del Gremio para liberar al <b style=\"color:#d4a637\">Jefe del Gremio</b> (jefe secreto T5).",
     army: "TU EJÉRCITO",
     armyBody: "Los enemigos derrotados se vuelven <b style=\"color:#c8a0ff\">almitas</b> que regresan a ti para ser <b>resucitadas como aliados</b>. Recluta más tropas en <b style=\"color:#ffd080\">guaridas</b> repartidas por el mapa — cada guarida tiene un nivel de dificultad (I, II, III, IV).",
     cards: "CARTAS DE PODER",
     cardsBody: "Dispones de hasta <b>5 cartas mágicas</b> en el HUD inferior. Las cartas requieren <b style=\"color:#6fa8ff\">maná</b> y tienen <b>cooldown</b>. Incluye: <b style=\"color:#c8a0ff\">Nigromancia</b>, <b style=\"color:#ff7030\">Fuego</b>, <b style=\"color:#80c8ff\">Hielo</b>, <b style=\"color:#fff080\">Rayo</b>, <b style=\"color:#80e080\">Veneno</b>, <b style=\"color:#60e060\">Cura</b>. Las cartas de jefe (Portal, Espinas, Tornado) aparecen al derrotar jefes. Nuevas cartas aparecen en <b>cofres raros</b> y caravanas.",
     map: "MAPA & BIOMAS",
-    mapBody: "El mapa tiene <b>6 biomas</b> (Desierto, Hielo, Infierno, Pantano, Hongo, Catedral) + la <b style=\"color:#d4a637\">zona neutral</b> inicial donde está el altar del NecroKing. Cada bioma tiene unidades únicas y un jefe T4. También está la <b style=\"color:#d4a637\">Aldea del Gremio</b> (NPCs mercantes neutros) — atacarla libera el jefe secreto T5. Las <b>montañas</b> bloquean el paso.",
+    mapBody: "El mapa tiene <b>7 biomas</b> (Desierto, Hielo, Infierno, Pantano, Hongo, Catedral, Acuático) + la <b style=\"color:#d4a637\">zona neutral</b> inicial donde está el altar del NecroKing. Cada bioma tiene unidades únicas y un jefe T4. También está la <b style=\"color:#d4a637\">Aldea del Gremio</b> (NPCs mercantes neutros) — atacarla libera el jefe secreto T5. Las <b>montañas</b> bloquean el paso.",
     chests: "COFRES & RECURSOS",
-    chestsBody: "<li><span style=\"color:#ffd080\">■ Cofre común</span>: suelta <b>reliquia común/poco común</b> aleatoria.</li><li><span style=\"color:#c868e0\">■ Cofre raro</span>: suelta <b>reliquia rara/poco común</b>.</li><li><span style=\"color:#ff5050\">■ Cofre épico</span>: suelta <b>reliquia épica/rara</b> (posibilidad de legendaria).</li><li><span style=\"color:#ff9050\">■ Caravana/Gremio</span>: NPCs neutros — atacarlos suelta cartas.</li><li><span style=\"color:#d4a637\">■ Monedas</span>: las sueltan los enemigos — gástalas en la tienda entre runs.</li><li><span style=\"color:#a868ec\">■ Almas</span>: drop de jefes/élites — desbloquean Legacy/pasivas.</li>",
+    chestsBody: "<li><span style=\"color:#ffd080\">■ Cofres en CAMPAÑA</span>: siempre <b>monedas</b> (◈) — la campaña es el modo de aprendizaje, sin objetos aleatorios.</li><li><span style=\"color:#c868e0\">■ Cofres en ENDLESS</span>: una <b>reliquia</b> de la rareza del cofre (común→legendaria) — la rareza SUBE lejos del centro.</li><li><span style=\"color:#ff9050\">■ Caravana</span>: matar la carreta suelta un cofre con <b>carta de hechizo</b>.</li><li><span style=\"color:#d4a637\">■ Monedas</span>: gástalas en la tienda entre runs y en la intermisión de campaña.</li><li><span style=\"color:#a868ec\">■ Almas (✦)</span>: drop de jefes — gástalas en <b>Legacy</b> y <b>Companions</b> (niveles + Árbol de Talentos).</li>",
     relics: "RELIQUIAS",
-    relicsBody: "Objetos permanentes durante la run que activan <b>pasivas únicas</b>. 5 rarezas (común/poco común/raro/épico/legendario). Algunas son <b>visuales activas</b> — hojas giratorias, lobo fantasma siguiendo, estrellas orbitando, alas de fuego en la espalda. Otras modifican el juego (coste de maná, alcance, drops, regen). Equipa al tocar la reliquia caída en el suelo.",
+    relicsBody: "Hay <b>24 reliquias</b> en 5 rarezas, organizadas en <b>5 ARQUETIPOS de build</b>: 💀 <b>Horda</b> (ejército de esqueletos), ⚔ <b>Legión</b> (tropas fuertes), 🔮 <b>Arcano</b> (hechizos), 🩸 <b>Sangre</b> (riesgo/recompensa) y ◆ <b>Tirano</b> (oro/élites). En <b>ENDLESS</b>: draft 1-de-3 al inicio, en élites y jefes — el draft FAVORECE los arquetipos que ya tienes. En <b>CAMPAÑA</b>: cada jefe de bioma otorga su reliquia FIJA, permanente en todas las runs siguientes.",
     difficulty: "DIFICULTAD (TIER)",
     difficultyIntro: "Con el tiempo, los enemigos suben de tier. Mira el HUD superior:",
     difficultyTip: "Los jefes ganan <b>+50% HP</b> y <b>x2 ATK</b> base + escalan con el tiempo de la run y NG+. Tip: cuando tengas pocas unidades, los spawns se ralentizan — usa el respiro para reclutar.",
@@ -77050,7 +77071,7 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Resucitar cuerpo</b> enemigo bajo el cursor (habilidad innata del Rey).",
     ctrlEsc: "<b>Pausar</b> / cancelar carta armada / cerrar menú.",
     tips: "CONSEJOS RÁPIDOS",
-    tipsBody: "<li>Mantén a tu Rey <b>detrás</b> de las tropas — si muere, game over (a menos que tengas <b style=\"color:#ff5020\">Alas de Fuego</b>).</li><li>Limpia las guaridas cerca del spawn (tier I) antes de aventurarte en biomas lejanos.</li><li>Observa el <b>color del bioma</b> en el minimapa para planear rutas.</li><li>Los jefes tienen 2 fases + ataque supremo (65% HP) + furia final (30% HP) — aleja al Rey en los telégrafos rojos.</li><li>Guarda las cartas poderosas para emergencias — el maná regenera lento.</li><li><b>Reliquias con hitbox</b> (Hojas, Espinas, Cristal, Tormenta, Lobo) dan daño constante — geniales para defensa.</li><li>Ataca la <b style=\"color:#d4a637\">Aldea del Gremio</b> solo cuando seas fuerte — jefe secreto T5 con 23k HP / 330 ATK.</li><li>Las almas se gastan en <b>Legacy</b> (entre runs) para desbloqueos permanentes.</li>",
+    tipsBody: "<li>Mantén a tu Rey <b>detrás</b> de las tropas — si muere, game over (a menos que tengas <b style=\"color:#ff5020\">Alas de Fuego</b>).</li><li>Limpia las guaridas cerca del spawn (tier I) antes de aventurarte en biomas lejanos.</li><li>Observa el <b>color del bioma</b> en el minimapa para planear rutas.</li><li>Los jefes tienen 2 fases + ataque supremo (65% HP) + furia final (30% HP) — aleja al Rey en los telégrafos rojos.</li><li>Guarda las cartas poderosas para emergencias — el maná regenera lento.</li><li>En <b>ENDLESS</b>, arma builds cerrando un <b>arquetipo</b> de reliquias — el draft favorece las tags que ya tienes.</li><li>Ataca la <b style=\"color:#d4a637\">Aldea del Gremio</b> solo cuando seas fuerte — jefe secreto T5 con 23k HP / 330 ATK.</li><li>Las almas se gastan en <b>Legacy</b> (entre runs) para desbloqueos permanentes.</li>",
     bSoldado: "ALIADO", bOgre: "ENEMIGO", bBoss: "JEFE",
     bDesert: "DESIERTO", bIce: "HIELO", bHell: "INFIERNO", bSwamp: "PANTANO", bMushroom: "HONGO", bCathedral: "CATEDRAL",
     tierEasy: "FÁCIL", tierMedium: "MEDIO", tierHard: "DIFÍCIL", tierVHard: "MUY DIFÍCIL", tierBoss: "JEFE T5 (jefes finales y secretos)",
@@ -77151,7 +77172,7 @@ const UI_I18N = {
     "modes.bossrush.desc": "12 chefes consecutivos. Melhor tempo:",
     "modes.survival.name": "SURVIVAL",
     "modes.survival.desc": "Ondas infinitas escalando, sem chefes. Melhor:",
-    "items.subtitle": "Itens encontrados em baús comuns — bônus permanentes durante a run.",
+    "items.subtitle": "Relíquias e buffs da run — os drafts de relíquia são exclusivos do ENDLESS; a campanha recompensa com moedas e a relíquia fixa de cada chefe.",
     "achievs.subtitle": "Marcos da sua jornada.",
     "achievs.unlocked": "desbloqueadas",
   },
@@ -77242,7 +77263,7 @@ const UI_I18N = {
     "modes.bossrush.desc": "12 consecutive bosses. Best time:",
     "modes.survival.name": "SURVIVAL",
     "modes.survival.desc": "Infinite escalating waves, no bosses. Best:",
-    "items.subtitle": "Items found in common chests — permanent run bonuses.",
+    "items.subtitle": "Run relics and buffs — relic drafts are ENDLESS-exclusive; the campaign rewards coins and each boss's fixed relic.",
     "achievs.subtitle": "Milestones of your journey.",
     "achievs.unlocked": "unlocked",
   },
