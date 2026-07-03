@@ -48242,10 +48242,15 @@ const _SPRITE_CACHE_BLOCK = { necroSpider: true, leviataProfundo: true, medusa: 
 // clerigoAreia T3 42px > colossoDunas T4 36px; bruxaPantano T2 34px; escorpiao T1 6px
 // de altura — quase invisível). Fator aplicado por transform ancorado na baseline,
 // nos DOIS caminhos (bake do cache + draw direto).
+// FEEDBACK R13 (2026-07-03, bug do dono: "algumas unidades parecem desfocadas, como o
+// goblin"): os fatores FRACIONÁRIOS (0.72-0.90 / 1.25 / 1.6) borravam os sprites —
+// escala não-inteira via ctx.scale gera sub-pixel/anti-alias em pixel-art, e o borrão
+// ainda era ASSADO no cache. Todos os fracionários REMOVIDOS (as violações de
+// hierarquia de tier voltam a ser item de redesenho manual futuro). Só o escorpião
+// fica, em ×2 INTEIRO (era invisível com 6px de altura; escala inteira = pixels
+// chunky nítidos, sem borrão).
 const _UNIT_DRAW_SCALE = {
-  escorpiao: 1.6, bandoleiro: 1.25,
-  bruxaPantano: 0.80, clerigoAreia: 0.72, cavaleiroFrio: 0.85, cavaleiroLuz: 0.85,
-  demonioMenor: 0.85, xamaFrost: 0.85, cultistaFogo: 0.85, homemPeixe: 0.85, goblinGelo: 0.90,
+  escorpiao: 2,
 };
 function _drawBiomeUnitScaled(drawFn, cx, cy, t, u, colors, cpose) {
   const f = _UNIT_DRAW_SCALE[u.unitClass];
