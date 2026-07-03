@@ -7161,7 +7161,8 @@ function applyCompanionPerks(comp, cid) {
   comp._perks = pf;
   comp.atk = Math.max(1, Math.round(comp.atk * pf.dmgMult));
   if (pf.atkSpeedMult !== 1) comp.attackCooldownMax = Math.max(220, Math.round((comp.attackCooldownMax || 1300) * pf.atkSpeedMult));
-  if (pf.rangeMult !== 1) comp.range = Math.round((comp.range || 205) * pf.rangeMult);
+  // FEEDBACK R8 (2026-07-02): era comp.range (campo MORTO) — a IA lê attackRange
+  if (pf.rangeMult !== 1) comp.attackRange = Math.round((comp.attackRange || 205) * pf.rangeMult);
   if (pf.speedMult !== 1) comp.moveSpeed = (comp.moveSpeed || 70) * pf.speedMult;
   if (pf.dodgeAdd) comp.dodgeChance = Math.min(0.60, (comp.dodgeChance || 0) + pf.dodgeAdd);
   if (pf.critAdd) comp.critChance = Math.min(0.85, (comp.critChance || 0) + pf.critAdd);
@@ -7324,15 +7325,21 @@ function abilityBoneVolley(u) {
     const ang = (i / COUNT) * Math.PI * 2 + Math.random() * 0.1;
     const sp = 220;
     game.projectiles = game.projectiles || [];
+    // FEEDBACK R8 (2026-07-02): shape reescrito pro pipeline PADRÃO de projéteis
+    // (updateProjectiles lê p.type/p.damage/p.ownerFaction — o shape antigo usava
+    // kind/dmg/faction e não casava com nada → 5 ossos fantasmas sem dano nem draw).
+    // Caçador Real reusa esta habilidade ("Salva de Flechas") → dispara flechas.
     game.projectiles.push({
+      type: (u.companionId === "cacadorReal" ? "arrow" : "bonebolt"),
       x: u.x, y: u.y - 4,
       vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
-      lifetime: 1200, maxLifetime: 1200,
-      dmg: 25, type: "physical",
-      owner: u, ownerRef: u,
-      faction: "ally",
-      kind: "bonebolt", color: "#e8d8a8",
-      radius: 4,
+      lifetime: 1200,
+      damage: 25,
+      ownerFaction: "ally",
+      owner: u,
+      angle: ang,
+      hits: new Set(),
+      dmgType: "physical",
     });
   }
   // Pulso visual roxo no caster
@@ -7362,23 +7369,44 @@ function abilitySkullBomb(u, target) {
   const dx = target.x - u.x, dy = target.y - u.y;
   const d = Math.hypot(dx, dy) || 1;
   game.projectiles = game.projectiles || [];
+  // FEEDBACK R8 (2026-07-02): convertido em projétil AUTO-GERENCIADO (padrão
+  // kind + update() SEM `type`, como o explosiveSkull de launchExplosiveSkulls):
+  // o shape antigo tinha type:"magic" (não casava com nenhum branch do pipeline)
+  // e um _onHit que NUNCA era chamado → crânio invisível, sem dano, sem explosão.
   game.projectiles.push({
     x: u.x, y: u.y - 6,
     vx: (dx / d) * 180, vy: (dy / d) * 180,
-    lifetime: 1500, maxLifetime: 1500,
-    dmg: 60, type: "magic",
+    lifetime: 1500,
+    damage: 60,
     owner: u, ownerRef: u,
-    faction: "ally",
+    ownerFaction: "ally",
     kind: "skullBomb", color: "#a040d0",
     radius: 6,
-    // Custom onHit explode em AOE com slow
-    _onHit(p, hitTarget) {
-      // Explosão AOE
+    update(dt) {
+      this.lifetime -= dt;
+      this.x += this.vx * dt / 1000;
+      this.y += this.vy * dt / 1000;
+      if (this.lifetime <= 0) { this._detonate(); this.lifetime = 0; return; }
+      // Colisão: raio 6 + raio do alvo (mesmo filtro do explosiveSkull)
+      for (const t of game.units) {
+        if (!isAlive(t) || t.isWagon || t.faction === "ally" || t.type === "king") continue;
+        const ddx = t.x - this.x, ddy = t.y - this.y, rr = this.radius + (t.radius || 6);
+        if (ddx * ddx + ddy * ddy <= rr * rr) {
+          // Dano direto no alvo atingido + detonação AoE
+          applyDamage(this.owner, t, this.damage, { type: "magic" });
+          this._detonate();
+          this.lifetime = 0;
+          return;
+        }
+      }
+    },
+    // Detonação = corpo do antigo _onHit, inlinado (AoE 60px: 30 dmg + slow 1.5s)
+    _detonate() {
+      const p = this;
       game.effects.push({
         type: "shockwave", x: p.x, y: p.y,
         color: "#d880ff", maxR: 80, lifetime: 500, maxLifetime: 500,
       });
-      // Aplica dmg + slow em raio 60
       for (const e of game.units) {
         if (!isAlive(e) || e.faction === "ally") continue;
         const ddx = e.x - p.x, ddy = e.y - p.y;
@@ -7399,6 +7427,7 @@ function abilitySkullBomb(u, target) {
         });
       }
       if (typeof flashScreen === "function") flashScreen(0.18, 200, "#a040d0");
+      try { if (Sfx && Sfx.fireExplode) Sfx.fireExplode(); } catch (e) {}
     },
   });
   if (typeof showToast === "function") showToast("✦ CRÂNIO EXPLOSIVO", 900, "magic");
@@ -13154,7 +13183,8 @@ function startNewRun(preselectedSpellIds, opts) {
         if (lvlData.lvl >= 3) {
           if (def.id === "lichPet") comp.attackCooldownMax = Math.round((comp.attackCooldownMax || 1300) * 0.7);  // -30% CD
           else if (def.id === "necroPhantom") comp.physResist = 0.75;  // 75% resist (era 50%)
-          else if (def.id === "cacadorReal") comp.range = Math.round((comp.range || 205) * 1.25);  // +25% alcance (sniper)
+          // FEEDBACK R8 (2026-07-02): era comp.range (campo MORTO) — a IA lê attackRange
+          else if (def.id === "cacadorReal") comp.attackRange = Math.round((comp.attackRange || 205) * 1.25);  // +25% alcance (sniper)
           else if (def.id === "sombraReal") { comp.dodgeChance = 0.40; comp.critChance = 0.55; }
           comp.hp = comp.maxHp;
         }
@@ -22991,7 +23021,12 @@ function update(dt) {
       const focus = isComp
         ? { x: game.king.x, y: game.king.y }
         : (game.focusPoint || { x: game.king.x, y: game.king.y });
-      const zoneR = isComp ? 110 : (game.focusPoint ? 160 : 140);
+      // FEEDBACK R8 (2026-07-02): companion RANGED (Lich/Caçador) engaja ameaças a
+      // 180px do Rei — senão o alcance de sniper (205+) nunca era usado. Compatível
+      // com o leash de 180px acima: ranged quase não anda até o alvo, fica no raio.
+      // Melee continua nos 110 (escolta corpo-a-corpo).
+      const _compCls = isComp ? CLASSES[u.unitClass] : null;
+      const zoneR = isComp ? ((_compCls && _compCls.ranged) ? 180 : 110) : (game.focusPoint ? 160 : 140);
       let best = null, bestD = zoneR * zoneR;
       // Etapa 7: se h\u00e1 GRUPO marcado, cada aliado escolhe o membro do grupo
       // mais pr\u00f3ximo dele \u2014 espalha o dano em vez de todos focarem em 1.
@@ -23498,7 +23533,8 @@ function update(dt) {
               if (lvlData.lvl >= 3) {
                 if (def.id === "lichPet") comp.attackCooldownMax = Math.round((comp.attackCooldownMax || 1300) * 0.7);
                 else if (def.id === "necroPhantom") comp.physResist = 0.75;
-                else if (def.id === "cacadorReal") comp.range = Math.round((comp.range || 205) * 1.25);
+                // FEEDBACK R8 (2026-07-02): era comp.range (campo MORTO) — a IA lê attackRange
+                else if (def.id === "cacadorReal") comp.attackRange = Math.round((comp.attackRange || 205) * 1.25);
                 else if (def.id === "sombraReal") { comp.dodgeChance = 0.40; comp.critChance = 0.55; }
               }
               // FEEDBACK 2026-07-02 — SKILL TRACK: perks 4-10 também no respawn
@@ -26734,7 +26770,7 @@ function renderRelicDraft() {
       const col = (typeof rarityColor === "function") ? rarityColor(r.rarity) : "#d4a637";
       card.style.borderColor = col;
       const cv = document.createElement("canvas");
-      cv.width = 112; cv.height = 112; cv.className = "pc-icon";
+      cv.width = 80; cv.height = 80; cv.className = "pc-icon";  // R9: 1:1 com .pc-icon 80px
       try { if (typeof drawRelicIcon === "function") drawRelicIcon(cv, r.icon, r); } catch (e) {}
       card.appendChild(cv);
       // REWORK 2026-07 — chip de ARQUÉTIPO (tag de build) no topo do card
@@ -30131,7 +30167,7 @@ function buildPickCard(spellId, { source, idx, slotNum }) {
 
   const iconKind = CARD_ICONS[spellId] || "flame";
   // 2026-04-27: canvas aumentado de 56→112 pra render HD do símbolo (U=3 no grid 32)
-  const iconCanvas = createIconCanvas(iconKind, 112);
+  const iconCanvas = createIconCanvas(iconKind, 80);  // R9: 1:1 com .pc-icon 80px
   iconCanvas.className = "pc-icon";
   card.appendChild(iconCanvas);
 
@@ -30986,9 +31022,11 @@ function updateProjectiles(dt) {
           p.lifetime = 0;
         }
       }
-    } else if (p.type === "arrow" || p.type === "bullet" || p.type === "snowball" || p.type === "fireShard" || p.type === "poisonBubble" || p.type === "lightningBolt" || p.type === "magicCoin") {
+    } else if (p.type === "arrow" || p.type === "bullet" || p.type === "snowball" || p.type === "fireShard" || p.type === "poisonBubble" || p.type === "lightningBolt" || p.type === "magicCoin" || p.type === "bonebolt") {
       // FIX 2026-05-04: magicCoin (do Coin Storm do Boss da Guilda) não tinha handler
       // de hit — voava sem dano. Adicionado aqui no mesmo bloco de bullet/arrow/etc.
+      // FEEDBACK R8 (2026-07-02): bonebolt (Lich Aprendiz + Salva Óssea) idem —
+      // era criado mas não casava com nenhum branch → projétil fantasma sem dano.
       const hitRadius = (p.type === "bullet") ? 4 : (p.type === "snowball" ? 6 : (p.type === "lightningBolt" ? 6 : (p.type === "magicCoin" ? 5 : 5)));
       const targetFaction = p.ownerFaction === "ally" ? "enemy" : "ally";
       // FIX 2026-04-27: projéteis do ALIADO também acertam NEUTRAIS (mercadores
@@ -31030,6 +31068,20 @@ function updateProjectiles(dt) {
               });
             }
             try { if (Sfx && Sfx.coinPick) Sfx.coinPick(); } catch(e) {}
+          } else if (p.type === "bonebolt") {
+            // FEEDBACK R8 (2026-07-02): mini-burst necro no impacto do osso
+            // (osso claro + roxo lich, em vez do sangue do spawnArrowImpact)
+            for (let bi = 0; bi < 5; bi++) {
+              const ba = Math.random() * Math.PI * 2;
+              const bs = 30 + Math.random() * 30;
+              game.effects.push({
+                type: "spark", color: bi % 2 ? "#d880ff" : "#e8d8a8",
+                x: p.x, y: p.y,
+                vx: Math.cos(ba) * bs, vy: Math.sin(ba) * bs,
+                lifetime: 280, maxLifetime: 280, size: 1,
+                update(dt) { this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
+              });
+            }
           } else {
             spawnArrowImpact(p.x, p.y);
           }
@@ -31061,6 +31113,17 @@ function updateProjectiles(dt) {
           vx: (Math.random() - 0.5) * 18,
           vy: (Math.random() - 0.5) * 18,
           lifetime: 180, maxLifetime: 220, size: 1,
+          update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
+        });
+      } else if (p.type === "bonebolt" && Math.random() < 0.35) {
+        // FEEDBACK R8 (2026-07-02): trilha viva roxa do bonebolt (padrão do lightningBolt)
+        game.effects.push({
+          type: "spark", color: "#d880ff",
+          x: p.x + (Math.random() - 0.5) * 3,
+          y: p.y + (Math.random() - 0.5) * 3,
+          vx: (Math.random() - 0.5) * 14,
+          vy: (Math.random() - 0.5) * 14,
+          lifetime: 200, maxLifetime: 220, size: 1,
           update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
         });
       }
@@ -63045,6 +63108,31 @@ function drawProjectile(p, camX, camY) {
     }
     offCtx.globalAlpha = 1;
   }
+  // FEEDBACK R8 (2026-07-02) — BONEBOLT: osso perfurante do Lich Aprendiz
+  // (companion) e da Salva Óssea. Fragmento de osso alongado no ângulo do voo
+  // + trilha necro roxa (estrutura da trilha do fireShard, cores do lich).
+  if (p.type === "bonebolt") {
+    const ax = Math.cos(p.angle);
+    const ay = Math.sin(p.angle);
+    // Trilha roxa com alpha decrescente (3 px atrás)
+    for (let i = 1; i <= 3; i++) {
+      offCtx.globalAlpha = 0.5 - i * 0.12;
+      offCtx.fillStyle = i < 2 ? "#d880ff" : "#a040d0";
+      offCtx.fillRect(Math.round(sx - ax * (i + 1)), Math.round(sy - ay * (i + 1)), 1, 1);
+    }
+    offCtx.globalAlpha = 1;
+    // Haste de osso (pontas escuras = outline, meio claro)
+    for (let i = -2; i <= 2; i++) {
+      const px = Math.round(sx + ax * i);
+      const py = Math.round(sy + ay * i);
+      offCtx.fillStyle = (i === -2 || i === 2) ? "#5a4830" : "#e8d8a8";
+      offCtx.fillRect(px, py, 1, 1);
+    }
+    // Glint branco central
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(sx, sy, 1, 1);
+    return;
+  }
   // ETAPA D — Renderiza projéteis dos signature moves dos bosses (use p.kind)
   if (p.kind === "scarab") {
     // Escaravelho dourado: corpo oval marrom + brilho dourado + pernas
@@ -63147,6 +63235,38 @@ function drawProjectile(p, camX, camY) {
     offCtx.fillStyle = "#c060ff";
     fillCircle(sx, sy, 4);
     // Mini-crânio branco (3x3 pixel art)
+    offCtx.fillStyle = "#e0d0c0";
+    offCtx.fillRect(sx - 2, sy - 2, 5, 4);
+    // Olhos pretos
+    offCtx.fillStyle = "#1a0a1a";
+    offCtx.fillRect(sx - 1, sy - 1, 1, 1);
+    offCtx.fillRect(sx + 1, sy - 1, 1, 1);
+    // Boca pequena
+    offCtx.fillRect(sx, sy + 1, 1, 1);
+    // Brilho topo branco pulsante
+    offCtx.globalAlpha = pulse;
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(sx - 2, sy - 2, 1, 1);
+    offCtx.globalAlpha = 1;
+    return;
+  }
+  // FEEDBACK R8 (2026-07-02) — CRÂNIO EXPLOSIVO (habilidade lv2 do Lich Aprendiz):
+  // mini-crânio do soulDrain com halo roxo MENOR (projétil de aliado, não de boss).
+  if (p.kind === "skullBomb") {
+    const t = game.time;
+    const pulse = 0.7 + Math.sin(t / 90) * 0.3;
+    // Halo roxo escuro (reduzido: 6 vs 8 do soulDrain)
+    offCtx.globalAlpha = 0.35 * pulse;
+    offCtx.fillStyle = "#3a0858";
+    fillCircle(sx, sy, 6);
+    offCtx.globalAlpha = 1;
+    // Camada média roxa
+    offCtx.fillStyle = "#a040d0";
+    fillCircle(sx, sy, 4);
+    // Camada interna lilás
+    offCtx.fillStyle = "#c060ff";
+    fillCircle(sx, sy, 3);
+    // Mini-crânio branco
     offCtx.fillStyle = "#e0d0c0";
     offCtx.fillRect(sx - 2, sy - 2, 5, 4);
     // Olhos pretos
@@ -65064,7 +65184,7 @@ function renderRelicShelf() {
     }
     // Canvas pixel art (cor original do item, não da raridade)
     const c = document.createElement("canvas");
-    c.width = 48; c.height = 48;
+    c.width = 64; c.height = 64;   // R9: U=2 (arte 48px) @ CSS 32px = 0.5 exato → nítido
     drawRelicIcon(c, r.icon, r);
     slot.appendChild(c);
     // Tooltip com badge de raridade + ARQUÉTIPO (REWORK 2026-07)
@@ -66990,6 +67110,236 @@ function drawRelicIcon(canvas, kind, relic) {
   const K = "#0a0410";
 
   switch (kind) {
+    // ================= FEEDBACK R9 (2026-07-02) — REWORK DE ÍCONES =================
+    // Os motivos antigos eram esparsos/escuros (~12px num grid de 24 → sumiam no fundo).
+    // Cases-override (o 1º case igual vence): motivos GRANDES (18-20px), núcleo claro,
+    // contorno K, 1-2 glints. Os antigos abaixo ficam mortos.
+    case "boneThrone": {
+      // Trono de Ossos: encosto alto de ossos + caveira no topo + braços
+      const bo = "#ece0c8", bm = "#c8b89c", bd = "#8a7a60", go = "#d4a637";
+      p(7,2,K,10,1); p(6,3,K,1,14); p(17,3,K,1,14);
+      p(7,3,bo,10,14); p(14,3,bd,3,14);                       // encosto
+      p(8,4,bm,1,12); p(11,4,bm,1,12);                        // hastes de osso
+      p(9,1,K,6,1); p(8,2,bo,8,3); p(9,3,K,2,1); p(13,3,K,2,1); // caveira topo
+      p(10,4,K,1,1); p(12,4,K,1,1);
+      p(3,10,K,4,1); p(2,11,K,1,6); p(3,17,K,3,1);
+      p(3,11,bo,3,6); p(3,11,bm,1,6);                          // braço esq
+      p(17,10,K,4,1); p(21,11,K,1,6); p(18,17,K,3,1);
+      p(18,11,bo,3,6); p(20,11,bd,1,6);                        // braço dir
+      p(5,17,K,14,1); p(5,18,bo,14,3); p(5,18,bm,14,1);        // assento
+      p(6,21,K,2,2); p(16,21,K,2,2); p(6,21,bd,1,2); p(16,21,bd,1,2);  // pés
+      p(11,19,go,2,1);                                          // detalhe dourado
+      break;
+    }
+    case "warBanner": {
+      // Estandarte de Guerra: bandeira LARGA vermelha com espada dourada bordada
+      const rd = "#c02838", rl = "#ff5060", rdk = "#7a1020", go = "#ffe890", wd = "#8a6234";
+      p(4,1,K,3,1); p(4,2,wd,3,20); p(4,2,"#b08850",1,20); p(3,22,K,5,1);  // mastro
+      p(7,2,K,14,1); p(21,3,K,1,13);
+      p(7,3,rd,14,12); p(7,3,rl,14,2); p(7,13,rdk,14,2);
+      p(7,15,rd,3,3); p(12,15,rd,4,4); p(18,15,rd,3,2);         // barra esfarrapada
+      p(7,15,K,1,3); p(11,15,K,1,4); p(17,15,K,1,2); p(20,15,K,1,2);
+      p(13,5,go,2,7); p(12,6,go,4,1); p(13,4,"#fff8c0",2,1);    // espada bordada
+      p(22,2,go,1,1); p(22,4,go,1,1);                            // franja dourada
+      break;
+    }
+    case "scepter": {
+      // Cetro do Deserto: haste GROSSA dourada diagonal + orbe solar
+      const go = "#e8b840", gl = "#ffe890", gd = "#a87820", or = "#ff9040", oh = "#ffd8a0";
+      for (let i = 0; i < 12; i++) { p(6+i, 20-i, K, 4, 2); }
+      for (let i = 0; i < 12; i++) { p(7+i, 20-i, go, 2, 2); p(7+i, 20-i, gl, 1, 1); }
+      p(5,21,K,4,3); p(6,22,gd,2,1);                             // base
+      p(16,3,K,7,1); p(15,4,K,1,5); p(23,4,K,1,5); p(16,9,K,7,1);
+      p(16,4,or,7,5); p(17,4,oh,3,2); p(18,5,"#ffffff",1,1);     // orbe solar
+      p(14,2,gl,1,1); p(24,2,gl,1,1); p(19,1,gl,1,1); p(24,10,gl,1,1);  // raios
+      break;
+    }
+    case "iceCrown": {
+      // Coroa Congelada: coroa GRANDE de gelo com 3 picos cristalinos
+      const ic = "#a8dcf0", il = "#e0f4ff", id = "#5a96c0", ik = "#2a4a68";
+      p(3,17,K,18,1); p(2,18,K,1,4); p(21,18,K,1,4); p(3,22,K,18,1);
+      p(3,18,ic,18,4); p(3,18,il,18,1); p(3,21,id,18,1);         // faixa
+      p(4,8,K,1,9); p(7,8,K,1,9); p(5,6,K,2,2);
+      p(5,8,ic,2,9); p(5,8,il,1,9); p(5,7,il,2,1);               // pico esq
+      p(10,3,K,1,14); p(13,3,K,1,14); p(11,1,K,2,2);
+      p(11,3,ic,2,14); p(11,3,il,1,14); p(11,2,il,2,1);          // pico central (alto)
+      p(16,8,K,1,9); p(19,8,K,1,9); p(17,6,K,2,2);
+      p(17,8,ic,2,9); p(18,8,id,1,9); p(17,7,il,2,1);            // pico dir
+      p(6,19,ik,2,2); p(11,19,ik,2,2); p(16,19,ik,2,2);          // gemas escuras
+      p(12,0,"#ffffff",1,1); p(5,5,"#ffffff",1,1);               // cintilos
+      break;
+    }
+    case "swampStaff": {
+      // Cajado do Pântano: madeira retorcida + orbe verde pulsante + gotas
+      const wd = "#6a4a2a", wl = "#8a6a3a", gr = "#58c838", gl = "#a8f080", gd = "#2a6818";
+      p(11,6,K,3,17); p(11,6,wd,3,17); p(11,6,wl,1,17);
+      p(9,9,K,2,2) ; p(9,9,wd,2,2); p(14,13,K,2,2); p(14,13,wd,2,2);  // nós retorcidos
+      p(8,23,K,8,1);                                              // sombra base
+      p(9,1,K,7,1); p(8,2,K,1,5); p(16,2,K,1,5); p(9,7,K,7,1);
+      p(9,2,gr,7,5); p(10,2,gl,4,2); p(11,3,"#ffffff",1,1);       // orbe
+      p(7,4,gl,1,1); p(17,3,gl,1,1);                              // brilho vazando
+      p(16,17,gd,1,2); p(16,20,gd,1,1); p(7,15,gd,1,2);           // gotas de veneno
+      break;
+    }
+    case "fireWings": {
+      // Asas de Fogo: DUAS asas flamejantes grandes + núcleo de brasa
+      const f1 = "#ff5a20", f2 = "#ffb030", f3 = "#fff2a0", fd = "#a02808";
+      for (let i = 0; i < 8; i++) {
+        const h = 8 - i;
+        p(10-i, 8+i, K, 2, h+2);
+        p(14+i-1+1, 8+i, K, 2, h+2);
+      }
+      for (let i = 0; i < 8; i++) {
+        const h = 8 - i;
+        p(10-i, 9+i, f1, 1, h); p(11-i, 9+i, f2, 1, Math.max(1,h-1));
+        p(14+i, 9+i, f1, 1, h); p(13+i, 9+i, f2, 1, Math.max(1,h-1));
+      }
+      p(11,7,f2,2,3); p(11,6,f3,2,2);                             // línguas de fogo centro
+      p(10,17,K,4,4); p(11,18,fd,2,2); p(11,17,f2,2,1); p(11,17,f3,1,1);  // núcleo/brasa
+      p(4,6,f3,1,1); p(19,6,f3,1,1);                              // fagulhas
+      break;
+    }
+    case "starConstellation": {
+      // Constelação: 5 estrelas GRANDES ligadas por linhas visíveis
+      const st = "#fff8c0", sl = "#d0d8ff", ln = "#6a74a8";
+      const stars = [[4,5],[12,3],[19,8],[9,13],[16,18]];
+      const link = (a, b) => {
+        const dx = b[0]-a[0], dy = b[1]-a[1], steps = Math.max(Math.abs(dx), Math.abs(dy));
+        for (let i = 1; i < steps; i++) p(a[0]+Math.round(dx*i/steps), a[1]+Math.round(dy*i/steps), ln, 1, 1);
+      };
+      link(stars[0],stars[1]); link(stars[1],stars[2]); link(stars[1],stars[3]); link(stars[3],stars[4]); link(stars[2],stars[4]);
+      for (const [sx2,sy2] of stars) {
+        p(sx2-1,sy2,K,3,1); p(sx2,sy2-1,K,1,3);
+        p(sx2-1,sy2,sl,3,1); p(sx2,sy2-1,sl,1,3); p(sx2,sy2,st,1,1);
+        p(sx2-2,sy2,ln,1,1); p(sx2+2,sy2,ln,1,1);
+      }
+      p(12,3,"#ffffff",1,1); p(16,18,"#ffffff",1,1);              // 2 estrelas dominantes
+      break;
+    }
+    case "relicThievesPouch": {
+      // Bolsa de couro GORDA + moedas douradas caindo
+      const le = "#a06a38", ll = "#c8905a", ld = "#6a4520", go = "#ffe890", gm = "#d4a637";
+      p(7,7,K,10,1); p(5,8,K,1,2); p(18,8,K,1,2); p(4,10,K,1,8); p(19,10,K,1,8);
+      p(5,18,K,1,2); p(18,18,K,1,2); p(6,20,K,12,1);
+      p(5,8,le,14,12); p(6,20,le,12,1);
+      p(5,8,ll,14,2); p(15,10,ld,4,9);                            // luz/sombra
+      p(8,6,K,8,1); p(8,5,ld,8,2);                                 // cordão
+      p(10,4,gm,4,1); p(10,3,go,4,1);                              // moedas saindo
+      p(9,12,ld,6,1);                                               // costura
+      p(20,14,K,3,3); p(20,14,gm,3,3); p(21,14,go,1,1);            // moeda caindo
+      p(17,20,K,3,3); p(17,20,gm,3,3); p(18,20,go,1,1);
+      p(11,15,go,2,2);                                              // fivela
+      break;
+    }
+    case "relicSilverChain": {
+      // Corrente de Prata: elos GROSSOS diagonais com brilho
+      const sv = "#c8d0dc", sl = "#f0f4f8", sd = "#7a8494";
+      const els = [[3,3],[8,7],[13,11],[18,15]];
+      for (const [ex,ey] of els) {
+        p(ex,ey,K,6,6);
+        p(ex+1,ey+1,sv,4,4); p(ex+2,ey+2,K,2,2);
+        p(ex+1,ey+1,sl,4,1); p(ex+1,ey+4,sd,4,1);
+      }
+      const els2 = [[6,6],[11,10],[16,14]];
+      for (const [ex,ey] of els2) {
+        p(ex,ey,K,5,4); p(ex+1,ey+1,sd,3,2); p(ex+1,ey+1,sv,3,1);
+      }
+      p(4,4,"#ffffff",1,1); p(14,12,"#ffffff",1,1);
+      break;
+    }
+    case "relicFangNecklace": {
+      // Colar de Presas: cordão em arco + 5 presas GRANDES
+      const cd = "#8a6234", fg = "#f0e8d0", fd = "#b8a880", tp = "#d84040";
+      for (let i = 0; i <= 16; i++) {
+        const yy = 4 + Math.round(Math.sin((i/16)*Math.PI) * 4);
+        p(3+i, yy, cd, 1, 2); if (i % 4 === 0) p(3+i, yy, K, 1, 1);
+      }
+      const fangs = [[4,9,4],[8,11,6],[11,13,7],[15,11,6],[18,9,4]];
+      for (const [fx,fy,fh] of fangs) {
+        p(fx,fy,K,3,1); p(fx,fy+1,K,1,fh); p(fx+2,fy+1,K,1,fh);
+        p(fx+1,fy+1,fg,1,fh); p(fx+1,fy+fh,K,1,2); p(fx+1,fy+fh-1,fd,1,1);
+        p(fx+1,fy+fh+1,tp,1,1);                                    // pontinha de sangue
+      }
+      break;
+    }
+    case "relicThornedArmor": {
+      // Peitoral com Espinhos: armadura GRANDE + espinhos saindo
+      const ar = "#8a94a8", al = "#c8d0dc", ad = "#4a5468", th = "#e0e8f0";
+      p(6,6,K,12,1); p(5,7,K,1,11); p(18,7,K,1,11); p(7,18,K,3,1); p(14,18,K,3,1);
+      p(8,19,K,1,3) ; p(15,19,K,1,3); p(9,21,K,6,1);
+      p(6,7,ar,12,11); p(9,18,ar,6,3);
+      p(6,7,al,12,2); p(15,9,ad,3,9);                              // luz/sombra
+      p(11,9,ad,2,10);                                              // vinco central
+      p(2,4,K,3,3); p(3,5,th,2,2); p(3,5,"#ffffff",1,1);           // espinho ombro esq
+      p(19,4,K,3,3); p(19,5,th,2,2); p(20,5,"#ffffff",1,1);        // espinho ombro dir
+      p(1,11,th,3,1); p(0,11,K,1,1); p(20,11,th,3,1); p(23,11,K,1,1);  // espinhos laterais
+      p(8,10,th,1,1); p(14,10,th,1,1); p(11,14,th,2,1);            // rebites
+      break;
+    }
+    case "relicNecroTear": {
+      // Lágrima do Necromante: gota GRANDE roxa com caveirinha dentro
+      const pu = "#a040d0", pl = "#d880ff", pd = "#5a1888", pw = "#f0d8ff", bo = "#ece0c8";
+      p(11,2,K,2,2); p(10,4,K,1,2); p(13,4,K,1,2); p(9,6,K,1,3); p(14,6,K,1,3);
+      p(7,9,K,1,4); p(16,9,K,1,4); p(6,13,K,1,5); p(17,13,K,1,5);
+      p(7,18,K,1,2); p(16,18,K,1,2); p(8,20,K,2,1); p(14,20,K,2,1); p(10,21,K,4,1);
+      p(11,3,pu,2,1); p(10,4,pu,4,2); p(9,6,pu,6,3); p(8,9,pu,8,4); p(7,13,pu,10,5); p(8,18,pu,8,2); p(10,20,pu,4,1);
+      p(10,5,pl,2,3); p(9,8,pl,2,3);                                // reflexo
+      p(13,14,pd,3,4); p(12,18,pd,3,2);                             // fundo escuro
+      p(10,12,bo,4,3); p(11,13,K,1,1); p(13,13,K,1,1); p(11,15,K,2,1);  // caveirinha
+      p(9,6,"#ffffff",1,2);
+      break;
+    }
+    case "relicHunterCrown": {
+      // Coroa do Caçador: tiara de couro + GALHADAS de cervo
+      const le = "#8a5a2c", ll = "#b0824a", an = "#e0d0b0", ad = "#a89468";
+      p(5,15,K,14,1); p(4,16,K,1,4); p(19,16,K,1,4); p(5,20,K,14,1);
+      p(5,16,le,14,4); p(5,16,ll,14,1);                            // tiara
+      p(9,17,an,2,2); p(13,17,an,2,2);                              // dentes decorativos
+      // galhada esquerda
+      p(6,14,K,2,1); p(5,10,K,1,4); p(6,10,an,1,5); p(5,9,an,1,2);
+      p(3,7,K,1,3); p(4,8,an,1,3); p(3,6,an,1,2); p(2,5,K,1,2);
+      p(7,7,an,1,3); p(7,6,K,1,1); p(8,5,an,1,2); p(8,4,K,1,1);
+      // galhada direita
+      p(16,14,K,2,1); p(18,10,K,1,4); p(17,10,an,1,5); p(18,9,an,1,2);
+      p(20,7,K,1,3); p(19,8,an,1,3); p(20,6,an,1,2); p(21,5,K,1,2);
+      p(16,7,an,1,3); p(16,6,K,1,1); p(15,5,an,1,2); p(15,4,K,1,1);
+      p(6,10,ad,1,2); p(17,12,ad,1,2);                              // sombra na galhada
+      p(11,17,"#ffe890",2,2);                                        // gema central
+      break;
+    }
+    case "relicRustyBlade": {
+      // Lâmina Enferrujada: espada LARGA lascada com manchas de ferrugem
+      const bl = "#b8bcc4", bd = "#787e8c", ru = "#b06030", rl = "#d88448", gr = "#5a4024";
+      p(10,1,K,5,1); p(9,2,K,1,13); p(15,2,K,1,13);
+      p(10,2,bl,5,13); p(13,2,bd,2,13);
+      p(15,5,K,2,2); p(14,5,bd,1,2);                                // LASCA na lâmina
+      p(9,9,K,2,1); p(10,9,bd,1,1);                                 // outra lasca
+      p(11,3,"#ffffff",1,4);                                         // resto de fio
+      p(10,4,ru,2,2); p(12,7,ru,3,2); p(10,11,ru,2,3); p(13,12,rl,2,2);  // FERRUGEM
+      p(11,5,rl,1,1); p(13,8,rl,1,1);
+      p(6,15,K,12,1); p(6,16,ru,12,2); p(6,16,rl,12,1); p(6,18,K,12,1);  // guarda enferrujada
+      p(11,18,gr,3,4); p(10,18,K,1,4); p(14,18,K,1,4);
+      p(10,22,K,5,2); p(11,22,ru,3,2);                               // pomo
+      break;
+    }
+    case "relicCrackedSkull": {
+      // Crânio Rachado GRANDE com fenda dourada brilhando
+      const bo = "#ece0c8", bd = "#b0a088", go = "#ffe890", gd = "#d4a637";
+      p(6,3,K,12,1); p(5,4,K,1,2); p(17,4,K,1,2); p(4,6,K,1,8); p(19,6,K,1,8);
+      p(5,14,K,1,2); p(18,14,K,1,2); p(6,16,K,12,1);
+      p(6,4,bo,12,1); p(5,6,bo,14,8); p(6,14,bo,12,2);
+      p(15,6,bd,4,8);
+      p(7,8,K,4,3); p(13,8,K,4,3);                                   // órbitas
+      p(8,9,gd,2,1); p(14,9,gd,2,1);                                 // brilho dourado nos olhos
+      p(11,11,K,2,2);
+      p(7,16,K,1,3); p(10,16,K,1,3); p(13,16,K,1,3); p(16,16,K,1,3); // dentes
+      p(6,16,bo,12,3); p(7,16,K,1,3); p(10,16,K,1,3); p(13,16,K,1,3); p(16,16,K,1,3);
+      p(6,19,K,12,1);
+      // RACHADURA dourada em zigue-zague
+      p(11,3,go,1,2); p(12,5,go,1,2); p(11,7,go,1,1); p(12,8,gd,1,3); p(11,11,go,1,2); p(12,13,gd,1,2);
+      p(10,4,gd,1,1); p(13,6,gd,1,1);
+      break;
+    }
     // === REWORK 2026-07 — ícones das 3 relíquias novas ===
     case "bloodMoon": {
       // Lua de Sangue — disco vermelho com crateras + gota escorrendo
@@ -68052,6 +68402,189 @@ function drawShopIcon(canvas, kind) {
   const K = "#0a0410";
 
   switch (kind) {
+    // ================= FEEDBACK R9 (2026-07-02) — REWORK DE ÍCONES =================
+    // Cases-override: num switch JS o PRIMEIRO case igual vence — os antigos abaixo
+    // ficam mortos. Motivos maiores, contorno K consistente, 3 tons + brilho.
+    case "scroll": {
+      // Pergaminho: rolo com varetas, fita vermelha e runas — (era "?" sem case!)
+      const pa = "#e8d8b0", pm = "#c8b488", pd = "#94805a", wd = "#6a4a24", rb = "#b02030";
+      p(6,4,K,20,1); p(5,5,K,1,3); p(26,5,K,1,3); p(6,8,K,20,1);
+      p(6,5,wd,20,3); p(6,5,"#8a6234",20,1);                       // vareta topo
+      p(8,8,K,1,16); p(23,8,K,1,16);                                // laterais
+      p(9,8,pa,14,16); p(21,8,pm,2,16); p(9,8,"#f4e8c8",14,1);      // folha
+      p(11,11,pd,10,1); p(11,14,pd,7,1); p(11,17,pd,10,1); p(11,20,pd,8,1);  // runas
+      p(6,24,K,20,1); p(5,25,K,1,3); p(26,25,K,1,3); p(6,28,K,20,1);
+      p(6,25,wd,20,3); p(6,25,"#8a6234",20,1);                      // vareta base
+      p(14,4,rb,4,6); p(15,3,rb,2,1); p(14,4,"#e05060",1,5);        // fita
+      break;
+    }
+    case "swords": {
+      // Espadas cruzadas: lâminas largas em X, guardas douradas
+      const bl = "#d8dce4", bs = "#9aa2b4", bh = "#ffffff", go = "#d4a637", gd = "#8a6a20", gr = "#6a4a24";
+      for (let i = 0; i < 14; i++) {
+        p(6+i, 5+i, K, 4, 1); p(25-i, 5+i, K, 4, 1);
+      }
+      for (let i = 0; i < 13; i++) {
+        p(7+i, 5+i, bl, 2, 1); p(9+i, 5+i, bs, 1, 1);
+        p(26-i, 5+i, bl, 2, 1); p(25-i, 5+i, bs, 1, 1);
+      }
+      p(8,6,bh,1,1); p(10,8,bh,1,1); p(24,6,bh,1,1);                // brilhos
+      p(16,15,bh,1,1);
+      p(9,19,K,6,3); p(17,19,K,6,3);
+      p(10,19,go,4,2); p(18,19,go,4,2); p(10,19,"#ffe890",4,1);     // guardas
+      p(7,22,gr,3,5); p(22,22,gr,3,5); p(7,22,K,1,5); p(24,22,K,1,5);  // cabos
+      p(6,27,go,4,2); p(22,27,go,4,2);                              // pomos
+      break;
+    }
+    case "crown": {
+      // Coroa real dourada com 3 pontas e gemas
+      const go = "#e8b840", gl = "#ffe890", gd = "#a87820", rb = "#d83048", em = "#40c860";
+      p(5,7,K,4,1); p(14,5,K,4,1); p(23,7,K,4,1);
+      p(5,8,K,1,6); p(8,8,K,1,4); p(14,6,K,1,4); p(17,6,K,1,4); p(23,8,K,1,4); p(26,8,K,1,6);
+      p(6,8,go,2,6); p(15,6,go,2,6); p(24,8,go,2,6);                // pontas
+      p(6,8,gl,1,2); p(15,6,gl,1,2); p(24,8,gl,1,2);
+      p(4,14,K,24,1); p(4,21,K,24,1); p(3,15,K,1,6); p(28,15,K,1,6);
+      p(4,15,go,24,6);                                              // faixa
+      p(4,15,gl,24,1); p(4,20,gd,24,1);
+      p(8,17,K,3,3); p(9,17,rb,2,2); p(9,17,"#ff8090",1,1);         // rubi
+      p(15,17,K,3,3); p(15,17,em,2,2); p(15,17,"#a0f0b0",1,1);      // esmeralda
+      p(21,17,K,3,3); p(22,17,rb,2,2); p(22,17,"#ff8090",1,1);
+      p(6,5,gl,1,1); p(16,3,gl,1,1); p(25,5,gl,1,1);                // cintilos nas pontas
+      break;
+    }
+    case "sword": {
+      // Espada vertical LARGA: lâmina com fio de luz, guarda dourada, cabo
+      const bl = "#d8dce4", bs = "#9aa2b4", bh = "#ffffff", go = "#d4a637", gr = "#6a4a24";
+      p(13,2,K,6,1); p(12,3,K,1,15); p(19,3,K,1,15);
+      p(13,3,bl,3,15); p(16,3,bs,3,15);                             // lâmina 6 de largura
+      p(14,3,bh,1,13);                                              // fio de luz
+      p(14,2,bh,4,1);                                               // ponta
+      p(9,18,K,14,1); p(8,19,K,1,3); p(23,19,K,1,3); p(9,22,K,14,1);
+      p(9,19,go,14,3); p(9,19,"#ffe890",14,1); p(9,21,"#8a6a20",14,1);  // guarda
+      p(14,22,gr,4,6); p(13,22,K,1,6); p(18,22,K,1,6);              // cabo
+      p(15,23,"#8a6234",1,4);
+      p(12,28,K,8,1); p(12,29,go,8,2); p(12,29,"#ffe890",8,1); p(12,31,K,8,1);  // pomo
+      break;
+    }
+    case "tornado": {
+      // Funil de tornado de verdade: bandas em espiral afinando + detritos
+      const c1 = "#cfd8e8", c2 = "#9fb0cc", c3 = "#7488ac", db = "#8a6a40";
+      const bands = [ [4,4,24],[6,7,20],[8,10,17],[10,13,13],[12,16,10],[14,19,7],[15,22,5],[16,25,3],[16,28,2] ];
+      for (const [bx,by,bw] of bands) {
+        p(bx-1,by,K,bw+2,3);
+      }
+      for (const [bx,by,bw] of bands) {
+        p(bx,by,c2,bw,3); p(bx,by,c1,bw,1); p(bx+bw-2,by+1,c3,2,2);
+        p(bx+1,by+1,"#ffffff",Math.max(1,(bw/4)|0),1);              // brilho girando
+      }
+      p(3,9,db,2,1); p(27,6,db,2,2); p(25,14,db,1,1); p(5,17,db,2,1);  // detritos
+      break;
+    }
+    case "clock": {
+      // Ampulheta GRANDE: moldura de madeira, vidro, areia dourada caindo
+      const wd = "#8a6234", wl = "#b08850", gl = "rgba(160,200,230,0.0)", sa = "#e8c860", sl = "#ffe890";
+      p(7,3,K,18,1); p(7,7,K,18,1); p(7,4,wd,18,3); p(7,4,wl,18,1);   // topo
+      p(7,25,K,18,1); p(7,29,K,18,1); p(7,26,wd,18,3); p(7,26,wl,18,1); // base
+      p(8,7,K,1,4); p(23,7,K,1,4); p(9,11,K,1,3); p(22,11,K,1,3);
+      p(10,14,K,1,2); p(21,14,K,1,2); p(11,16,K,2,1); p(19,16,K,2,1);
+      p(10,17,K,1,2); p(21,17,K,1,2); p(9,19,K,1,3); p(22,19,K,1,3);
+      p(8,22,K,1,3); p(23,22,K,1,3);                                  // vidro (contorno)
+      p(10,8,sa,12,3); p(11,11,sa,10,2); p(13,13,sa,6,1);             // areia de cima
+      p(10,8,sl,12,1);
+      p(15,14,sl,2,9);                                                // fio caindo
+      p(12,22,sa,8,3); p(13,21,sa,6,1); p(12,22,sl,8,1);              // monte de baixo
+      break;
+    }
+    case "carnage": {
+      // Crânio GRANDE rachado com talho vermelho diagonal + respingos
+      const bo = "#ece0c8", bd = "#b0a088", bl = "#d02840", blh = "#ff6070";
+      p(9,4,K,14,1); p(8,5,K,1,2); p(23,5,K,1,2); p(7,7,K,1,9); p(24,7,K,1,9);
+      p(8,16,K,1,2); p(23,16,K,1,2); p(9,18,K,14,1);
+      p(9,5,bo,14,1); p(8,7,bo,16,9); p(9,16,bo,14,2);
+      p(20,7,bd,4,9);                                                 // sombra
+      p(10,9,K,4,4); p(18,9,K,4,4);                                   // órbitas
+      p(11,10,bl,2,2); p(19,10,bl,2,2);                               // brilho vermelho
+      p(15,13,K,2,3);                                                 // nariz
+      p(10,18,K,1,4); p(13,18,K,1,4); p(16,18,K,1,4); p(19,18,K,1,4); // dentes
+      p(9,18,bo,14,4); p(10,18,K,1,4); p(13,18,K,1,4); p(16,18,K,1,4); p(19,18,K,1,4); p(22,18,K,1,4);
+      p(9,22,K,14,1);
+      for (let i = 0; i < 9; i++) p(8+i*2, 4+i*2, bl, 2, 2);           // TALHO diagonal
+      for (let i = 0; i < 9; i++) p(8+i*2, 4+i*2, blh, 1, 1);
+      p(25,24,bl,2,2); p(5,25,bl,2,1); p(27,9,bl,1,2); p(4,12,bl,1,1); // respingos
+      break;
+    }
+    case "cardGolem": {
+      // Cabeça de golem de pedra: blocos, testa pesada, olhos âmbar brilhando
+      const st = "#9a8e7c", sl = "#c0b4a0", sd = "#6a6054", am = "#ffb030", ah = "#ffe890";
+      p(7,5,K,18,1); p(6,6,K,1,20); p(25,6,K,1,20); p(7,26,K,18,1);
+      p(7,6,st,18,20); p(7,6,sl,18,2);
+      p(20,8,sd,5,18);                                                // sombra lateral
+      p(7,10,K,18,1);                                                 // fenda da testa
+      p(9,12,K,5,4); p(18,12,K,5,4);                                  // órbitas
+      p(10,13,am,3,2); p(19,13,am,3,2); p(10,13,ah,1,1); p(19,13,ah,1,1);
+      p(13,18,sd,6,2);                                                // nariz bloco
+      p(10,22,K,12,2); p(11,22,sd,10,2);                              // boca fenda
+      p(12,22,K,1,2); p(15,22,K,1,2); p(18,22,K,1,2);                 // dentes de pedra
+      p(8,7,"#ffffff",2,1);                                           // glint
+      break;
+    }
+    case "itemBoots": {
+      // Botas aladas: par de botas de couro claras + asa dourada
+      const le = "#a06a38", ll = "#c8905a", ld = "#6a4520", so = "#4a3018", wg = "#ffe890";
+      p(8,8,K,6,1); p(7,9,K,1,12); p(14,9,K,1,8);
+      p(8,9,le,6,12); p(8,9,ll,6,2); p(12,11,ld,2,10);
+      p(8,21,K,10,1); p(8,20,so,9,1); p(14,17,le,3,4); p(14,16,K,4,1); p(17,17,K,1,4);
+      p(17,10,K,6,1); p(16,11,K,1,12); p(23,11,K,1,8);
+      p(17,11,le,6,12); p(17,11,ll,6,2); p(21,13,ld,2,10);
+      p(17,23,K,10,1); p(17,22,so,9,1); p(23,19,le,3,4); p(23,18,K,4,1); p(26,19,K,1,4);
+      p(4,6,wg,4,1); p(3,7,wg,5,1); p(4,8,wg,3,1); p(5,9,wg,2,1);     // asa esq
+      p(24,8,wg,4,1); p(24,9,wg,5,1); p(25,10,wg,3,1); p(25,11,wg,2,1); // asa dir
+      break;
+    }
+    case "healPlus": {
+      // Cruz de cura: placa redonda clara + cruz vermelha grossa + brilho
+      const pl = "#f0ead8", pd = "#c8bca0", rd = "#d02840", rl = "#ff7080";
+      const disc = (r, col) => { for (let yy = -r; yy <= r; yy++) { const hw = Math.floor(Math.sqrt(r*r - yy*yy)); p(16-hw, 16+yy, col, hw*2, 1); } };
+      disc(12, K); disc(11, pl);
+      for (let yy = 5; yy <= 11; yy++) p(24 - Math.floor(Math.sqrt(121-(yy)*(yy)))/1, 16+yy, pd, 4, 1);
+      p(13,7,K,6,18); p(7,13,K,18,6);
+      p(14,8,rd,4,16); p(8,14,rd,16,4);
+      p(14,8,rl,4,2); p(8,14,rl,2,4); p(14,8,rl,1,16);
+      p(10,9,"#ffffff",2,1);                                           // glint da placa
+      break;
+    }
+    case "itemEssence": {
+      // Frasco de essência: vidro bojudo, líquido roxo com bolhas, rolha
+      const gv = "#b8d0e0", li = "#a040d0", lh = "#d880ff", lk = "#5a1888", ck = "#8a6234";
+      p(13,3,K,6,1); p(13,4,ck,6,3); p(13,4,"#b08850",6,1);            // rolha
+      p(12,7,K,8,1); p(11,8,K,1,2); p(20,8,K,1,2);
+      p(9,10,K,1,3); p(22,10,K,1,3); p(7,13,K,1,10); p(24,13,K,1,10);
+      p(8,23,K,1,3); p(23,23,K,1,3); p(9,26,K,14,1);
+      p(12,8,gv,8,2); p(10,10,gv,12,3);                                // vidro (gargalo)
+      p(8,13,li,16,10); p(9,23,li,14,3);                               // líquido
+      p(8,13,lh,16,2); p(10,15,lh,3,2);                                // superfície + reflexo
+      p(18,17,lh,2,2); p(12,20,lh,1,1); p(15,22,lh,2,1);               // bolhas
+      p(8,20,lk,3,5); p(20,21,lk,3,4);                                 // fundo escuro
+      p(10,10,"#ffffff",1,4);                                           // glint vidro
+      break;
+    }
+    case "itemSkull": {
+      // Crânio-totem com chama roxa na coroa
+      const bo = "#ece0c8", bd = "#b0a088", pu = "#a040d0", pl = "#d880ff", pw = "#f0d8ff";
+      p(14,3,pu,4,3); p(13,5,pu,2,2); p(17,5,pu,2,2); p(15,2,pl,2,3); p(15,4,pw,1,2);  // chama
+      p(10,8,K,12,1); p(9,9,K,1,2); p(22,9,K,1,2); p(8,11,K,1,7); p(23,11,K,1,7);
+      p(9,18,K,1,2); p(22,18,K,1,2); p(10,20,K,12,1);
+      p(10,9,bo,12,1); p(9,11,bo,14,7); p(10,18,bo,12,2);
+      p(19,11,bd,4,7);
+      p(11,12,K,4,4); p(17,12,K,4,4);                                   // órbitas
+      p(12,13,pu,2,2); p(18,13,pu,2,2); p(12,13,pl,1,1); p(18,13,pl,1,1);
+      p(15,16,K,2,2);
+      p(11,20,K,1,4); p(14,20,K,1,4); p(17,20,K,1,4); p(20,20,K,1,4);   // dentes
+      p(10,20,bo,12,4); p(11,20,K,1,4); p(14,20,K,1,4); p(17,20,K,1,4); p(20,20,K,1,4);
+      p(10,24,K,12,1);
+      p(9,26,K,14,1); p(8,27,"#6a4a24",16,3); p(8,27,"#8a6234",16,1); p(8,30,K,16,1);  // base do totem
+      break;
+    }
     case "explosiveSkull": {
       // Caveira óssea com olhos roxos (necro) + estilhaços de explosão ao redor
       const bo = "#ece4d4", bd = "#b0a088", eye = "#c060ff", eg = "#f0b0ff", fl = "#ff8030", fy = "#ffd860";
@@ -71579,7 +72112,7 @@ function renderShop() {
       </div>
     `;
     // 2026-04-27: canvas 64→112 (HD render no grid 32 → U=3, símbolo grosso)
-    const iconCanvas = createIconCanvas(up.icon || "heart", 112);
+    const iconCanvas = createIconCanvas(up.icon || "heart", 80);  // R9: 1:1 com o CSS 80px (112→80 borrava)
     iconCanvas.className = "u-icon";
     div.prepend(iconCanvas);
     div.onclick = () => {
@@ -71658,7 +72191,7 @@ function renderCampaignIntermission() {
       '<div class="u-desc">' + _upDesc + '</div>' +
       '<div class="u-footer"><span class="u-level">' + (isMax ? "MÁX" : lvl + " / " + max) + '</span>' +
       '<span class="u-cost">' + (isMax ? "✓" : "◈ " + cost) + '</span></div>';
-    const iconCanvas = createIconCanvas(up.icon || "heart", 112);
+    const iconCanvas = createIconCanvas(up.icon || "heart", 80);  // R9: 1:1 com o CSS 80px (112→80 borrava)
     iconCanvas.className = "u-icon";
     div.prepend(iconCanvas);
     div.onclick = () => {
@@ -73278,7 +73811,7 @@ function renderItemsMenu() {
     const card = document.createElement("div");
     card.className = "item-card";
     const iconKind = buff.icon || "heart";
-    const iconCanvas = (typeof createIconCanvas === "function") ? createIconCanvas(iconKind, 96) : document.createElement("canvas");
+    const iconCanvas = (typeof createIconCanvas === "function") ? createIconCanvas(iconKind, 80) : document.createElement("canvas");  // R9: 1:1 com .item-icon 80px
     iconCanvas.className = "item-icon";
     card.appendChild(iconCanvas);
     const key = buff.kind === "resist" ? ("resist" + (buff.subtype || "")) : buff.kind;
