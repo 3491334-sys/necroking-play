@@ -2843,6 +2843,59 @@
   }
   .legacy-tree-reset:hover { background: rgba(120, 30, 30, 0.7); color: #ffd0c0; }
   .legacy-tree-reset:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS dos companions */
+  .pcc-tree {
+    display: inline-block; margin-top: 3px; padding: 2px 6px;
+    font-family: inherit; font-size: 7px; cursor: pointer;
+    background: linear-gradient(180deg, #14301a, #205030);
+    border: 1px solid #40a860; color: #a0f0b0; border-radius: 3px;
+  }
+  .pcc-tree:hover { border-color: #80ffa0; color: #d0ffd8; }
+  .pcc-tree.full { border-color: #f7d96f; color: #ffe890; background: linear-gradient(180deg, #302810, #504018); }
+  .pcc-tree.locked { opacity: 0.45; cursor: default; border-color: #3a4a3a; color: #7a8a7a; background: #142014; }
+  .ctree-wrap {
+    width: min(680px, 94vw); max-height: 90vh; overflow-y: auto;
+    background: #14101a; border: 2px solid #5a4830; border-radius: 8px;
+    padding: 14px; box-shadow: 0 0 40px rgba(0,0,0,0.85);
+  }
+  .ctree-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ctree-head .ctree-icon { font-size: 26px; }
+  .ctree-name { font-size: 11px; color: #ffd060; }
+  .ctree-sub { font-size: 7px; color: #a09880; margin-top: 3px; }
+  .ctree-souls { margin-left: auto; font-size: 10px; color: #c0a8f0; white-space: nowrap; }
+  .ctree-close {
+    font-family: inherit; font-size: 10px; cursor: pointer; padding: 4px 8px;
+    background: #2a1820; border: 1px solid #a02830; color: #ff8080; border-radius: 4px;
+  }
+  .ctree-branches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .ctree-branch { background: rgba(10,6,14,0.5); border: 1px solid #2a2030; border-radius: 6px; padding: 8px 6px; }
+  .ctree-branch-title { text-align: center; font-size: 8px; color: #d4a637; margin-bottom: 8px; }
+  .ct-node {
+    display: block; width: 100%; box-sizing: border-box; text-align: left;
+    font-family: inherit; margin-bottom: 4px; padding: 6px;
+    background: rgba(30,20,35,0.8); border: 1px solid #3a2820; border-radius: 4px;
+    cursor: pointer; position: relative;
+  }
+  .ct-node + .ct-node::before {
+    content: ""; position: absolute; left: 50%; top: -5px; width: 2px; height: 5px; background: #3a2820;
+  }
+  .ct-node .ctn-name { font-size: 7px; color: #e8d8b0; }
+  .ct-node .ctn-desc { font-size: 6px; color: #a09880; margin-top: 3px; line-height: 1.5; }
+  .ct-node .ctn-cost { font-size: 7px; color: #c0a8f0; margin-top: 3px; }
+  .ct-node.bought { border-color: #f7d96f; background: rgba(70,55,20,0.55); cursor: default; }
+  .ct-node.bought .ctn-name { color: #ffe890; }
+  .ct-node.bought .ctn-cost { color: #80c860; }
+  .ct-node.avail { border-color: #40a860; }
+  .ct-node.avail:hover { border-color: #80ffa0; background: rgba(25,45,30,0.7); transform: translateY(-1px); }
+  .ct-node.locked { opacity: 0.42; cursor: default; }
+  .ctree-capstone-row { margin-top: 10px; display: flex; justify-content: center; }
+  .ctree-capstone-row .ct-node { width: min(340px, 100%); text-align: center; border-width: 2px; }
+  .ctree-capstone-row .ct-node.avail { border-color: #c060f0; }
+  .ctree-capstone-row .ct-node.avail:hover { border-color: #e0a0ff; }
+  .ctree-capstone-row .ct-node.bought { border-color: #f7d96f; }
+  @media (max-width: 600px) {
+    .ctree-branches { grid-template-columns: 1fr; }
+  }
   .upgrade {
     background: rgba(30,20,35,0.8);
     border: 2px solid #3a2820;
@@ -6347,6 +6400,23 @@
     </div>
   </div>
 
+  <!-- ============ FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS do companion ============ -->
+  <div id="companionTreeMenu" style="display:none; position:fixed; inset:0; z-index:255; background:rgba(4,2,8,0.84); align-items:center; justify-content:center;">
+    <div class="ctree-wrap">
+      <div class="ctree-head">
+        <span class="ctree-icon" id="ctreeIcon">💀</span>
+        <div>
+          <div class="ctree-name" id="ctreeName">COMPANION</div>
+          <div class="ctree-sub" id="ctreeSub">Árvore de Talentos — node exige o anterior do ramo; capstone exige 6 talentos</div>
+        </div>
+        <div class="ctree-souls">✦ <span id="ctreeSouls">0</span></div>
+        <button class="ctree-close" data-menu-action="close-companion-tree">✕ FECHAR</button>
+      </div>
+      <div class="ctree-branches" id="ctreeBranches"></div>
+      <div class="ctree-capstone-row" id="ctreeCapstone"></div>
+    </div>
+  </div>
+
   <!-- ============ CARD PICK (pre-run, Fase 18 Etapa 2.5) ============ -->
   <div id="cardPickMenu" class="menu-overlay">
     <div class="menu-wrap pick-wrap">
@@ -7060,18 +7130,14 @@ for (const c of COMPANION_DEFS) COMPANION_BY_ID[c.id] = c;
 // FEEDBACK 2026-07-02 — SKILL TRACK: máx subiu de 3 → 10. Níveis 1-3 destravam as
 // HABILIDADES ativas (como antes); níveis 4-10 destravam um PERK passivo único por
 // nível (COMPANION_PERKS), diferente pra cada companion. Custos em almas escalando.
+// FEEDBACK R8 (2026-07-02) — SKILL TREES: os níveis 4-10 lineares foram substituídos
+// pela ÁRVORE DE TALENTOS (COMPANION_TREES abaixo). Níveis 0-3 seguem como a espinha
+// (stats + Habilidades I/II/III + bônus LENDÁRIO); a árvore abre no nível 3.
 const COMPANION_LEVEL_DATA = [
-  { lvl: 0,  hpMult: 1.0,  atkMult: 1.0,  cost: 0,   label: "BASE",          desc: "Stats originais" },
-  { lvl: 1,  hpMult: 1.3,  atkMult: 1.2,  cost: 8,   label: "VETERANO",      desc: "+30% HP, +20% ATK · Habilidade I" },
-  { lvl: 2,  hpMult: 1.6,  atkMult: 1.4,  cost: 18,  label: "ELITE",         desc: "+60% HP, +40% ATK · Habilidade II" },
-  { lvl: 3,  hpMult: 2.0,  atkMult: 1.6,  cost: 35,  label: "LENDÁRIO",      desc: "+100% HP, +60% ATK · Habilidade III + bônus único" },
-  { lvl: 4,  hpMult: 2.2,  atkMult: 1.75, cost: 50,  label: "MESTRE I",      desc: "+120% HP, +75% ATK · desbloqueia PERK" },
-  { lvl: 5,  hpMult: 2.45, atkMult: 1.9,  cost: 70,  label: "MESTRE II",     desc: "+145% HP, +90% ATK · desbloqueia PERK" },
-  { lvl: 6,  hpMult: 2.7,  atkMult: 2.05, cost: 95,  label: "MESTRE III",    desc: "+170% HP, +105% ATK · desbloqueia PERK" },
-  { lvl: 7,  hpMult: 3.0,  atkMult: 2.2,  cost: 125, label: "ANCIÃO I",      desc: "+200% HP, +120% ATK · desbloqueia PERK" },
-  { lvl: 8,  hpMult: 3.3,  atkMult: 2.4,  cost: 160, label: "ANCIÃO II",     desc: "+230% HP, +140% ATK · desbloqueia PERK" },
-  { lvl: 9,  hpMult: 3.6,  atkMult: 2.6,  cost: 200, label: "ANCIÃO III",    desc: "+260% HP, +160% ATK · desbloqueia PERK" },
-  { lvl: 10, hpMult: 4.0,  atkMult: 3.0,  cost: 250, label: "TRANSCENDENTE", desc: "+300% HP, +200% ATK · PERK capstone" },
+  { lvl: 0,  hpMult: 1.0,  atkMult: 1.0,  cost: 0,   label: "BASE",     desc: "Stats originais" },
+  { lvl: 1,  hpMult: 1.3,  atkMult: 1.2,  cost: 8,   label: "VETERANO", desc: "+30% HP, +20% ATK · Habilidade I" },
+  { lvl: 2,  hpMult: 1.6,  atkMult: 1.4,  cost: 18,  label: "ELITE",    desc: "+60% HP, +40% ATK · Habilidade II" },
+  { lvl: 3,  hpMult: 2.0,  atkMult: 1.6,  cost: 35,  label: "LENDÁRIO", desc: "+100% HP, +60% ATK · Habilidade III + bônus único · abre a ÁRVORE DE TALENTOS" },
 ];
 function getCompanionLevel(cid) {
   return (progress.companionLevels && progress.companionLevels[cid]) || 0;
@@ -7122,16 +7188,119 @@ const COMPANION_PERKS = {
   },
 };
 
-// Acumula os flags dos perks destravados (níveis 4..lvl atual) num objeto único.
+// FEEDBACK R8 (2026-07-02) — ÁRVORES DE TALENTOS: 3 ramos × 3 nodes + capstone por
+// companion. Custos por profundidade 40/80/140✦, capstone 250✦ (requer 6 talentos).
+// Node N do ramo exige o N-1 do MESMO ramo. Todos os flags usam o vocabulário
+// EXISTENTE do acumulador (nada novo pra wirear). Compra em progress.companionTree.
+const COMPANION_TREE_COSTS = [40, 80, 140];
+const COMPANION_TREE_CAPSTONE_COST = 250;
+const COMPANION_TREE_CAPSTONE_REQ = 6;
+const COMPANION_TREES = {
+  lichPet: {
+    branches: [
+      { name: "FEITIÇARIA", icon: "🔮", nodes: [
+        { id: "lp_foco", name: "Foco Arcano", desc: "Habilidades recarregam 15% mais rápido", flags: { cdMult: 0.85 } },
+        { id: "lp_conjuracao", name: "Conjuração Veloz", desc: "Ataca 20% mais rápido", flags: { atkSpeedMult: 0.80 } },
+        { id: "lp_ossos_afiados", name: "Ossos Afiados", desc: "+20% de dano", flags: { dmgMult: 1.20 } },
+      ] },
+      { name: "VÍNCULO", icon: "👑", nodes: [
+        { id: "lp_elo", name: "Elo de Mana", desc: "Perto do Rei (150px): Rei +1 mana/s", flags: { kingManaAura: 1 } },
+        { id: "lp_elo_profundo", name: "Elo Profundo", desc: "+1 mana/s extra na aura", flags: { kingManaAura: 1 } },
+        { id: "lp_guardiao", name: "Guardião Etéreo", desc: "Perto do Rei (150px): Rei +1 HP/s", flags: { kingHpAura: 1 } },
+      ] },
+      { name: "OSSADA", icon: "🦴", nodes: [
+        { id: "lp_barreira", name: "Barreira Óssea", desc: "15% de esquiva", flags: { dodgeAdd: 0.15 } },
+        { id: "lp_cranios", name: "Crânios Famintos", desc: "Cura 10% do dano que causa", flags: { lifesteal: 0.10 } },
+        { id: "lp_ossos_duros", name: "Ossos Duros", desc: "+10% de esquiva extra", flags: { dodgeAdd: 0.10 } },
+      ] },
+    ],
+    capstone: { id: "lp_arquilich", name: "Arquilich", desc: "Habilidades −20% CD extra · +1 mana/s extra na aura", flags: { cdMult: 0.80, kingManaAura: 1 } },
+  },
+  necroPhantom: {
+    branches: [
+      { name: "CEIFA", icon: "🌙", nodes: [
+        { id: "np_foice", name: "Foice Faminta", desc: "Cura 15% do dano que causa", flags: { lifesteal: 0.15 } },
+        { id: "np_rancor", name: "Rancor", desc: "+25% de dano", flags: { dmgMult: 1.25 } },
+        { id: "np_foice_dupla", name: "Foice Dupla", desc: "15% de chance de golpear 2×", flags: { doubleStrike: 0.15 } },
+      ] },
+      { name: "ÉTER", icon: "💨", nodes: [
+        { id: "np_passo", name: "Passo Etéreo", desc: "+20% de velocidade", flags: { speedMult: 1.20 } },
+        { id: "np_nebulosa", name: "Forma Nebulosa", desc: "+20% de esquiva", flags: { dodgeAdd: 0.20 } },
+        { id: "np_intangivel", name: "Intangível", desc: "+10% de esquiva extra", flags: { dodgeAdd: 0.10 } },
+      ] },
+      { name: "GELO", icon: "❄", nodes: [
+        { id: "np_toque", name: "Toque Gélido", desc: "Golpes aplicam SLOW 1s", flags: { slowOnHit: 1000 } },
+        { id: "np_toque_profundo", name: "Toque Profundo", desc: "SLOW estendido pra 1.8s", flags: { slowOnHit: 1800 } },
+        { id: "np_vinculo", name: "Vínculo Sombrio", desc: "Perto do Rei (150px): Rei +1 HP/s", flags: { kingHpAura: 1 } },
+      ] },
+    ],
+    capstone: { id: "np_ceifador", name: "Ceifador", desc: "Abates curam o Rei em 5 HP · habilidades −25% CD", flags: { killHealKing: 5, cdMult: 0.75 } },
+  },
+  cacadorReal: {
+    branches: [
+      { name: "PONTARIA", icon: "🎯", nodes: [
+        { id: "cr_pontaria", name: "Pontaria Fina", desc: "+15% de chance de crítico", flags: { critAdd: 0.15 } },
+        { id: "cr_brutal", name: "Crítico Brutal", desc: "Críticos causam ×3 (era ×2)", flags: { critMultSet: 3 } },
+        { id: "cr_olho_mortal", name: "Olho Mortal", desc: "+10% de crítico extra", flags: { critAdd: 0.10 } },
+      ] },
+      { name: "ARSENAL", icon: "🏹", nodes: [
+        { id: "cr_farpadas", name: "Flechas Farpadas", desc: "+20% de dano", flags: { dmgMult: 1.20 } },
+        { id: "cr_rajada", name: "Rajada", desc: "Ataca 25% mais rápido", flags: { atkSpeedMult: 0.75 } },
+        { id: "cr_aguia", name: "Olho de Águia", desc: "+25% de alcance", flags: { rangeMult: 1.25 } },
+      ] },
+      { name: "CAÇADA", icon: "🐺", nodes: [
+        { id: "cr_marca", name: "Flecha Marcada", desc: "Alvos atingidos sofrem +10% de dano de TODOS por 3s", flags: { markOnHit: true } },
+        { id: "cr_predador", name: "Predador", desc: "+35% de dano vs alvos com HP < 25%", flags: { executioner: 0.35 } },
+        { id: "cr_passo", name: "Passo do Caçador", desc: "+20% de velocidade", flags: { speedMult: 1.20 } },
+      ] },
+    ],
+    capstone: { id: "cr_mestre", name: "Mestre Atirador", desc: "+15% crítico extra · habilidades −25% CD", flags: { critAdd: 0.15, cdMult: 0.75 } },
+  },
+  sombraReal: {
+    branches: [
+      { name: "VENENO", icon: "☠", nodes: [
+        { id: "sr_laminav", name: "Lâmina Envenenada", desc: "Golpes envenenam por 2s", flags: { poisonOnHit: 2000 } },
+        { id: "sr_toxina", name: "Toxina Concentrada", desc: "Veneno estendido pra 3.5s", flags: { poisonOnHit: 3500 } },
+        { id: "sr_execucao", name: "Execução", desc: "+50% de dano vs alvos com HP < 25%", flags: { executioner: 0.5 } },
+      ] },
+      { name: "SOMBRAS", icon: "🌑", nodes: [
+        { id: "sr_danca", name: "Dança das Sombras", desc: "+25% de velocidade", flags: { speedMult: 1.25 } },
+        { id: "sr_reflexos", name: "Reflexos", desc: "+15% de esquiva", flags: { dodgeAdd: 0.15 } },
+        { id: "sr_manto", name: "Manto Sombrio", desc: "+10% de esquiva extra", flags: { dodgeAdd: 0.10 } },
+      ] },
+      { name: "SANGUE", icon: "🩸", nodes: [
+        { id: "sr_sede", name: "Sede Sombria", desc: "Cura 20% do dano que causa", flags: { lifesteal: 0.20 } },
+        { id: "sr_golpe", name: "Golpe Duplo", desc: "20% de chance de golpear 2×", flags: { doubleStrike: 0.20 } },
+        { id: "sr_frenesi", name: "Frenesi", desc: "Ataca 15% mais rápido", flags: { atkSpeedMult: 0.85 } },
+      ] },
+    ],
+    capstone: { id: "sr_morte", name: "Morte Encarnada", desc: "+20% crítico extra · habilidades −25% CD", flags: { critAdd: 0.20, cdMult: 0.75 } },
+  },
+};
+function companionTreeState(cid) {
+  return (progress.companionTree && progress.companionTree[cid]) || {};
+}
+function companionTreeNodeCount(cid) {
+  const st = companionTreeState(cid);
+  let c = 0; for (const k in st) if (st[k]) c++;
+  return c;
+}
+
+// Acumula os flags dos TALENTOS COMPRADOS na árvore num objeto único.
+// (Mesmas regras do sistema linear antigo: mult ×=, add +=, max, OR.)
 function companionPerkFlags(cid) {
-  const lvl = getCompanionLevel(cid);
-  const set = COMPANION_PERKS[cid] || {};
+  const tree = COMPANION_TREES[cid];
+  const st = companionTreeState(cid);
   const f = { dmgMult: 1, atkSpeedMult: 1, cdMult: 1, rangeMult: 1, speedMult: 1,
               dodgeAdd: 0, critAdd: 0, critMultSet: 0, lifesteal: 0, slowOnHit: 0,
               poisonOnHit: 0, kingManaAura: 0, kingHpAura: 0, markOnHit: false,
               executioner: 0, doubleStrike: 0, killHealKing: 0 };
-  for (let l = 4; l <= Math.min(10, lvl); l++) {
-    const p = set[l]; if (!p || !p.flags) continue;
+  if (!tree) return f;
+  const bought = [];
+  for (const br of tree.branches) for (const nd of br.nodes) if (st[nd.id]) bought.push(nd);
+  if (st[tree.capstone.id]) bought.push(tree.capstone);
+  for (const p of bought) {
+    if (!p || !p.flags) continue;
     const g = p.flags;
     if (g.dmgMult) f.dmgMult *= g.dmgMult;
     if (g.atkSpeedMult) f.atkSpeedMult *= g.atkSpeedMult;
@@ -7154,12 +7323,17 @@ function companionPerkFlags(cid) {
   return f;
 }
 
-// Aplica os perks numa unidade de companion recém-criada (spawn E respawn).
+// Aplica os TALENTOS numa unidade de companion recém-criada (spawn E respawn).
+// R8: crescimento implícito de stats — cada talento comprado dá +7% HP e +6.5% ATK
+// multiplicativos (árvore completa ≈ ×1.97 HP / ×1.88 ATK sobre o LENDÁRIO, replicando
+// o teto do antigo nível 10: hpMult 4.0 / atkMult 3.0).
 function applyCompanionPerks(comp, cid) {
-  if (getCompanionLevel(cid) < 4) return;
+  const nodes = companionTreeNodeCount(cid);
+  if (nodes <= 0) return;
+  comp.maxHp = Math.round(comp.maxHp * Math.pow(1.07, nodes));
   const pf = companionPerkFlags(cid);
   comp._perks = pf;
-  comp.atk = Math.max(1, Math.round(comp.atk * pf.dmgMult));
+  comp.atk = Math.max(1, Math.round(comp.atk * Math.pow(1.065, nodes) * pf.dmgMult));
   if (pf.atkSpeedMult !== 1) comp.attackCooldownMax = Math.max(220, Math.round((comp.attackCooldownMax || 1300) * pf.atkSpeedMult));
   // FEEDBACK R8 (2026-07-02): era comp.range (campo MORTO) — a IA lê attackRange
   if (pf.rangeMult !== 1) comp.attackRange = Math.round((comp.attackRange || 205) * pf.rangeMult);
@@ -9845,6 +10019,8 @@ const DEFAULT_PROGRESS = {
   // COMBO 15 — Companion upgrades (níveis 0-3 por companion)
   // Custo em ALMAS (✦). Lvl 1 = +30% HP/atk, Lvl 2 = +60%/40%, Lvl 3 = +100%/60% + skill especial
   companionLevels: { lichPet: 0, necroPhantom: 0, cacadorReal: 0, sombraReal: 0 },
+  // FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS: mapa nodeId→true por companion
+  companionTree: { lichPet: {}, necroPhantom: {}, cacadorReal: {}, sombraReal: {} },
   // COMBO 10 C3 — DAILY CHALLENGE
   // dailySeed: YYYYMMDD da última tentativa
   // dailyAttempts: nº de tentativas hoje
@@ -9967,6 +10143,30 @@ function loadProgress(slotIdx) {
     if (!result.companionLevels || typeof result.companionLevels !== "object") {
       result.companionLevels = { lichPet: 0, necroPhantom: 0, cacadorReal: 0, sombraReal: 0 };
     }
+    // FEEDBACK R8 (2026-07-02) — árvore de talentos: guard + MIGRAÇÃO de saves antigos.
+    // Saves com nível 4-10 (trilha linear extinta) convertem cada nível comprado no
+    // node 1:1 da árvore nova e clampam o nível pra 3 (nada é perdido; a migração
+    // ignora pré-requisitos — node migrado vale mesmo "fora de ordem").
+    if (!result.companionTree || typeof result.companionTree !== "object") {
+      result.companionTree = { lichPet: {}, necroPhantom: {}, cacadorReal: {}, sombraReal: {} };
+    }
+    const _MIGRATE_TRACK = {
+      lichPet:      { 4: "lp_foco", 5: "lp_ossos_afiados", 6: "lp_elo", 7: "lp_conjuracao", 8: "lp_barreira", 9: "lp_cranios", 10: "lp_arquilich" },
+      necroPhantom: { 4: "np_foice", 5: "np_passo", 6: "np_toque", 7: "np_rancor", 8: "np_nebulosa", 9: "np_vinculo", 10: "np_ceifador" },
+      cacadorReal:  { 4: "cr_pontaria", 5: "cr_farpadas", 6: "cr_aguia", 7: "cr_rajada", 8: "cr_marca", 9: "cr_brutal", 10: "cr_mestre" },
+      sombraReal:   { 4: "sr_laminav", 5: "sr_danca", 6: "sr_execucao", 7: "sr_reflexos", 8: "sr_sede", 9: "sr_golpe", 10: "sr_morte" },
+    };
+    for (const cid in _MIGRATE_TRACK) {
+      const lvl = result.companionLevels[cid] || 0;
+      if (lvl > 3) {
+        result.companionTree[cid] = result.companionTree[cid] || {};
+        for (let l = 4; l <= Math.min(10, lvl); l++) {
+          const nodeId = _MIGRATE_TRACK[cid][l];
+          if (nodeId) result.companionTree[cid][nodeId] = true;
+        }
+        result.companionLevels[cid] = 3;
+      }
+    }
     return result;
   } catch (err) {
     // COMBO 11 G3 — JSON parse failure: tenta recuperar de backup
@@ -10068,6 +10268,18 @@ function _validateProgress(p) {
     out.companionLevels = {};
     for (const k in p.companionLevels) {
       if (typeof p.companionLevels[k] === "number") out.companionLevels[k] = p.companionLevels[k];
+    }
+  }
+  // FEEDBACK R8 (2026-07-02) — árvore de talentos (campo que não passa aqui é wipeado)
+  if (p.companionTree && typeof p.companionTree === "object") {
+    out.companionTree = {};
+    for (const cid in p.companionTree) {
+      if (p.companionTree[cid] && typeof p.companionTree[cid] === "object") {
+        out.companionTree[cid] = {};
+        for (const nodeId in p.companionTree[cid]) {
+          if (p.companionTree[cid][nodeId]) out.companionTree[cid][nodeId] = true;
+        }
+      }
     }
   }
   for (const num of ["bossRushBestTime", "bossRushAttempts", "bossRushClears", "survivalBestTime", "survivalAttempts"]) {
@@ -10257,6 +10469,16 @@ function buildEndlessProfile() {
       if (p.companionLevels) {
         base.companionLevels = base.companionLevels || {};
         for (const k in p.companionLevels) base.companionLevels[k] = Math.max(base.companionLevels[k] || 0, p.companionLevels[k] || 0);
+      }
+      // R8 — árvore de talentos: UNIÃO dos nodes comprados nos 3 slots
+      if (p.companionTree) {
+        base.companionTree = base.companionTree || {};
+        for (const cid in p.companionTree) {
+          base.companionTree[cid] = base.companionTree[cid] || {};
+          for (const nodeId in p.companionTree[cid]) {
+            if (p.companionTree[cid][nodeId]) base.companionTree[cid][nodeId] = true;
+          }
+        }
       }
       if (p.unlockedRelics) {
         base.unlockedRelics = base.unlockedRelics || {};
@@ -30061,30 +30283,24 @@ function renderPickCompanion() {
       card.dataset.menuAction = "pick-companion";
       card.dataset.companionId = def.id;
     }
-    // COMBO 15 — Mostra nível atual + custo do próximo
-    // FEEDBACK 2026-07-02 — SKILL TRACK: Lv N/10 + trilha de perks (◆ ativos / ◇ bloqueados)
+    // FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS: Lv N/3 + botão 🌳 (abre no lvl 3)
     let lvlBadge = "";
     let upgradeBtn = "";
     let perkTrack = "";
     if (unlocked) {
       const curLvl = getCompanionLevel(def.id);
       const nextLvlData = COMPANION_LEVEL_DATA[curLvl + 1];
-      lvlBadge = `<div class="pcc-lvl">Lv ${curLvl}/10</div>`;
-      const perkSet = COMPANION_PERKS[def.id] || {};
-      let pips = "";
-      for (let l = 4; l <= 10; l++) {
-        const p = perkSet[l]; if (!p) continue;
-        const on = curLvl >= l;
-        pips += `<span class="pcc-perk${on ? " on" : ""}" title="Lv ${l} — ${p.name}: ${p.desc}">${on ? "◆" : "◇"}</span>`;
+      lvlBadge = `<div class="pcc-lvl">Lv ${curLvl}/3</div>`;
+      const nodeCount = (typeof companionTreeNodeCount === "function") ? companionTreeNodeCount(def.id) : 0;
+      if (curLvl >= 3) {
+        perkTrack = `<button class="pcc-tree${nodeCount >= 10 ? " full" : ""}" data-menu-action="open-companion-tree" data-companion-id="${def.id}" title="Árvore de Talentos — ${nodeCount}/10 comprados">🌳 ${nodeCount}/10</button>`;
+      } else {
+        perkTrack = `<div class="pcc-tree locked" title="A Árvore de Talentos abre no nível 3 (LENDÁRIO)">🌳 Lv3</div>`;
       }
-      if (pips) perkTrack = `<div class="pcc-perks">${pips}</div>`;
       if (nextLvlData) {
         const canAfford = (progress.souls || 0) >= nextLvlData.cost;
-        const nextPerk = perkSet[curLvl + 1];
-        const tip = `${nextLvlData.label}: ${nextLvlData.desc}` + (nextPerk ? ` — ${nextPerk.name}: ${nextPerk.desc}` : "");
+        const tip = `${nextLvlData.label}: ${nextLvlData.desc}`;
         upgradeBtn = `<button class="pcc-upgrade${canAfford ? '' : ' locked'}" data-menu-action="upgrade-companion" data-companion-id="${def.id}" title="${tip}">▲ ${nextLvlData.cost}✦</button>`;
-      } else {
-        upgradeBtn = `<div class="pcc-max">MAX</div>`;
       }
     }
     card.innerHTML = `
@@ -30098,6 +30314,133 @@ function renderPickCompanion() {
     card.title = unlocked ? (def.name + " — " + def.desc) : ("Bloqueado: " + def.unlock);
     grid.appendChild(card);
   }
+}
+
+// FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS: painel, compra e refresh do vivo.
+let _companionTreeCid = null;
+function renderCompanionTree(cid) {
+  const tree = COMPANION_TREES[cid];
+  const def = COMPANION_BY_ID[cid];
+  if (!tree || !def) return;
+  _companionTreeCid = cid;
+  const icons = { lichPet: "💀", necroPhantom: "👻", cacadorReal: "🏹", sombraReal: "🗡" };
+  document.getElementById("ctreeIcon").textContent = icons[cid] || "❔";
+  document.getElementById("ctreeName").textContent = def.name.toUpperCase() + " — Lv " + getCompanionLevel(cid) + "/3";
+  document.getElementById("ctreeSouls").textContent = progress.souls || 0;
+  const st = companionTreeState(cid);
+  const souls = progress.souls || 0;
+  const nodeHtml = (nd, cost, state, reason) => {
+    const cls = state === "bought" ? "bought" : (state === "avail" ? "avail" : "locked");
+    const costTxt = state === "bought" ? "◆ COMPRADO" : (cost + "✦" + (state === "locked" && reason ? " · " + reason : ""));
+    const action = state === "avail" ? ` data-menu-action="buy-comp-node" data-companion-id="${cid}" data-node-id="${nd.id}"` : "";
+    return `<button class="ct-node ${cls}"${action} title="${nd.name}: ${nd.desc}">
+      <div class="ctn-name">${state === "bought" ? "◆ " : ""}${nd.name}</div>
+      <div class="ctn-desc">${nd.desc}</div>
+      <div class="ctn-cost">${costTxt}</div>
+    </button>`;
+  };
+  const host = document.getElementById("ctreeBranches");
+  host.innerHTML = "";
+  for (const br of tree.branches) {
+    let col = `<div class="ctree-branch"><div class="ctree-branch-title">${br.icon} ${br.name}</div>`;
+    br.nodes.forEach((nd, i) => {
+      const cost = COMPANION_TREE_COSTS[i];
+      let state = "locked", reason = "";
+      if (st[nd.id]) state = "bought";
+      else if (i > 0 && !st[br.nodes[i - 1].id]) { state = "locked"; reason = "requer o anterior"; }
+      else if (souls < cost) { state = "locked"; reason = "faltam almas"; }
+      else state = "avail";
+      col += nodeHtml(nd, cost, state, reason);
+    });
+    col += "</div>";
+    host.innerHTML += col;
+  }
+  const capHost = document.getElementById("ctreeCapstone");
+  const bought = companionTreeNodeCount(cid);
+  const cap = tree.capstone;
+  let capState = "locked", capReason = "";
+  if (st[cap.id]) capState = "bought";
+  else if (bought < COMPANION_TREE_CAPSTONE_REQ) { capState = "locked"; capReason = "requer " + COMPANION_TREE_CAPSTONE_REQ + " talentos (" + bought + "/" + COMPANION_TREE_CAPSTONE_REQ + ")"; }
+  else if (souls < COMPANION_TREE_CAPSTONE_COST) { capState = "locked"; capReason = "faltam almas"; }
+  else capState = "avail";
+  capHost.innerHTML = nodeHtml(cap, COMPANION_TREE_CAPSTONE_COST, capState, capReason);
+}
+
+function buyCompanionTreeNode(cid, nodeId) {
+  const tree = COMPANION_TREES[cid];
+  if (!tree) return;
+  if (getCompanionLevel(cid) < 3) {
+    showToast("A Árvore de Talentos abre no nível 3 (LENDÁRIO)", 2200, "danger");
+    if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
+    return;
+  }
+  if (!progress.companionTree) progress.companionTree = {};
+  const st = progress.companionTree[cid] = progress.companionTree[cid] || {};
+  if (st[nodeId]) return;
+  let node = null, cost = 0, blocked = "";
+  if (tree.capstone.id === nodeId) {
+    node = tree.capstone; cost = COMPANION_TREE_CAPSTONE_COST;
+    if (companionTreeNodeCount(cid) < COMPANION_TREE_CAPSTONE_REQ) blocked = "O capstone exige " + COMPANION_TREE_CAPSTONE_REQ + " talentos comprados";
+  } else {
+    for (const br of tree.branches) {
+      br.nodes.forEach((nd, i) => {
+        if (nd.id === nodeId) {
+          node = nd; cost = COMPANION_TREE_COSTS[i];
+          if (i > 0 && !st[br.nodes[i - 1].id]) blocked = "Requer o talento anterior do ramo";
+        }
+      });
+    }
+  }
+  if (!node) return;
+  if (blocked) { showToast(blocked, 2200, "danger"); if (Sfx.deny) Sfx.deny(); return; }
+  if ((progress.souls || 0) < cost) {
+    showToast("Faltam almas (✦ " + (progress.souls || 0) + " / " + cost + ")", 2200, "danger");
+    if (Sfx.deny) Sfx.deny();
+    return;
+  }
+  progress.souls -= cost;
+  st[nodeId] = true;
+  if (typeof saveProgressNow === "function") saveProgressNow(); else saveProgress();
+  if (typeof Sfx !== "undefined" && Sfx.levelUp) Sfx.levelUp();
+  showToast("◆ " + node.name, 1800, "magic");
+  refreshCompanionUnit();
+  renderCompanionTree(cid);
+  if (typeof renderPickCompanion === "function") renderPickCompanion();
+}
+
+// Reaplica stats no companion VIVO (compra mid-run): reconstrói pela MESMA sequência
+// do spawn (makeAlly → flags da classe → mults de nível → bônus lvl3 → talentos),
+// preservando a % de HP atual. makeAlly não é pushado — usamos só os stats computados.
+function refreshCompanionUnit() {
+  const comp = game.companion;
+  if (!comp || !isAlive(comp) || !progress.activeCompanion) return;
+  const def = COMPANION_BY_ID[progress.activeCompanion];
+  if (!def || comp.companionId !== def.id) return;
+  const cls = CLASSES[def.classId];
+  if (!cls) return;
+  const hpPct = comp.maxHp > 0 ? Math.max(0.05, comp.hp / comp.maxHp) : 1;
+  const fresh = makeAlly(comp.x, comp.y, def.classId);
+  comp.maxHp = fresh.maxHp; comp.atk = fresh.atk;
+  comp.attackRange = fresh.attackRange; comp.attackCooldownMax = fresh.attackCooldownMax;
+  comp.moveSpeed = fresh.moveSpeed;
+  comp.dodgeChance = cls.dodgeChance || 0;
+  comp.critChance = cls.critChance || 0;
+  comp.critMult = cls.critMult || 2;
+  comp.physResist = cls.physResist || 0;
+  const lvlData = getCompanionLevelData(def.id);
+  if (lvlData.lvl > 0) {
+    comp.maxHp = Math.round(comp.maxHp * lvlData.hpMult);
+    comp.atk = Math.round(comp.atk * lvlData.atkMult);
+    comp._companionLvl = lvlData.lvl;
+  }
+  if (lvlData.lvl >= 3) {
+    if (def.id === "lichPet") comp.attackCooldownMax = Math.round((comp.attackCooldownMax || 1300) * 0.7);
+    else if (def.id === "necroPhantom") comp.physResist = 0.75;
+    else if (def.id === "cacadorReal") comp.attackRange = Math.round((comp.attackRange || 205) * 1.25);
+    else if (def.id === "sombraReal") { comp.dodgeChance = 0.40; comp.critChance = 0.55; }
+  }
+  if (typeof applyCompanionPerks === "function") applyCompanionPerks(comp, def.id);
+  comp.hp = Math.max(1, Math.round(comp.maxHp * hpPct));
 }
 
 // Monta os 3 slots vazios (sempre 3 no UI; o cap só limita quantos podem encher).
@@ -75202,6 +75545,29 @@ document.addEventListener("click", (e) => {
       if (typeof renderPickCompanion === "function") renderPickCompanion();
       break;
     }
+    // FEEDBACK R8 (2026-07-02) — ÁRVORE DE TALENTOS do companion
+    case "open-companion-tree": {
+      e.stopPropagation();   // botão vive dentro do card clicável (mesmo padrão do upgrade)
+      const cidT = btn.dataset.companionId;
+      if (cidT && typeof renderCompanionTree === "function") {
+        renderCompanionTree(cidT);
+        const ov = document.getElementById("companionTreeMenu");
+        if (ov) ov.style.display = "flex";
+      }
+      break;
+    }
+    case "close-companion-tree": {
+      const ovC = document.getElementById("companionTreeMenu");
+      if (ovC) ovC.style.display = "none";
+      break;
+    }
+    case "buy-comp-node": {
+      e.stopPropagation();
+      if (typeof buyCompanionTreeNode === "function") {
+        buyCompanionTreeNode(btn.dataset.companionId, btn.dataset.nodeId);
+      }
+      break;
+    }
     // COMBO 15 — upgrade de companion (custa almas)
     case "upgrade-companion": {
       e.stopPropagation();
@@ -75220,6 +75586,8 @@ document.addEventListener("click", (e) => {
       progress.souls -= nextLvlData.cost;
       if (!progress.companionLevels) progress.companionLevels = {};
       progress.companionLevels[cid] = curLvl + 1;
+      // R8: subir pro nível 3 reabre o card com o botão da árvore
+      if (typeof refreshCompanionUnit === "function") refreshCompanionUnit();
       // 2026-05-03 COMBO 54 BUGFIX T4: saveProgressNow (não debounced) pra garantir
       // que o nível persista IMEDIATAMENTE — antes user podia fechar o jogo nos
       // 250ms do debounce e perder o upgrade.
@@ -75556,6 +75924,13 @@ document.addEventListener("keydown", (e) => {
   const _cm = document.getElementById("confirmModal");
   if (_cm && _cm.style.display === "flex") {
     _cm.style.display = "none";
+    e.preventDefault();
+    return;
+  }
+  // FEEDBACK R8 (2026-07-02) — ESC fecha a Árvore de Talentos (mesmo padrão do confirmModal)
+  const _ctm = document.getElementById("companionTreeMenu");
+  if (_ctm && _ctm.style.display === "flex") {
+    _ctm.style.display = "none";
     e.preventDefault();
     return;
   }
