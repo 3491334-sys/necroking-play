@@ -9447,7 +9447,8 @@ const CLASSES = {
     hp: 380, atk: 38, range: 30, atkCd: 1500, speed: 50,
     scale: 1.85, radius: 12, coin: 48, armorBlock: 42,
     desc: "Colosso aquático — golpes em área que envenenam.",
-    body: "#0a1822", bodyD: "#040a10", armor: "#1a4858", armorD: "#0a2028", accent: "#50c8e0",
+    // R16: paleta clareada — o corpo #0a1822 era ilegível sobre a água #0e3346
+    body: "#1e5064", bodyD: "#0c2a36", armor: "#2f7e98", armorD: "#143e4c", accent: "#5fd8f0",
     weapon: "club", weaponColor: "#2a6878", weaponDark: "#0a2028",
     onHit: "poisonStack",
   },
@@ -14148,7 +14149,7 @@ const POI_DEFS = {
   catedral: { kind: "campanario", name: "Campanário",  color1: "#fff080", color2: "#7a5018", glyph: "cross"   },
   // REWORK 2026-07 (Endless V2) — o aquático finalmente tem POI próprio (antes
   // caía no fallback e virava obelisco de deserto no meio do mar).
-  aquatico: { kind: "farol",      name: "Farol Afundado", color1: "#68c8e8", color2: "#123a52", glyph: "crystal" },
+  aquatico: { kind: "farol",      name: "Farol Afundado", color1: "#68c8e8", color2: "#123a52", glyph: "lighthouse" },   // R16: glyph próprio (era clone do santuário de gelo)
 };
 const POI_RADIUS = 46;               // raio visual + zona de gatilho (FEEDBACK 2026-07-02: 36→46, POIs maiores)
 const POI_TRIGGER_DIST = 260;        // rei precisa entrar nesse raio pra spawnar guardas
@@ -40931,6 +40932,7 @@ function drawBossArenaFloor(camX, camY) {
   else if (biomeId === "pantano") drawArenaFloorPantano(sx, sy, r, alpha, a);
   else if (biomeId === "cogumelo") drawArenaFloorCogumelo(sx, sy, r, alpha, a);
   else if (biomeId === "catedral") drawArenaFloorCatedral(sx, sy, r, alpha, a);
+  else if (biomeId === "aquatico") drawArenaFloorAquatico(sx, sy, r, alpha, a);   // R16
   else if (biomeId === "guilda")   drawArenaFloorGuilda(sx, sy, r, alpha, a);
   else                             drawArenaFloorNecroKing(sx, sy, r, alpha, a);
   offCtx.globalAlpha = 1;
@@ -41217,6 +41219,114 @@ function drawArenaFloorGelo(sx, sy, r, alpha, a) {
     offCtx.globalAlpha = (0.15 + fogPulse * 0.20) * alpha;
     offCtx.fillStyle = "#e0f4ff";
     offCtx.fillRect(Math.round(fx), Math.round(fy), 2, 2);
+  }
+  offCtx.globalAlpha = 1;
+}
+
+// ===== Arena AQUÁTICO — recife de coral + tridente dourado + bolhas (R16) =====
+function drawArenaFloorAquatico(sx, sy, r, alpha, a) {
+  const t = a.pulseT;
+  // Piso de mar profundo
+  offCtx.globalAlpha = 0.32 * alpha;
+  offCtx.fillStyle = "#0e3346";
+  fillCircle(sx, sy, r - 4);
+  // Cáusticas (mancha de luz na água)
+  offCtx.globalAlpha = 0.14 * alpha;
+  offCtx.fillStyle = "#7fcfe8";
+  fillCircle(sx - 18, sy - 26, r * 0.6);
+  // Anel duplo
+  offCtx.globalAlpha = 0.7 * alpha;
+  offCtx.strokeStyle = "#50b8d8";
+  offCtx.lineWidth = 3;
+  offCtx.beginPath();
+  offCtx.arc(sx, sy, r - 2, 0, Math.PI * 2);
+  offCtx.stroke();
+  offCtx.lineWidth = 1;
+  offCtx.strokeStyle = "#bfe9ff";
+  offCtx.globalAlpha = 0.85 * alpha;
+  offCtx.beginPath();
+  offCtx.arc(sx, sy, r - 4, 0, Math.PI * 2);
+  offCtx.stroke();
+  const pulse = 0.5 + Math.sin(t / 400) * 0.5;
+  // 6 CORAIS ramificados ao redor
+  for (let i = 0; i < 6; i++) {
+    const ang = (Math.PI * 2 * i) / 6 + Math.PI / 6;
+    const cx = sx + Math.round(Math.cos(ang) * (r * 0.55));
+    const cyx = sy + Math.round(Math.sin(ang) * (r * 0.55));
+    offCtx.globalAlpha = 0.4 * alpha;
+    offCtx.fillStyle = "#071c28";
+    offCtx.fillRect(cx - 3, cyx + 3, 7, 2);
+    offCtx.globalAlpha = 0.85 * alpha;
+    offCtx.fillStyle = "#c8503c";
+    offCtx.fillRect(cx - 1, cyx - 3, 2, 6);
+    offCtx.fillStyle = "#ff7a5a";
+    offCtx.fillRect(cx - 3, cyx - 5, 2, 4);
+    offCtx.fillRect(cx + 2, cyx - 6, 2, 5);
+    offCtx.fillRect(cx - 1, cyx - 7, 2, 3);
+    offCtx.globalAlpha = (0.5 + pulse * 0.5) * alpha;
+    offCtx.fillStyle = "#ffb090";
+    offCtx.fillRect(cx - 3, cyx - 6, 1, 1);
+    offCtx.fillRect(cx + 2, cyx - 7, 1, 1);
+    offCtx.fillRect(cx - 1, cyx - 8, 1, 1);
+  }
+  // 4 CONCHAS nos cardeais
+  for (let i = 0; i < 4; i++) {
+    const ang = (Math.PI * 2 * i) / 4 + Math.PI / 8;
+    const sxa = sx + Math.round(Math.cos(ang) * (r * 0.85));
+    const sya = sy + Math.round(Math.sin(ang) * (r * 0.85));
+    offCtx.globalAlpha = 0.75 * alpha;
+    offCtx.fillStyle = "#8a6848";
+    offCtx.fillRect(sxa - 2, sya + 1, 5, 2);
+    offCtx.fillStyle = "#e8c8a0";
+    offCtx.fillRect(sxa - 2, sya - 1, 5, 2);
+    offCtx.fillRect(sxa - 1, sya - 3, 3, 2);
+    offCtx.fillStyle = "#c09068";
+    offCtx.fillRect(sxa, sya - 3, 1, 4);
+    offCtx.globalAlpha = pulse * alpha;
+    offCtx.fillStyle = "#fff";
+    offCtx.fillRect(sxa, sya - 4, 1, 1);
+  }
+  // SONAR: 2 anéis expandindo do centro
+  for (let k = 0; k < 2; k++) {
+    const ph = ((t / 1400 + k * 0.5) % 1);
+    offCtx.globalAlpha = (1 - ph) * 0.35 * alpha;
+    offCtx.strokeStyle = "#7fcfe8";
+    offCtx.lineWidth = 1;
+    offCtx.beginPath();
+    offCtx.arc(sx, sy, 6 + ph * (r * 0.5), 0, Math.PI * 2);
+    offCtx.stroke();
+  }
+  // GLIFO CENTRAL: tridente dourado
+  offCtx.globalAlpha = (0.55 + pulse * 0.45) * alpha;
+  offCtx.fillStyle = "#ffd060";
+  offCtx.fillRect(sx - 1, sy - 6, 2, 16);
+  offCtx.fillRect(sx - 6, sy - 8, 12, 2);
+  offCtx.fillRect(sx - 6, sy - 14, 2, 6);
+  offCtx.fillRect(sx + 4, sy - 14, 2, 6);
+  offCtx.fillRect(sx - 1, sy - 16, 2, 8);
+  offCtx.fillStyle = "#fff080";
+  offCtx.globalAlpha = pulse * alpha;
+  offCtx.fillRect(sx - 1, sy - 16, 2, 2);
+  // BOLHAS subindo (loop vertical, wobble)
+  for (let i = 0; i < 14; i++) {
+    const ph = ((t / 2200 + i * 0.137) % 1);
+    const bx = sx + Math.round(Math.cos(i * 2.4) * r * 0.55 + Math.sin(t / 500 + i) * 3);
+    const by = sy + Math.round(r * 0.55 - ph * r * 1.1);
+    offCtx.globalAlpha = (0.15 + 0.25 * (1 - ph)) * alpha;
+    offCtx.fillStyle = "#bfe9ff";
+    offCtx.fillRect(bx, by, 2, 2);
+  }
+  // 4 ALGAS balançando
+  for (let i = 0; i < 4; i++) {
+    const ang = (Math.PI * 2 * i) / 4 + Math.PI / 3;
+    const kx = sx + Math.round(Math.cos(ang) * (r * 0.7));
+    const ky = sy + Math.round(Math.sin(ang) * (r * 0.7));
+    offCtx.globalAlpha = 0.6 * alpha;
+    for (let s2 = 0; s2 < 4; s2++) {
+      const sw = Math.round(Math.sin(t / 420 + i + s2 * 0.7) * (s2 * 0.6));
+      offCtx.fillStyle = s2 >= 2 ? "#58c88a" : "#2f8a5a";
+      offCtx.fillRect(kx + sw, ky - s2 * 2, 1, 2);
+    }
   }
   offCtx.globalAlpha = 1;
 }
@@ -42450,6 +42560,13 @@ function getArenaPillarPalette(biomeId, a) {
     ornament: "#fff080", ornDark: "#7a5018",
     type: "coin",  // pilar com moeda no topo (visual mercantil)
   };
+  // 2026-07-03 R16 — Arena AQUÁTICO (Leviatã Rei — pedra-marinha + tridente dourado)
+  if (biomeId === "aquatico") return {
+    baseD: "#0a2430", base: "#1a4858", baseL: "#3a7a94",
+    cap:   "#2f8aa8", capL: "#7fd8f0",
+    ornament: "#ffd060", ornDark: "#7a5018",
+    type: "trident",
+  };
   // NecroKing / neutro
   return {
     baseD: "#0a0a14", base: "#1a1a2a", baseL: "#3a3a4a",
@@ -42558,6 +42675,22 @@ function drawPillarOrnament(px, py, P, t, pulse, alpha) {
       // Topo brilhante pulsante
       offCtx.globalAlpha = ornPulse * alpha;
       offCtx.fillRect(px, oy - 8, 1, 1);
+      offCtx.globalAlpha = 1;
+      break;
+    }
+    case "trident": {
+      // R16 — Tridente dourado do Leviatã Rei
+      offCtx.fillStyle = P.ornDark;
+      offCtx.fillRect(px, oy - 6, 1, 6);           // cabo (sombra)
+      offCtx.fillStyle = P.ornament;
+      offCtx.fillRect(px - 1, oy - 6, 1, 6);       // cabo
+      offCtx.fillRect(px - 3, oy - 6, 5, 1);       // travessa
+      offCtx.fillRect(px - 3, oy - 9, 1, 3);       // dente esq
+      offCtx.fillRect(px + 1, oy - 9, 1, 3);       // dente dir
+      offCtx.fillRect(px - 1, oy - 10, 1, 4);      // dente central
+      offCtx.globalAlpha = ornPulse * alpha;
+      offCtx.fillStyle = "#fff080";
+      offCtx.fillRect(px - 1, oy - 10, 1, 1);      // glint na ponta
       offCtx.globalAlpha = 1;
       break;
     }
@@ -42853,6 +42986,88 @@ function drawPOISprite(poi, camX, camY) {
       offCtx.globalAlpha = 1;
       offCtx.fillStyle = "#fff080";
       offCtx.fillRect(sx, cy - 33, 1, 1);
+    }
+  } else if (def.glyph === "lighthouse") {
+    // === AQUÁTICO HD — FAROL AFUNDADO: torre listrada gasta + luz ciano varrendo + algas (R16)
+    // Rochas da base (pedra escura molhada, 3 níveis)
+    offCtx.fillStyle = "#0a2430";
+    offCtx.fillRect(sx - 9, cy + 0, 19, 3);
+    offCtx.fillStyle = "#123844";
+    offCtx.fillRect(sx - 8, cy - 1, 17, 2);
+    offCtx.fillStyle = "#1e5a70";
+    offCtx.fillRect(sx - 7, cy - 2, 15, 1);
+    // Torre listrada (vermelho desbotado × branco sujo), afinando pro topo
+    offCtx.fillStyle = "#071820";
+    offCtx.fillRect(sx - 6, cy - 27, 1, 25);
+    offCtx.fillStyle = "#a85848";
+    offCtx.fillRect(sx - 5, cy - 8, 11, 6);
+    offCtx.fillStyle = "#d8d0c0";
+    offCtx.fillRect(sx - 5, cy - 14, 10, 6);
+    offCtx.fillStyle = "#a85848";
+    offCtx.fillRect(sx - 4, cy - 20, 9, 6);
+    offCtx.fillStyle = "#d8d0c0";
+    offCtx.fillRect(sx - 4, cy - 26, 8, 6);
+    // highlight vertical + sombras à direita
+    offCtx.fillStyle = "#e8e0d0";
+    offCtx.fillRect(sx - 3, cy - 26, 1, 24);
+    offCtx.fillStyle = "#6a3830";
+    offCtx.fillRect(sx + 4, cy - 8, 2, 6);
+    offCtx.fillRect(sx + 3, cy - 20, 2, 6);
+    offCtx.fillStyle = "#a8a098";
+    offCtx.fillRect(sx + 3, cy - 14, 2, 6);
+    offCtx.fillRect(sx + 2, cy - 26, 2, 6);
+    // janelinhas
+    offCtx.fillStyle = "#071820";
+    offCtx.fillRect(sx - 1, cy - 12, 2, 3);
+    offCtx.fillRect(sx - 1, cy - 24, 2, 3);
+    // Algas penduradas + conchinha (afundado)
+    offCtx.fillStyle = "#2f8a5a";
+    offCtx.fillRect(sx + 4, cy - 9, 1, 4);
+    offCtx.fillRect(sx - 6, cy - 16, 1, 5);
+    offCtx.fillStyle = "#58c88a";
+    offCtx.fillRect(sx + 4, cy - 5, 1, 2);
+    offCtx.fillRect(sx - 6, cy - 11, 1, 2);
+    offCtx.fillStyle = "#e8d0b0";
+    offCtx.fillRect(sx + 3, cy - 1, 2, 1);
+    // Galeria + lanterna
+    offCtx.fillStyle = "#123844";
+    offCtx.fillRect(sx - 5, cy - 29, 11, 3);
+    offCtx.fillStyle = "#071820";
+    offCtx.fillRect(sx - 3, cy - 33, 7, 4);
+    offCtx.fillStyle = cleared ? "#3a5a68" : "#7fd8f0";
+    offCtx.fillRect(sx - 2, cy - 32, 5, 2);
+    // Cúpula
+    offCtx.fillStyle = "#a85848";
+    offCtx.fillRect(sx - 3, cy - 35, 7, 2);
+    offCtx.fillStyle = "#c87868";
+    offCtx.fillRect(sx - 1, cy - 36, 3, 1);
+    if (!cleared) {
+      // Glow + facho varrendo (alterna os lados)
+      const lp = 0.6 + Math.sin((poi.bobT || 0) * 2) * 0.4;
+      offCtx.globalAlpha = 0.35 * lp;
+      offCtx.fillStyle = "#7fd8f0";
+      fillCircle(sx, cy - 31, 6);
+      const sweep = Math.sin((poi.bobT || 0) * 0.9);
+      offCtx.globalAlpha = 0.28 * Math.abs(sweep);
+      offCtx.fillStyle = "#bfe9ff";
+      if (sweep > 0) {
+        offCtx.fillRect(sx + 4, cy - 33, 12, 2);
+        offCtx.fillRect(sx + 8, cy - 34, 8, 4);
+      } else {
+        offCtx.fillRect(sx - 16, cy - 33, 12, 2);
+        offCtx.fillRect(sx - 16, cy - 34, 8, 4);
+      }
+      offCtx.globalAlpha = 1;
+      // Bolhas ocasionais subindo
+      if (Math.random() < 0.15) {
+        game.effects.push({
+          type: "spark", color: "#bfe9ff",
+          x: poi.x + (Math.random() - 0.5) * 10, y: poi.y - 20 - Math.random() * 8,
+          vx: (Math.random() - 0.5) * 3, vy: -6 - Math.random() * 4,
+          lifetime: 600, maxLifetime: 600, size: 1,
+          update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
+        });
+      }
     }
   } else if (def.glyph === "crystal") {
     // === GELO HD — SANTUÁRIO DE CRISTAL com cristais flutuantes
@@ -43294,6 +43509,9 @@ function drawLair(sx, sy, lair) {
   } else if (biomeId === "catedral") {
     // COMBO 15 — Catedral: campanário branco com cruz dourada e vitrais vermelhos
     drawLairCatedralHD(0, 0, lair, col, colD, glow, pulse);
+  } else if (biomeId === "aquatico") {
+    // R16 — Aquático: concha gigante entreaberta com pérola pulsante
+    drawLairAquaticoHD(0, 0, lair, col, colD, glow, pulse);
   } else {
     drawLairGeneric(0, 0, lair, col, colD, glow, pulse);
   }
@@ -44127,6 +44345,147 @@ function drawLairGeloHD(sx, sy, lair, col, colD, glow, pulse) {
     offCtx.lineTo(sx - 1, sy - 54);
     offCtx.closePath();
     offCtx.fill();
+  }
+}
+
+// === AQUÁTICO HD: Concha gigante entreaberta com pérola pulsante (R16) ===
+function drawLairAquaticoHD(sx, sy, lair, col, colD, glow, pulse) {
+  // Sombra azul-profunda
+  offCtx.fillStyle = "#071820";
+  offCtx.beginPath();
+  offCtx.ellipse(sx, sy + 8, 32, 5, 0, 0, Math.PI * 2);
+  offCtx.fill();
+  // Anel de espuma/areia clara
+  offCtx.globalAlpha = 0.45;
+  offCtx.fillStyle = "#7fcfe8";
+  offCtx.beginPath();
+  offCtx.ellipse(sx, sy + 6, 30, 6, 0, 0, Math.PI * 2);
+  offCtx.fill();
+  offCtx.globalAlpha = 1;
+  // Base de rocha marinha (trapezoidal, 2 tons)
+  offCtx.fillStyle = "#123844";
+  offCtx.beginPath();
+  offCtx.moveTo(sx - 22, sy + 6);
+  offCtx.lineTo(sx + 22, sy + 6);
+  offCtx.lineTo(sx + 18, sy - 4);
+  offCtx.lineTo(sx - 18, sy - 4);
+  offCtx.closePath();
+  offCtx.fill();
+  offCtx.fillStyle = "#1e5a70";
+  offCtx.beginPath();
+  offCtx.moveTo(sx, sy + 6);
+  offCtx.lineTo(sx + 22, sy + 6);
+  offCtx.lineTo(sx + 18, sy - 4);
+  offCtx.lineTo(sx, sy - 4);
+  offCtx.closePath();
+  offCtx.fill();
+  // ===== LEQUE superior da concha — VIEIRA de verdade (v2 da verificação visual:
+  // as camadas retangulares + topo ameado liam como MURALHA DE CASTELO): meio-disco
+  // com anéis de crescimento, lóbulos arredondados na borda e sulcos RADIAIS
+  // convergindo pra charneira.
+  const hgx = sx, hgy = sy - 7;   // charneira (dobradiça da concha)
+  // lóbulos externos (silhueta bumpy) — escuros primeiro, servem de contorno
+  offCtx.fillStyle = "#8a6848";
+  for (let i = 0; i < 5; i++) {
+    const ang = Math.PI + (Math.PI * (i + 0.5)) / 5;
+    offCtx.beginPath();
+    offCtx.arc(hgx + Math.cos(ang) * 25, hgy + Math.sin(ang) * 25, 4.2, 0, Math.PI * 2);
+    offCtx.fill();
+  }
+  // meio-discos concêntricos (anéis de crescimento)
+  offCtx.beginPath(); offCtx.moveTo(hgx, hgy); offCtx.arc(hgx, hgy, 27, Math.PI, Math.PI * 2); offCtx.closePath(); offCtx.fill();
+  offCtx.fillStyle = "#c8a078";
+  for (let i = 0; i < 5; i++) {
+    const ang = Math.PI + (Math.PI * (i + 0.5)) / 5;
+    offCtx.beginPath();
+    offCtx.arc(hgx + Math.cos(ang) * 25, hgy + Math.sin(ang) * 25, 3.2, 0, Math.PI * 2);
+    offCtx.fill();
+  }
+  offCtx.beginPath(); offCtx.moveTo(hgx, hgy); offCtx.arc(hgx, hgy, 25, Math.PI, Math.PI * 2); offCtx.closePath(); offCtx.fill();
+  offCtx.fillStyle = "#d8b890";
+  offCtx.beginPath(); offCtx.moveTo(hgx, hgy); offCtx.arc(hgx, hgy, 19, Math.PI, Math.PI * 2); offCtx.closePath(); offCtx.fill();
+  offCtx.fillStyle = "#e8d0b0";
+  offCtx.beginPath(); offCtx.moveTo(hgx, hgy); offCtx.arc(hgx, hgy, 12, Math.PI, Math.PI * 2); offCtx.closePath(); offCtx.fill();
+  // sulcos radiais convergindo pra charneira
+  offCtx.strokeStyle = "#8a6848";
+  offCtx.lineWidth = 1;
+  for (let i = 1; i < 5; i++) {
+    const ang = Math.PI + (Math.PI * i) / 5;
+    offCtx.beginPath();
+    offCtx.moveTo(hgx + Math.cos(ang) * 5, hgy + Math.sin(ang) * 5);
+    offCtx.lineTo(hgx + Math.cos(ang) * 26, hgy + Math.sin(ang) * 26);
+    offCtx.stroke();
+  }
+  // brilho no anel interno
+  offCtx.globalAlpha = 0.55;
+  offCtx.fillStyle = "#f0e0c8";
+  offCtx.beginPath(); offCtx.moveTo(hgx, hgy); offCtx.arc(hgx, hgy, 7, Math.PI, Math.PI * 2); offCtx.closePath(); offCtx.fill();
+  offCtx.globalAlpha = 1;
+  // ===== INTERIOR escuro (boca entreaberta)
+  offCtx.fillStyle = "#071820";
+  offCtx.fillRect(sx - 11, sy - 12, 22, 6);
+  // ===== PRATO inferior (raso, interior madrepérola)
+  offCtx.fillStyle = "#8a6848";
+  offCtx.fillRect(sx - 16, sy - 4, 32, 6);
+  offCtx.fillStyle = "#e8d0b0";
+  offCtx.fillRect(sx - 13, sy - 6, 26, 5);
+  offCtx.fillStyle = "#f0e0c8";
+  offCtx.fillRect(sx - 10, sy - 6, 20, 2);
+  // ===== PÉROLA no gap
+  if (glow > 0) {
+    offCtx.globalAlpha = glow * 0.5;
+    offCtx.fillStyle = "#7fd8f0";
+    fillCircle(sx, sy - 9, 12);
+    offCtx.globalAlpha = glow * 0.7;
+    offCtx.fillStyle = "#e8f8ff";
+    fillCircle(sx, sy - 9, 7);
+    offCtx.globalAlpha = 1;
+    offCtx.fillStyle = "#f0f8ff";
+    fillCircle(sx, sy - 9, 4);
+    offCtx.fillStyle = "#a8c8d0";
+    offCtx.fillRect(sx - 2, sy - 6, 5, 1);
+    offCtx.fillStyle = "#ffffff";
+    offCtx.globalAlpha = 0.6 + pulse * 0.4;
+    offCtx.fillRect(sx - 2, sy - 11, 2, 2);
+    offCtx.globalAlpha = 1;
+    // Bolhas subindo enquanto viva
+    if (Math.random() < 0.35) {
+      game.effects.push({
+        type: "spark", color: "#bfe9ff",
+        x: lair.x + (Math.random() - 0.5) * 26, y: lair.y - 14 + Math.random() * 6,
+        vx: (Math.random() - 0.5) * 4, vy: -8 - Math.random() * 6,
+        lifetime: 700, maxLifetime: 700, size: 1,
+        update(dt) { this.x += this.vx * dt / 1000 + Math.sin(this.lifetime / 90) * 0.2; this.y += this.vy * dt / 1000; },
+      });
+    }
+  } else {
+    // Pérola apagada (defeated)
+    offCtx.fillStyle = "#4a6a78";
+    fillCircle(sx, sy - 9, 4);
+    offCtx.fillStyle = "#31505c";
+    offCtx.fillRect(sx - 2, sy - 7, 5, 1);
+  }
+  // ===== 3 corais pequenos na frente da base
+  for (let i = 0; i < 3; i++) {
+    const cx_ = sx + (i - 1) * 15;
+    const cy_ = sy + 4;
+    offCtx.fillStyle = "#c8503c";
+    offCtx.fillRect(cx_ - 1, cy_ - 3, 2, 4);
+    offCtx.fillStyle = "#ff7a5a";
+    offCtx.fillRect(cx_ - 3, cy_ - 5, 2, 3);
+    offCtx.fillRect(cx_ + 1, cy_ - 6, 2, 4);
+    offCtx.fillStyle = "#ffb090";
+    offCtx.fillRect(cx_ + 1, cy_ - 7, 1, 1);
+    offCtx.fillRect(cx_ - 3, cy_ - 6, 1, 1);
+  }
+  // ===== Algas nas laterais (sway)
+  for (let i = 0; i < 2; i++) {
+    const kx = sx + (i === 0 ? -20 : 20);
+    for (let s2 = 0; s2 < 4; s2++) {
+      const sw = Math.round(Math.sin((lair.wardTimer || 0) / 380 + i * 2 + s2 * 0.8) * (s2 * 0.7));
+      offCtx.fillStyle = s2 >= 2 ? "#58c88a" : "#2f8a5a";
+      offCtx.fillRect(kx + sw, sy + 2 - s2 * 3, 2, 3);
+    }
   }
 }
 
@@ -55472,62 +55831,66 @@ function drawHomemPeixe(cx, cy, t, u, c, pose) {
   if (p > 0.4 && p < 0.65) px(6 + thrust, -10 + bob, "#fff");
 }
 function drawCaranguejoGigante(cx, cy, t, u, c, pose) {
-  // T2 tank — ~34 largo × 18 alto, garra gigante assimétrica na frente (+x).
-  // Cabe no tile de cache (x∈[-17..+24]) → mantém-se cacheável: tudo determinista.
+  // R16 — REDESIGN (dono: "muito mal feito"): silhueta clássica de caranguejo — casco
+  // oval, 3 patas articuladas pra CADA lado (o antigo tinha patas só embaixo e lia
+  // como pedra), garrona frontal articulada, garra menor atrás, olhos em haste no topo.
+  // Cacheável: 100% determinista (t/pose), zero random/effects. Span x∈[-19..+28].
   const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.abs(Math.sin(t / 140)) * (pose.walking ? 1 : 0)) + Math.round(Math.sin(t / 320) * 0.5);
+  const bob = Math.round(Math.abs(Math.sin(t / 150)) * (pose.walking ? 1 : 0)) + Math.round(Math.sin(t / 340) * 0.5);
   const p = pose.attackProg || 0;
   // Sombra dupla larga
   offCtx.globalAlpha = 0.24; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 14, cy + 2, 28, 2);
-  offCtx.fillRect(cx - 10, cy + 4, 20, 1);
+  offCtx.fillRect(cx - 13, cy + 2, 27, 2);
+  offCtx.fillRect(cx - 9, cy + 4, 19, 1);
   offCtx.globalAlpha = 1;
-  // 4 pares de patas: traseiras em silhueta escura (profundidade), frontais articuladas
-  for (let i = 0; i < 4; i++) {
-    const bx = -10 + i * 5;
-    px(bx + 1, -1 + bob, c.bodyD); px(bx + 1, 0 + bob, c.armorD);
+  // ===== PATAS: 3 de cada lado, saindo do casco pra FORA (caranguejo anda de lado)
+  for (let i = 0; i < 3; i++) {
+    const ph = pose.walking ? Math.round(Math.sin(t / 140 + i * 2.1) * 1.5) : 0;
+    const ly = -5 + i * 3 + bob;
+    // esquerda (-x): coxa + canela dobrando pra baixo
+    rect(-14, ly, 3, 2, c.armor);
+    px(-16, ly + 1, c.armor); px(-17, ly + 2 + ph, c.armorD); px(-17, ly + 3 + ph, c.armorD);
+    // direita (+x)
+    rect(11, ly, 3, 2, c.armor);
+    px(15, ly + 1, c.armor); px(16, ly + 2 - ph, c.armorD); px(16, ly + 3 - ph, c.armorD);
   }
-  for (let i = 0; i < 4; i++) {
-    const bx = -10 + i * 5;
-    const ph = pose.walking ? Math.round(Math.sin(t / 140 + i * 1.6) * 1.5) : 0;
-    rect(bx, 0 + bob, 2, 2, c.armor);   // fêmur
-    px(bx, 2 + ph, c.armor);            // tíbia
-    px(bx, 3 + ph, c.armorD);           // ponta afiada
-  }
-  // Carapaça em domo 26×10 + glint + textura fixa
-  rect(-13, -8 + bob, 26, 8, c.body);
-  rect(-11, -10 + bob, 22, 2, c.body);
-  rect(-13, 0 + bob, 26, 1, c.bodyD);
-  rect(-12, -2 + bob, 24, 2, c.bodyD);
-  rect(-9, -9 + bob, 15, 1, "#ffd8b0");
-  px(-8, -5 + bob, c.bodyD); px(-4, -7 + bob, c.bodyD); px(-1, -4 + bob, c.bodyD);
-  px(3, -6 + bob, c.bodyD); px(7, -5 + bob, c.bodyD); px(10, -3 + bob, c.bodyD);
-  px(-6, -8 + bob, c.accent); px(0, -6 + bob, c.accent); px(5, -8 + bob, c.accent);
-  // Espinhos na crista (os 2 centrais mais altos)
-  for (let sx = -10; sx <= 10; sx += 4) {
-    px(sx, -11 + bob, c.bodyD); px(sx, -12 + bob, c.accent);
-    if (sx === -2 || sx === 2) px(sx, -13 + bob, c.accent);
-  }
-  // Bordas dentadas laterais
-  px(-14, -5 + bob, c.bodyD); px(-14, -3 + bob, c.bodyD);
-  px(14, -5 + bob, c.bodyD); px(14, -3 + bob, c.bodyD);
-  // Olhos em haste, oscilando dessincronizados
+  // ===== CASCO oval largo (3 tons: rim claro em cima, sombra embaixo)
+  rect(-11, -13 + bob, 22, 2, c.body);
+  rect(-13, -11 + bob, 26, 5, c.body);
+  rect(-12, -6 + bob, 24, 3, c.bodyD);
+  rect(-10, -3 + bob, 20, 2, c.bodyD);
+  rect(-9, -13 + bob, 14, 1, c.accent);
+  rect(-7, -12 + bob, 10, 1, "#ffd8b0");
+  // pontas laterais do casco
+  px(-14, -9 + bob, c.body); px(-14, -8 + bob, c.bodyD);
+  px(13, -9 + bob, c.body); px(13, -8 + bob, c.bodyD);
+  // pintas da carapaça
+  px(-6, -8 + bob, c.armorD); px(0, -10 + bob, c.armorD); px(5, -7 + bob, c.armorD);
+  px(-3, -6 + bob, c.accent); px(3, -9 + bob, c.accent);
+  // ===== OLHOS em haste no topo-frente (oscilam dessincronizados)
   const eb = Math.round(Math.sin(t / 300));
-  rect(6, -13 + bob + eb, 1, 3, c.bodyD); px(6, -14 + bob + eb, "#fff"); px(6, -13 + bob + eb, "#1a0808");
-  rect(9, -14 + bob - eb, 1, 4, c.bodyD); px(9, -15 + bob - eb, "#fff"); px(9, -14 + bob - eb, "#1a0808");
-  // Mandíbulas (mastigação)
-  px(11, -2 + bob + (Math.sin(t / 120) > 0 ? 1 : 0), c.armorD); px(12, -2 + bob, c.armorD);
-  // GARRA GIGANTE frontal (+x): braço + palma + pinça superior móvel
-  rect(12, -6 + bob, 4, 3, c.body); px(13, -4 + bob, c.bodyD);
-  rect(15, -8 + bob, 5, 5, c.body); rect(15, -3 + bob, 5, 1, c.bodyD);
+  rect(3, -16 + bob + eb, 1, 3, c.bodyD);
+  px(3, -18 + bob + eb, "#fff"); px(3, -17 + bob + eb, "#1a0808");
+  rect(7, -17 + bob - eb, 1, 4, c.bodyD);
+  px(7, -19 + bob - eb, "#fff"); px(7, -18 + bob - eb, "#1a0808");
+  // mandíbulas mastigando
+  px(10, -4 + bob + (Math.sin(t / 130) > 0 ? 1 : 0), c.armorD);
+  px(11, -4 + bob, c.armorD);
+  // ===== GARRONA frontal (+x): braço → palma → pinça superior MÓVEL
   const open = p > 0 && p <= 0.55 ? Math.round(Math.sin(Math.min(p / 0.55, 1) * Math.PI / 2) * 3) : 0;
-  rect(16, -10 + bob - open, 6, 2, c.body); px(22, -9 + bob - open, c.bodyD);
-  rect(16, -3 + bob, 6, 2, c.bodyD); px(22, -2 + bob, c.armorD);
-  px(17, -6 + bob, c.accent); px(19, -6 + bob, c.accent);   // dentes internos da palma
-  // Flash de impacto quando a pinça fecha de golpe
-  if (p > 0.55 && p < 0.78) { px(23, -6 + bob, "#fff"); px(24, -7 + bob, "#fff"); px(23, -8 + bob, c.accent); }
-  // Garra pequena traseira, dobrada junto ao corpo
-  rect(-16, -4 + bob, 3, 2, c.bodyD); px(-17, -5 + bob, c.body); px(-17, -3 + bob, c.armorD);
+  rect(12, -9 + bob, 4, 4, c.body); px(13, -6 + bob, c.bodyD);
+  rect(16, -11 + bob, 6, 7, c.body);
+  rect(16, -11 + bob, 6, 1, c.accent);
+  rect(16, -5 + bob, 6, 1, c.bodyD);
+  rect(21, -13 + bob - open, 6, 2, c.body); px(26, -12 + bob - open, c.bodyD);
+  rect(21, -5 + bob, 5, 2, c.bodyD); px(26, -4 + bob, c.armorD);
+  px(22, -8 + bob, c.accent); px(24, -8 + bob, c.accent);
+  // flash do golpe quando a pinça fecha
+  if (p > 0.55 && p < 0.78) { px(27, -8 + bob, "#fff"); px(28, -9 + bob, "#fff"); px(27, -10 + bob, c.accent); }
+  // ===== Garra menor (-x), dobrada junto ao corpo
+  rect(-17, -6 + bob, 4, 3, c.body);
+  px(-19, -7 + bob, c.body); px(-19, -4 + bob, c.bodyD);
+  px(-18, -6 + bob, c.accent);
 }
 function drawSereia(cx, cy, t, u, c, pose) {
   // T2 ranged — sereia ereta sobre cauda em S, ~20 alto × 26 comprido. Cacheável.
@@ -55667,97 +56030,89 @@ function drawProfundo(cx, cy, t, u, c, pose) {
   }
 }
 function drawLeviataProfundo(cx, cy, t, u, c, pose) {
-  // T4 SERPENTE MARINHA em 3 voltas (estilo Loch Ness), ~56×26 — DRAW DIRETO:
-  // está em _SPRITE_CACHE_BLOCK (ondulação defasada contínua + bolhas via
-  // game.effects exigem render por frame, mesma razão do necroSpider).
+  // R16 — REDESIGN (dono: "muito mal feito"): o corpo em 3 corcovas DESCONECTADAS
+  // + paleta quase preta lia como blobs. Agora é uma serpente CONTÍNUA: tubo único
+  // de 17 fatias com onda viajante (cauda→cabeça), dorso escuro/ventre claro,
+  // caudal bifurcada e cabeça grande de dragão-marinho com mandíbula articulada.
+  // Segue DRAW DIRETO (_SPRITE_CACHE_BLOCK): onda contínua + bolhas via effects.
   const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
   const bob = pose.walking ? Math.round(Math.abs(Math.sin(t / 170)) * 1.2) : Math.round(Math.sin(t / 600));
   const atk = pose.attackProg || 0;
   const atkSwing = atk > 0 ? Math.sin(atk * Math.PI) : 0;
-  const hx = Math.round(atkSwing * 4);   // bocada: cabeça avança +x
+  const hx = Math.round(atkSwing * 4);   // bote: cabeça avança
   const jaw = Math.round(atkSwing * 3);  // mandíbula abre
-  // Onda viajante pelas 3 voltas (defasagem 1.4 rad); cauda chicoteia no atk
-  const c1 = Math.round(Math.sin(t / 280) * 1.5);
-  const c2 = Math.round(Math.sin(t / 280 - 1.4) * 2);
-  const c3 = Math.round(Math.sin(t / 280 - 2.8) * 2.5) + Math.round(atkSwing * 4);
   // Sombra dupla larga
   offCtx.globalAlpha = 0.35; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 24, cy + 2, 48, 2);
-  offCtx.fillRect(cx - 19, cy + 4, 38, 1);
+  offCtx.fillRect(cx - 26, cy + 2, 54, 2);
+  offCtx.fillRect(cx - 20, cy + 4, 42, 1);
   offCtx.globalAlpha = 1;
-  // NADADEIRA CAUDAL vertical bifurcada na ponta (-x)
-  rect(-28, -18 + c3, 3, 5, c.armor); px(-29, -16 + c3, c.accent);
-  rect(-28, -11 + c3, 3, 5, c.armor); px(-29, -8 + c3, c.accent);
-  rect(-26, -13 + c3, 1, 2, c.bodyD);
-  // VOLTA 3 / cauda (mais fina)
-  rect(-25, -13 + c3, 11, 3, c.bodyD);
-  rect(-24, -14 + c3, 9, 1, c.body);
-  px(-22, -15 + c3, c.accent); px(-18, -15 + c3, c.accent);
-  // Vale 1 (corpo mergulha)
-  px(-13, -6 + bob, c.bodyD); px(-12, -5 + bob, c.bodyD);
-  // VOLTA 2: arco + laterais descendo + ventre pálido + escamas + dorsal
-  rect(-12, -18 + c2, 10, 4, c.body);
-  rect(-12, -14 + c2, 3, 8, c.armor);
-  rect(-5, -14 + c2, 3, 8, c.armor);
-  rect(-10, -14 + c2, 6, 1, "#5a8898");
-  px(-11, -17 + c2, c.armor); px(-9, -18 + c2, c.armor); px(-7, -17 + c2, c.armor); px(-4, -18 + c2, c.armor);
-  px(-9, -20 + c2, c.accent); px(-7, -21 + c2, c.accent); px(-5, -20 + c2, c.accent);
-  px(-8, -19 + c2, c.armorD); px(-6, -19 + c2, c.armorD);
-  // Vale 2
-  px(-1, -6 + bob, c.bodyD); px(0, -5 + bob, c.bodyD);
-  // VOLTA 1 (a maior): arco + laterais + ventre + contorno + escamas dither
-  rect(1, -22 + c1, 11, 5, c.body);
-  rect(1, -17 + c1, 3, 10, c.armor);
-  rect(9, -17 + c1, 3, 10, c.armor);
-  rect(3, -17 + c1, 6, 1, "#5a8898");
-  rect(1, -22 + c1, 11, 1, c.bodyD);
-  px(2, -20 + c1, c.armor); px(4, -21 + c1, c.armor); px(6, -20 + c1, c.armor); px(8, -21 + c1, c.armor); px(10, -20 + c1, c.armor);
-  // DORSAL GRANDE no ápice: 3 raios ondulantes + membrana
-  const dof = Math.round(Math.sin(t / 240));
-  px(4, -25 + c1 + dof, c.accent); px(6, -26 + c1 + dof, c.accent); px(8, -25 + c1 + dof, c.accent);
-  rect(4, -24 + c1, 5, 1, c.armorD);
-  // PESCOÇO subindo da volta 1 à cabeça + CRISTA em leque atrás da cabeça
-  rect(12, -18 + bob, 5, 8, c.body);
-  rect(12, -11 + bob, 5, 1, c.bodyD);
-  rect(13, -22 + bob, 2, 5, c.bodyD);
-  rect(15, -24 + bob, 2, 7, c.bodyD);
-  px(13, -22 + bob, c.accent); px(16, -24 + bob, c.accent);
-  // CABEÇA: crânio + topo escuro + sobrancelha óssea
-  rect(17 + hx, -20 + bob, 10, 8, c.body);
-  rect(17 + hx, -20 + bob, 10, 2, c.bodyD);
-  rect(18 + hx, -17 + bob, 8, 1, c.armorD);
-  // Olho ciano pulsante com pupila vertical + reflexo
+  const BELLY = "#8fd4e0";
+  const phB = Math.floor(t / 300) % 4;
+  // ===== CORPO CONTÍNUO: 17 fatias de 2px, onda viajante, afina na cauda, sobe no pescoço
+  for (let i = 0; i < 17; i++) {
+    const sxx = -26 + i * 2;
+    const wave = Math.sin(t / 260 - i * 0.5) * (i < 3 ? 2 : 3);
+    const yc = Math.round(-9 + bob - (i >= 14 ? (i - 13) * 2 : 0) + wave);
+    const h = i < 2 ? 4 : i < 4 ? 5 : 7;
+    const top = yc - Math.floor(h / 2);
+    rect(sxx, top - 1, 2, 1, c.armorD);          // crista dorsal escura
+    rect(sxx, top, 2, h - 2, c.body);            // flanco
+    rect(sxx, top + h - 3, 2, 1, c.armor);       // meia-luz
+    rect(sxx, top + h - 2, 2, 1, BELLY);         // ventre claro
+    // Barbatana dorsal serrilhada (maior no meio do corpo)
+    if (i >= 3 && i % 2 === 1) {
+      px(sxx, top - 2, c.accent);
+      if (i >= 6 && i <= 12) px(sxx, top - 3, c.accent);
+    }
+    // Fotóforos: corrente de luz cauda→cabeça
+    if (i % 4 === 2) px(sxx + 1, yc, phB === Math.floor(i / 4) ? c.accent : c.armorD);
+  }
+  // ===== CAUDAL bifurcada grande (-x, acompanha a onda)
+  const tw = Math.round(Math.sin(t / 260) * 2) + bob;
+  rect(-31, -14 + tw, 4, 4, c.armor); px(-32, -12 + tw, c.accent);
+  rect(-31, -8 + tw, 4, 4, c.armor);  px(-32, -6 + tw, c.accent);
+  rect(-28, -10 + tw, 2, 3, c.body);
+  px(-29, -9 + tw, c.bodyD);
+  // ===== CABEÇA GRANDE de dragão-marinho (+x)
+  const hy = -14 + bob;
+  rect(8, hy - 3, 4, 8, c.body);                 // pescoço
+  rect(8, hy - 4, 4, 1, c.armorD);
+  rect(8, hy + 4, 4, 1, BELLY);
+  rect(12 + hx, hy - 5, 12, 9, c.body);          // crânio
+  rect(12 + hx, hy - 5, 12, 2, c.armorD);
+  rect(13 + hx, hy + 2, 10, 2, BELLY);           // queixo claro
+  // crista em leque atrás da cabeça
+  px(11 + hx, hy - 6, c.armor); px(10 + hx, hy - 7, c.accent);
+  px(13 + hx, hy - 7, c.armor); px(12 + hx, hy - 8, c.accent); px(11 + hx, hy - 9, c.accent);
+  px(15 + hx, hy - 6, c.armor); px(15 + hx, hy - 7, c.accent);
+  // OLHO grande ciano pulsante com pupila + glint
   offCtx.globalAlpha = 0.8 + Math.sin(t / 220) * 0.2;
-  rect(19 + hx, -15 + bob, 2, 2, c.accent);
+  rect(17 + hx, hy - 2, 3, 2, c.accent);
   offCtx.globalAlpha = 1;
-  px(20 + hx, -15 + bob, "#040a10");
-  px(19 + hx, -15 + bob, "#a0f0ff");
-  // MANDÍBULAS + PRESAS: superior fixa, inferior articulada (abre no atk)
-  rect(26 + hx, -15 + bob, 7, 3, c.body);
-  px(30 + hx, -14 + bob, "#040a10");
-  px(32 + hx, -14 + bob, c.bodyD);
-  rect(26 + hx, -12 + bob, 7, 1, "#040a10");
-  rect(26 + hx, -11 + bob + jaw, 6, 2, c.bodyD);
-  px(31 + hx, -10 + bob + jaw, c.bodyD);
-  px(27 + hx, -12 + bob, "#e8f4f0"); px(29 + hx, -12 + bob, "#e8f4f0"); px(31 + hx, -12 + bob, "#e8f4f0");
-  px(28 + hx, -12 + bob + jaw, "#e8f4f0"); px(28 + hx, -13 + bob + jaw, "#e8f4f0"); px(30 + hx, -12 + bob + jaw, "#e8f4f0");
-  px(27 + hx, -9 + bob + jaw + Math.round(Math.sin(t / 200)), c.accent);   // barbelas
-  // BIOLUMINESCÊNCIA em cadeia: 1 fotóforo por volta, pulso corre cauda→cabeça
-  const phB = Math.floor(t / 300) % 3;
-  px(-19, -15 + c3, phB === 0 ? c.accent : c.armorD);
-  px(-7, -19 + c2, phB === 1 ? c.accent : c.armorD);
-  px(6, -23 + c1, phB === 2 ? c.accent : c.armorD);
-  // ESPUMA na base das voltas (onde "entram na água"), shimmer por fase
-  const foamXs = [2, 11, -11, -4];
+  px(18 + hx, hy - 2, "#04141c");
+  px(17 + hx, hy - 3, "#d8f8ff");
+  // FOCINHO + MANDÍBULAS (inferior abre no ataque)
+  rect(24 + hx, hy - 3, 9, 3, c.body);
+  rect(24 + hx, hy - 4, 8, 1, c.armorD);
+  px(32 + hx, hy - 3, c.bodyD);
+  px(30 + hx, hy - 4, "#04141c");
+  rect(24 + hx, hy, 9, 1, "#04141c");
+  rect(24 + hx, hy + 1 + jaw, 8, 2, c.bodyD);
+  rect(24 + hx, hy + 2 + jaw, 7, 1, BELLY);
+  // presas brancas
+  px(25 + hx, hy, "#e8f4f0"); px(28 + hx, hy, "#e8f4f0"); px(31 + hx, hy, "#e8f4f0");
+  px(26 + hx, hy + 1 + jaw, "#e8f4f0"); px(29 + hx, hy + 1 + jaw, "#e8f4f0");
+  // barbela oscilando
+  px(25 + hx, hy + 3 + jaw + Math.round(Math.sin(t / 200)), c.accent);
+  // ===== Espuma da linha d'água sob os vales da onda
+  const foamXs = [-20, -10, 0, -15];
   for (let i = 0; i < 4; i++) {
-    offCtx.globalAlpha = 0.5 + Math.sin(t / 150 + foamXs[i]) * 0.3;
-    px(foamXs[i], -2, "#5a8898");
+    offCtx.globalAlpha = 0.4 + Math.sin(t / 150 + foamXs[i]) * 0.25;
+    px(foamXs[i], -2 + bob, "#7fb8c8");
   }
   offCtx.globalAlpha = 1;
-  // Bolhas da narina (sobem — água) + gotículas das voltas.
-  // Permitido: draw direto garantido pelo _SPRITE_CACHE_BLOCK (molde do drawLeviatao).
-  // R7 (verificação): gate !game.paused — render roda na pausa mas update (que expira
-  // lifetime e aplica fxCap) não; sem o gate os sparks acumulavam sem limite no pause.
+  // Bolhas da narina + gotículas — draw direto garantido pelo _SPRITE_CACHE_BLOCK.
+  // R7 (verificação): gate !game.paused — render roda na pausa mas update não.
   if (!game.paused && Math.random() < 0.05) {
     game.effects.push({
       type: "spark", color: c.accent,
@@ -73920,7 +74275,7 @@ const BOSSES_FOR_CODEX = [
 // R7 (verificação) — drawers HD de tamanho FIXO ignoram u.scale: o Leviatã Menor novo
 // (~66px de span) estourava a região 44×44 do retrato (bestiário mostrava ele decapitado).
 // Encolhemos via transform de canvas ancorado em (cx, cy) só no retrato.
-const _PORTRAIT_HD_SCALE = { leviataProfundo: 0.55, caranguejoGigante: 0.85 };
+const _PORTRAIT_HD_SCALE = { leviataProfundo: 0.55, caranguejoGigante: 0.75 };   // R16: garrona nova é mais comprida (span +28)
 function renderUnitPortrait(classId, pxSize = 80) {
   const out = document.createElement("canvas");
   out.width = pxSize;
