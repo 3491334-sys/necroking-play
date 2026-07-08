@@ -3322,15 +3322,6 @@
     border: 1px dashed #d4a637;
     border-radius: 2px;
   }
-  /* FEEDBACK 2026-07-02 — SKILL TRACK: trilha de perks do companion (◆ ativo / ◇ bloqueado) */
-  .pick-comp-card .pcc-perks {
-    display: flex;
-    justify-content: center;
-    gap: 2px;
-    margin-top: 3px;
-    font-size: 9px;
-    line-height: 1;
-  }
   .pick-comp-card .pcc-perk { color: #4a4258; cursor: help; }
   .pick-comp-card .pcc-perk.on { color: #ffd060; text-shadow: 0 0 5px rgba(255,208,96,0.8); }
 
@@ -6662,7 +6653,7 @@ function announceLevelMod() {
   _announceLevelModTimer = setTimeout(() => {
     _announceLevelModTimer = null;
     if (game.runActive && !game.gameOver && game.campaignLinear) {
-      showToast("☁ " + m.name + " — " + m.desc, 3400, "magic");
+      showToast("☁ " + getModName(m) + " — " + getModDesc(m), 3400, "magic");
     }
   }, 1400);
 }
@@ -7178,47 +7169,9 @@ function getCompanionLevelData(cid) {
   return COMPANION_LEVEL_DATA[getCompanionLevel(cid)] || COMPANION_LEVEL_DATA[0];
 }
 
-// FEEDBACK 2026-07-02 — SKILL TRACK: 7 perks passivos por companion (níveis 4-10),
-// todos WIREADOS de verdade (crit/dodge reusam os hooks existentes de companion em
-// applyDamage; o resto entra por _perks na unidade).
-const COMPANION_PERKS = {
-  lichPet: {
-    4:  { name: "Foco Arcano",       desc: "Habilidades recarregam 15% mais rápido", flags: { cdMult: 0.85 } },
-    5:  { name: "Ossos Afiados",     desc: "+20% de dano",                           flags: { dmgMult: 1.20 } },
-    6:  { name: "Elo de Mana",       desc: "Perto do Rei (150px): Rei +1 mana/s",    flags: { kingManaAura: 1 } },
-    7:  { name: "Conjuração Veloz",  desc: "Ataca 20% mais rápido",                  flags: { atkSpeedMult: 0.80 } },
-    8:  { name: "Barreira Óssea",    desc: "15% de esquiva",                         flags: { dodgeAdd: 0.15 } },
-    9:  { name: "Crânios Famintos",  desc: "Cura 10% do dano que causa",             flags: { lifesteal: 0.10 } },
-    10: { name: "Arquilich",         desc: "Habilidades −20% CD extra · aura de mana em DOBRO", flags: { cdMult: 0.80, kingManaAura: 1 } },
-  },
-  necroPhantom: {
-    4:  { name: "Foice Faminta",     desc: "Cura 15% do dano que causa",             flags: { lifesteal: 0.15 } },
-    5:  { name: "Passo Etéreo",      desc: "+20% de velocidade",                     flags: { speedMult: 1.20 } },
-    6:  { name: "Toque Gélido",      desc: "Golpes aplicam SLOW 1s",                 flags: { slowOnHit: 1000 } },
-    7:  { name: "Rancor",            desc: "+25% de dano",                           flags: { dmgMult: 1.25 } },
-    8:  { name: "Forma Nebulosa",    desc: "+20% de esquiva",                        flags: { dodgeAdd: 0.20 } },
-    9:  { name: "Vínculo Sombrio",   desc: "Perto do Rei (150px): Rei +1 HP/s",      flags: { kingHpAura: 1 } },
-    10: { name: "Ceifador",          desc: "Abates curam o Rei em 5 HP · habilidades −25% CD", flags: { killHealKing: 5, cdMult: 0.75 } },
-  },
-  cacadorReal: {
-    4:  { name: "Pontaria Fina",     desc: "+15% de chance de crítico",              flags: { critAdd: 0.15 } },
-    5:  { name: "Flechas Farpadas",  desc: "+20% de dano",                           flags: { dmgMult: 1.20 } },
-    6:  { name: "Olho de Águia",     desc: "+25% de alcance",                        flags: { rangeMult: 1.25 } },
-    7:  { name: "Rajada",            desc: "Ataca 25% mais rápido",                  flags: { atkSpeedMult: 0.75 } },
-    8:  { name: "Flecha Marcada",    desc: "Alvos atingidos sofrem +10% de dano de TODOS por 3s", flags: { markOnHit: true } },
-    9:  { name: "Crítico Brutal",    desc: "Críticos causam ×3 (era ×2)",            flags: { critMultSet: 3 } },
-    10: { name: "Mestre Atirador",   desc: "+15% crítico extra · habilidades −25% CD", flags: { critAdd: 0.15, cdMult: 0.75 } },
-  },
-  sombraReal: {
-    4:  { name: "Lâmina Envenenada", desc: "Golpes envenenam por 2s",                flags: { poisonOnHit: 2000 } },
-    5:  { name: "Dança das Sombras", desc: "+25% de velocidade",                     flags: { speedMult: 1.25 } },
-    6:  { name: "Execução",          desc: "+50% de dano vs alvos com HP < 25%",     flags: { executioner: 0.5 } },
-    7:  { name: "Reflexos",          desc: "+15% de esquiva",                        flags: { dodgeAdd: 0.15 } },
-    8:  { name: "Sede Sombria",      desc: "Cura 20% do dano que causa",             flags: { lifesteal: 0.20 } },
-    9:  { name: "Golpe Duplo",       desc: "20% de chance de golpear 2×",            flags: { doubleStrike: 0.20 } },
-    10: { name: "Morte Encarnada",   desc: "+20% crítico extra · habilidades −25% CD", flags: { critAdd: 0.20, cdMult: 0.75 } },
-  },
-};
+// R18 (2026-07-04): COMPANION_PERKS (trilha linear extinta no R8) era CÓDIGO MORTO —
+// nunca lido (só o comentário acima o citava); a lógica viva está em COMPANION_TREES.
+// Removido no passe de release (junto do CSS órfão .pcc-perks).
 
 // FEEDBACK R8 (2026-07-02) — ÁRVORES DE TALENTOS: 3 ramos × 3 nodes + capstone por
 // companion. Custos por profundidade 40/80/140✦, capstone 250✦ (requer 6 talentos).
@@ -7309,6 +7262,111 @@ const COMPANION_TREES = {
     capstone: { id: "sr_morte", name: "Morte Encarnada", desc: "+20% crítico extra · habilidades −25% CD", flags: { critAdd: 0.20, cdMult: 0.75 } },
   },
 };
+// R18 (2026-07-04) — i18n dos talentos (Poki é global). Mesmo padrão do RELIC_I18N:
+// tabela por id de node → {name, desc}; PT fica no dado hardcoded (fallback). Nomes de
+// ramo (12) por chave PT. Getters checam _currentLang e caem no PT.
+const COMPANION_TREE_I18N = {
+  en: {
+    lp_foco:{name:"Arcane Focus",desc:"Abilities recharge 15% faster"},
+    lp_conjuracao:{name:"Swift Casting",desc:"Attacks 20% faster"},
+    lp_ossos_afiados:{name:"Sharp Bones",desc:"+20% damage"},
+    lp_elo:{name:"Mana Link",desc:"Near the King (150px): King +1 mana/s"},
+    lp_elo_profundo:{name:"Deep Link",desc:"+1 extra mana/s in the aura"},
+    lp_guardiao:{name:"Ethereal Guardian",desc:"Near the King (150px): King +1 HP/s"},
+    lp_barreira:{name:"Bone Barrier",desc:"15% dodge"},
+    lp_cranios:{name:"Hungry Skulls",desc:"Heals 10% of damage dealt"},
+    lp_ossos_duros:{name:"Hard Bones",desc:"+10% extra dodge"},
+    lp_arquilich:{name:"Archlich",desc:"Abilities −20% extra CD · +1 extra mana/s in the aura"},
+    np_foice:{name:"Hungry Scythe",desc:"Heals 15% of damage dealt"},
+    np_rancor:{name:"Spite",desc:"+25% damage"},
+    np_foice_dupla:{name:"Double Scythe",desc:"15% chance to strike twice"},
+    np_passo:{name:"Ethereal Step",desc:"+20% speed"},
+    np_nebulosa:{name:"Misty Form",desc:"+20% dodge"},
+    np_intangivel:{name:"Intangible",desc:"+10% extra dodge"},
+    np_toque:{name:"Frigid Touch",desc:"Hits apply SLOW for 1s"},
+    np_toque_profundo:{name:"Deep Touch",desc:"SLOW extended to 1.8s"},
+    np_vinculo:{name:"Dark Bond",desc:"Near the King (150px): King +1 HP/s"},
+    np_ceifador:{name:"Reaper",desc:"Kills heal the King for 5 HP · abilities −25% CD"},
+    cr_pontaria:{name:"Fine Aim",desc:"+15% crit chance"},
+    cr_brutal:{name:"Brutal Crit",desc:"Crits deal ×3 (was ×2)"},
+    cr_olho_mortal:{name:"Deadly Eye",desc:"+10% extra crit"},
+    cr_farpadas:{name:"Barbed Arrows",desc:"+20% damage"},
+    cr_rajada:{name:"Volley",desc:"Attacks 25% faster"},
+    cr_aguia:{name:"Eagle Eye",desc:"+25% range"},
+    cr_marca:{name:"Marked Arrow",desc:"Hit targets take +10% damage from ALL for 3s"},
+    cr_predador:{name:"Predator",desc:"+35% damage vs targets below 25% HP"},
+    cr_passo:{name:"Hunter's Step",desc:"+20% speed"},
+    cr_mestre:{name:"Master Marksman",desc:"+15% extra crit · abilities −25% CD"},
+    sr_laminav:{name:"Poisoned Blade",desc:"Hits poison for 2s"},
+    sr_toxina:{name:"Concentrated Toxin",desc:"Poison extended to 3.5s"},
+    sr_execucao:{name:"Execution",desc:"+50% damage vs targets below 25% HP"},
+    sr_danca:{name:"Shadow Dance",desc:"+25% speed"},
+    sr_reflexos:{name:"Reflexes",desc:"+15% dodge"},
+    sr_manto:{name:"Dark Cloak",desc:"+10% extra dodge"},
+    sr_sede:{name:"Dark Thirst",desc:"Heals 20% of damage dealt"},
+    sr_golpe:{name:"Double Strike",desc:"20% chance to strike twice"},
+    sr_frenesi:{name:"Frenzy",desc:"Attacks 15% faster"},
+    sr_morte:{name:"Death Incarnate",desc:"+20% extra crit · abilities −25% CD"},
+  },
+  es: {
+    lp_foco:{name:"Foco Arcano",desc:"Las habilidades se recargan 15% más rápido"},
+    lp_conjuracao:{name:"Conjuro Veloz",desc:"Ataca 20% más rápido"},
+    lp_ossos_afiados:{name:"Huesos Afilados",desc:"+20% de daño"},
+    lp_elo:{name:"Vínculo de Maná",desc:"Cerca del Rey (150px): Rey +1 maná/s"},
+    lp_elo_profundo:{name:"Vínculo Profundo",desc:"+1 maná/s extra en el aura"},
+    lp_guardiao:{name:"Guardián Etéreo",desc:"Cerca del Rey (150px): Rey +1 HP/s"},
+    lp_barreira:{name:"Barrera Ósea",desc:"15% de evasión"},
+    lp_cranios:{name:"Cráneos Hambrientos",desc:"Cura 10% del daño causado"},
+    lp_ossos_duros:{name:"Huesos Duros",desc:"+10% de evasión extra"},
+    lp_arquilich:{name:"Archiliche",desc:"Habilidades −20% CD extra · +1 maná/s extra en el aura"},
+    np_foice:{name:"Guadaña Hambrienta",desc:"Cura 15% del daño causado"},
+    np_rancor:{name:"Rencor",desc:"+25% de daño"},
+    np_foice_dupla:{name:"Guadaña Doble",desc:"15% de probabilidad de golpear 2×"},
+    np_passo:{name:"Paso Etéreo",desc:"+20% de velocidad"},
+    np_nebulosa:{name:"Forma Nebulosa",desc:"+20% de evasión"},
+    np_intangivel:{name:"Intangible",desc:"+10% de evasión extra"},
+    np_toque:{name:"Toque Gélido",desc:"Los golpes aplican LENTITUD 1s"},
+    np_toque_profundo:{name:"Toque Profundo",desc:"LENTITUD extendida a 1.8s"},
+    np_vinculo:{name:"Vínculo Sombrío",desc:"Cerca del Rey (150px): Rey +1 HP/s"},
+    np_ceifador:{name:"Segador",desc:"Las muertes curan al Rey 5 HP · habilidades −25% CD"},
+    cr_pontaria:{name:"Puntería Fina",desc:"+15% de probabilidad de crítico"},
+    cr_brutal:{name:"Crítico Brutal",desc:"Los críticos hacen ×3 (antes ×2)"},
+    cr_olho_mortal:{name:"Ojo Mortal",desc:"+10% de crítico extra"},
+    cr_farpadas:{name:"Flechas con Púas",desc:"+20% de daño"},
+    cr_rajada:{name:"Ráfaga",desc:"Ataca 25% más rápido"},
+    cr_aguia:{name:"Ojo de Águila",desc:"+25% de alcance"},
+    cr_marca:{name:"Flecha Marcada",desc:"Los objetivos golpeados sufren +10% de daño de TODOS por 3s"},
+    cr_predador:{name:"Depredador",desc:"+35% de daño vs objetivos con HP < 25%"},
+    cr_passo:{name:"Paso del Cazador",desc:"+20% de velocidad"},
+    cr_mestre:{name:"Maestro Tirador",desc:"+15% de crítico extra · habilidades −25% CD"},
+    sr_laminav:{name:"Hoja Envenenada",desc:"Los golpes envenenan por 2s"},
+    sr_toxina:{name:"Toxina Concentrada",desc:"Veneno extendido a 3.5s"},
+    sr_execucao:{name:"Ejecución",desc:"+50% de daño vs objetivos con HP < 25%"},
+    sr_danca:{name:"Danza de las Sombras",desc:"+25% de velocidad"},
+    sr_reflexos:{name:"Reflejos",desc:"+15% de evasión"},
+    sr_manto:{name:"Manto Sombrío",desc:"+10% de evasión extra"},
+    sr_sede:{name:"Sed Sombría",desc:"Cura 20% del daño causado"},
+    sr_golpe:{name:"Golpe Doble",desc:"20% de probabilidad de golpear 2×"},
+    sr_frenesi:{name:"Frenesí",desc:"Ataca 15% más rápido"},
+    sr_morte:{name:"Muerte Encarnada",desc:"+20% de crítico extra · habilidades −25% CD"},
+  },
+};
+const COMPANION_BRANCH_I18N = {
+  en: { "FEITIÇARIA":"SORCERY","VÍNCULO":"BOND","OSSADA":"BONES","CEIFA":"REAP","ÉTER":"AETHER","GELO":"ICE","PONTARIA":"AIM","ARSENAL":"ARSENAL","CAÇADA":"HUNT","VENENO":"POISON","SOMBRAS":"SHADOWS","SANGUE":"BLOOD" },
+  es: { "FEITIÇARIA":"HECHICERÍA","VÍNCULO":"VÍNCULO","OSSADA":"HUESOS","CEIFA":"SIEGA","ÉTER":"ÉTER","GELO":"HIELO","PONTARIA":"PUNTERÍA","ARSENAL":"ARSENAL","CAÇADA":"CAZA","VENENO":"VENENO","SOMBRAS":"SOMBRAS","SANGUE":"SANGRE" },
+};
+function getTreeNodeName(node) {
+  try { const T = COMPANION_TREE_I18N[_currentLang]; if (T && T[node.id]) return T[node.id].name; } catch (e) {}
+  return node.name;
+}
+function getTreeNodeDesc(node) {
+  try { const T = COMPANION_TREE_I18N[_currentLang]; if (T && T[node.id]) return T[node.id].desc; } catch (e) {}
+  return node.desc;
+}
+function getTreeBranchName(ptName) {
+  try { const T = COMPANION_BRANCH_I18N[_currentLang]; if (T && T[ptName]) return T[ptName]; } catch (e) {}
+  return ptName;
+}
 function companionTreeState(cid) {
   return (progress.companionTree && progress.companionTree[cid]) || {};
 }
@@ -13085,7 +13143,7 @@ function renderRegionMap(justUnlockedId) {
 
     const idx = document.createElement("div"); idx.className = "region-idx"; idx.textContent = "REGIÃO " + (i + 1);
     node.appendChild(idx);
-    const name = document.createElement("div"); name.className = "region-name"; name.textContent = String(biome.name || biomeId).toUpperCase();
+    const name = document.createElement("div"); name.className = "region-name"; name.textContent = String(getBiomeNameI(biomeId) || biome.name || biomeId).toUpperCase();
     node.appendChild(name);
 
     // overlay revelado no hover (desktop) / tap (mobile): status + níveis
@@ -23906,7 +23964,7 @@ function update(dt) {
         game._lastBiome = biome;
         // Toast sutil mostrando o nome do bioma (só pra biomas temáticos, não neutro)
         if (biome !== "neutro" && BIOMES[biome] && typeof showToast === "function") {
-          showToast(BIOMES[biome].name.toUpperCase(), 1800, "magic");
+          showToast(getBiomeNameI(biome).toUpperCase(), 1800, "magic");
         }
       }
     } catch(e) {}
@@ -30023,16 +30081,22 @@ function getCardTooltipHTML(spellId) {
   const cdSec = ((spell.cd || 0) / 1000).toFixed(1);
   const dmgDesc = info.damageDesc ? info.damageDesc(b) : null;
   const extras = info.extras ? info.extras() : [];
-  let html = `<div class="ct-name">${spell.icon || "✦"} ${spell.name}</div>`;
-  html += `<div class="ct-row"><span class="ct-label">CUSTO</span><span class="ct-value cost">◆ ${cost} mana</span></div>`;
-  html += `<div class="ct-row"><span class="ct-label">RECARGA</span><span class="ct-value cd">${cdSec}s</span></div>`;
+  const _lCost = _currentLang === "en" ? "COST" : _currentLang === "es" ? "COSTE" : "CUSTO";
+  const _lCd = _currentLang === "en" ? "COOLDOWN" : "RECARGA";
+  const _lFx = _currentLang === "en" ? "EFFECT" : _currentLang === "es" ? "EFECTO" : "EFEITO";
+  const _lKey = _currentLang === "en" ? "key: " : "tecla: ";
+  const _cardNm = (typeof getCardName === "function") ? getCardName(spellId) : spell.name;
+  let html = `<div class="ct-name">${spell.icon || "✦"} ${_cardNm}</div>`;
+  html += `<div class="ct-row"><span class="ct-label">${_lCost}</span><span class="ct-value cost">◆ ${cost} mana</span></div>`;
+  html += `<div class="ct-row"><span class="ct-label">${_lCd}</span><span class="ct-value cd">${cdSec}s</span></div>`;
   if (dmgDesc) {
     const dmgClass = (spellId === "spore" || spellId === "massHeal") ? "heal" : "damage";
-    html += `<div class="ct-row"><span class="ct-label">EFEITO</span><span class="ct-value ${dmgClass}">${dmgDesc}</span></div>`;
+    html += `<div class="ct-row"><span class="ct-label">${_lFx}</span><span class="ct-value ${dmgClass}">${dmgDesc}</span></div>`;
   }
-  if (info.desc) html += `<div class="ct-desc">${info.desc}</div>`;
+  const _tipDesc = getSpellTipDesc(spellId);
+  if (_tipDesc) html += `<div class="ct-desc">${_tipDesc}</div>`;
   for (const ex of extras) html += `<div class="ct-upgrade">▲ ${ex}</div>`;
-  if (spell.key) html += `<div class="ct-key">tecla: ${spell.key}</div>`;
+  if (spell.key) html += `<div class="ct-key">${_lKey}${spell.key}</div>`;
   return html;
 }
 
@@ -30452,7 +30516,7 @@ function renderPickCompanion() {
   // R14 — sincroniza o seletor de dificuldade com a preferência salva (roda em todo
   // refresh do card pick, que é onde o seletor vive)
   if (typeof _runDifficulty !== "undefined") {
-    document.querySelectorAll("#difficultySelector .diff-btn").forEach(b2 => b2.classList.toggle("active", b2.dataset.diff === _runDifficulty));
+    document.querySelectorAll("#difficultySelector .diff-btn").forEach(b2 => { b2.classList.toggle("active", b2.dataset.diff === _runDifficulty); var _di = ({easy:"☀",normal:"⚔",hard:"💀"})[b2.dataset.diff] || ""; if (typeof getDiffLabel === "function") b2.textContent = _di + " " + getDiffLabel(b2.dataset.diff); });
   }
   const grid = document.getElementById("pickCompanionGrid");
   if (!grid || typeof COMPANION_DEFS === "undefined") return;
@@ -30465,7 +30529,7 @@ function renderPickCompanion() {
   noneCard.dataset.companionId = "";
   noneCard.innerHTML = `
     <div class="pcc-icon">🚫</div>
-    <div class="pcc-name">SEM<br>COMPANION</div>
+    <div class="pcc-name">${_currentLang === "en" ? "NO<br>COMPANION" : _currentLang === "es" ? "SIN<br>COMPAÑERO" : "SEM<br>COMPANION"}</div>
   `;
   grid.appendChild(noneCard);
   // 4 companions
@@ -30495,7 +30559,7 @@ function renderPickCompanion() {
       }
       if (nextLvlData) {
         const canAfford = (progress.souls || 0) >= nextLvlData.cost;
-        const tip = `${nextLvlData.label}: ${nextLvlData.desc}`;
+        const tip = `${getCompLevelLabel(curLvl + 1)}: ${getCompLevelDesc(curLvl + 1)}`;
         upgradeBtn = `<button class="pcc-upgrade${canAfford ? '' : ' locked'}" data-menu-action="upgrade-companion" data-companion-id="${def.id}" title="${tip}">▲ ${nextLvlData.cost}✦</button>`;
       }
     }
@@ -30503,11 +30567,11 @@ function renderPickCompanion() {
       ${!unlocked ? '<span class="pcc-locked-icon">🔒</span>' : ""}
       ${lvlBadge}
       <div class="pcc-icon">${icons[def.id] || "?"}</div>
-      <div class="pcc-name">${unlocked ? def.name.toUpperCase().replace(" ", "<br>") : "???"}</div>
+      <div class="pcc-name">${unlocked ? getCompDefName(def.id).toUpperCase().replace(" ", "<br>") : "???"}</div>
       ${perkTrack}
       ${upgradeBtn}
     `;
-    card.title = unlocked ? (def.name + " — " + def.desc) : ("Bloqueado: " + def.unlock);
+    card.title = unlocked ? (getCompDefName(def.id) + " — " + getCompDefDesc(def.id)) : ((_currentLang === "en" ? "Locked: " : "Bloqueado: ") + getCompDefUnlock(def.id));
     grid.appendChild(card);
   }
 }
@@ -30521,30 +30585,32 @@ function renderCompanionTree(cid) {
   _companionTreeCid = cid;
   const icons = { lichPet: "💀", necroPhantom: "👻", cacadorReal: "🏹", sombraReal: "🗡" };
   document.getElementById("ctreeIcon").textContent = icons[cid] || "❔";
-  document.getElementById("ctreeName").textContent = def.name.toUpperCase() + " — Lv " + getCompanionLevel(cid) + "/3";
+  document.getElementById("ctreeName").textContent = getCompDefName(cid).toUpperCase() + " — Lv " + getCompanionLevel(cid) + "/3";
   document.getElementById("ctreeSouls").textContent = progress.souls || 0;
   const st = companionTreeState(cid);
   const souls = progress.souls || 0;
+  const boughtLbl = _currentLang === "en" ? "◆ OWNED" : "◆ COMPRADO";   // ES = COMPRADO
   const nodeHtml = (nd, cost, state, reason) => {
     const cls = state === "bought" ? "bought" : (state === "avail" ? "avail" : "locked");
-    const costTxt = state === "bought" ? "◆ COMPRADO" : (cost + "✦" + (state === "locked" && reason ? " · " + reason : ""));
+    const costTxt = state === "bought" ? boughtLbl : (cost + "✦" + (state === "locked" && reason ? " · " + reason : ""));
     const action = state === "avail" ? ` data-menu-action="buy-comp-node" data-companion-id="${cid}" data-node-id="${nd.id}"` : "";
-    return `<button class="ct-node ${cls}"${action} title="${nd.name}: ${nd.desc}">
-      <div class="ctn-name">${state === "bought" ? "◆ " : ""}${nd.name}</div>
-      <div class="ctn-desc">${nd.desc}</div>
+    const nm = getTreeNodeName(nd), dc = getTreeNodeDesc(nd);
+    return `<button class="ct-node ${cls}"${action} title="${nm}: ${dc}">
+      <div class="ctn-name">${state === "bought" ? "◆ " : ""}${nm}</div>
+      <div class="ctn-desc">${dc}</div>
       <div class="ctn-cost">${costTxt}</div>
     </button>`;
   };
   const host = document.getElementById("ctreeBranches");
   host.innerHTML = "";
   for (const br of tree.branches) {
-    let col = `<div class="ctree-branch"><div class="ctree-branch-title">${br.icon} ${br.name}</div>`;
+    let col = `<div class="ctree-branch"><div class="ctree-branch-title">${br.icon} ${getTreeBranchName(br.name)}</div>`;
     br.nodes.forEach((nd, i) => {
       const cost = COMPANION_TREE_COSTS[i];
       let state = "locked", reason = "";
       if (st[nd.id]) state = "bought";
-      else if (i > 0 && !st[br.nodes[i - 1].id]) { state = "locked"; reason = "requer o anterior"; }
-      else if (souls < cost) { state = "locked"; reason = "faltam almas"; }
+      else if (i > 0 && !st[br.nodes[i - 1].id]) { state = "locked"; reason = _currentLang === "en" ? "requires the previous" : _currentLang === "es" ? "requiere el anterior" : "requer o anterior"; }
+      else if (souls < cost) { state = "locked"; reason = _currentLang === "en" ? "not enough souls" : _currentLang === "es" ? "faltan almas" : "faltam almas"; }
       else state = "avail";
       col += nodeHtml(nd, cost, state, reason);
     });
@@ -30556,8 +30622,8 @@ function renderCompanionTree(cid) {
   const cap = tree.capstone;
   let capState = "locked", capReason = "";
   if (st[cap.id]) capState = "bought";
-  else if (bought < COMPANION_TREE_CAPSTONE_REQ) { capState = "locked"; capReason = "requer " + COMPANION_TREE_CAPSTONE_REQ + " talentos (" + bought + "/" + COMPANION_TREE_CAPSTONE_REQ + ")"; }
-  else if (souls < COMPANION_TREE_CAPSTONE_COST) { capState = "locked"; capReason = "faltam almas"; }
+  else if (bought < COMPANION_TREE_CAPSTONE_REQ) { capState = "locked"; capReason = (_currentLang === "en" ? "requires " : _currentLang === "es" ? "requiere " : "requer ") + COMPANION_TREE_CAPSTONE_REQ + (_currentLang === "en" ? " talents (" : _currentLang === "es" ? " talentos (" : " talentos (") + bought + "/" + COMPANION_TREE_CAPSTONE_REQ + ")"; }
+  else if (souls < COMPANION_TREE_CAPSTONE_COST) { capState = "locked"; capReason = _currentLang === "en" ? "not enough souls" : _currentLang === "es" ? "faltan almas" : "faltam almas"; }
   else capState = "avail";
   capHost.innerHTML = nodeHtml(cap, COMPANION_TREE_CAPSTONE_COST, capState, capReason);
 }
@@ -30568,12 +30634,12 @@ function buyCompanionTreeNode(cid, nodeId) {
   // R10 (revisão): no perfil ENDLESS (mesclado, em memória) saveProgressNow é no-op —
   // a compra debitaria almas e EVAPORARIA no restart. Talento se compra na campanha.
   if (game._endlessProfile) {
-    showToast("Talentos são comprados na CAMPANHA — o Endless herda os desbloqueios", 2600, "danger");
+    showToast(_currentLang === "en" ? "Talents are bought in CAMPAIGN — Endless inherits the unlocks" : _currentLang === "es" ? "Los talentos se compran en la CAMPAÑA — el Endless hereda los desbloqueos" : "Talentos são comprados na CAMPANHA — o Endless herda os desbloqueios", 2600, "danger");
     if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
     return;
   }
   if (getCompanionLevel(cid) < 3) {
-    showToast("A Árvore de Talentos abre no nível 3 (LENDÁRIO)", 2200, "danger");
+    showToast(_currentLang === "en" ? "The Talent Tree opens at level 3 (LEGENDARY)" : _currentLang === "es" ? "El Árbol de Talentos se abre en el nivel 3 (LEGENDARIO)" : "A Árvore de Talentos abre no nível 3 (LENDÁRIO)", 2200, "danger");
     if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
     return;
   }
@@ -30583,13 +30649,13 @@ function buyCompanionTreeNode(cid, nodeId) {
   let node = null, cost = 0, blocked = "";
   if (tree.capstone.id === nodeId) {
     node = tree.capstone; cost = COMPANION_TREE_CAPSTONE_COST;
-    if (companionTreeNodeCount(cid) < COMPANION_TREE_CAPSTONE_REQ) blocked = "O capstone exige " + COMPANION_TREE_CAPSTONE_REQ + " talentos comprados";
+    if (companionTreeNodeCount(cid) < COMPANION_TREE_CAPSTONE_REQ) blocked = _currentLang === "en" ? ("The capstone requires " + COMPANION_TREE_CAPSTONE_REQ + " purchased talents") : _currentLang === "es" ? ("El capstone exige " + COMPANION_TREE_CAPSTONE_REQ + " talentos comprados") : ("O capstone exige " + COMPANION_TREE_CAPSTONE_REQ + " talentos comprados");
   } else {
     for (const br of tree.branches) {
       br.nodes.forEach((nd, i) => {
         if (nd.id === nodeId) {
           node = nd; cost = COMPANION_TREE_COSTS[i];
-          if (i > 0 && !st[br.nodes[i - 1].id]) blocked = "Requer o talento anterior do ramo";
+          if (i > 0 && !st[br.nodes[i - 1].id]) blocked = _currentLang === "en" ? "Requires the previous talent in the branch" : _currentLang === "es" ? "Requiere el talento anterior de la rama" : "Requer o talento anterior do ramo";
         }
       });
     }
@@ -30597,7 +30663,7 @@ function buyCompanionTreeNode(cid, nodeId) {
   if (!node) return;
   if (blocked) { showToast(blocked, 2200, "danger"); if (Sfx.deny) Sfx.deny(); return; }
   if ((progress.souls || 0) < cost) {
-    showToast("Faltam almas (✦ " + (progress.souls || 0) + " / " + cost + ")", 2200, "danger");
+    showToast((_currentLang === "en" ? "Not enough souls (✦ " : _currentLang === "es" ? "Faltan almas (✦ " : "Faltam almas (✦ ") + (progress.souls || 0) + " / " + cost + ")", 2200, "danger");
     if (Sfx.deny) Sfx.deny();
     return;
   }
@@ -30605,7 +30671,7 @@ function buyCompanionTreeNode(cid, nodeId) {
   st[nodeId] = true;
   if (typeof saveProgressNow === "function") saveProgressNow(); else saveProgress();
   if (typeof Sfx !== "undefined" && Sfx.levelUp) Sfx.levelUp();
-  showToast("◆ " + node.name, 1800, "magic");
+  showToast("◆ " + getTreeNodeName(node), 1800, "magic");
   refreshCompanionUnit();
   renderCompanionTree(cid);
   if (typeof renderPickCompanion === "function") renderPickCompanion();
@@ -65979,7 +66045,7 @@ function renderQuestTracker() {
     const counterDisp = q.completed ? GAME_ICONS.check : counter;
     row.innerHTML =
       '<span class="quest-icon">' + iconHtml + '</span>' +
-      '<span class="quest-name" title="' + q.desc + '">' + q.name + '<span class="quest-stars">' + stars + '</span></span>' +
+      '<span class="quest-name" title="' + getQuestDesc(q) + '">' + getQuestName(q) + '<span class="quest-stars">' + stars + '</span></span>' +
       '<span class="quest-progress-wrap">' +
         '<span class="quest-bar"><span class="quest-bar-fill" style="width:' + pct + '%"></span></span>' +
         '<span class="quest-counter">' + counterDisp + '</span>' +
@@ -66399,7 +66465,7 @@ function renderUnitInfo() {
       name = u.skeleton ? ("Esqueleto · " + cls.name) : cls.name;
       desc = u.skeleton
         ? ("Morto-vivo invocado pela Necromancia. Antiga classe: " + cls.name + ".")
-        : (cls.desc || "—");
+        : (getUnitDesc(u.unitClass) || cls.desc || "—");
       weapon = cls.weapon || "—";
     } else {
       name = u.type || "Unidade";
@@ -67609,8 +67675,8 @@ function renderMerchantShop() {
     if (soldOut) div.classList.add("unaffordable");
     const soldOutLabel = soldOut ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);color:#a04040;font-weight:900;font-size:14px;letter-spacing:2px;">ESGOTADO</div>' : '';
     div.style.position = "relative";
-    div.innerHTML = '<div class="item-name">' + it.name + '</div>' +
-                    '<div class="item-desc">' + it.desc + '</div>' +
+    div.innerHTML = '<div class="item-name">' + getMerchantName(it) + '</div>' +
+                    '<div class="item-desc">' + getMerchantDesc(it) + '</div>' +
                     '<div class="item-cost">◈ ' + it.cost + '</div>' +
                     soldOutLabel;
     div.onclick = () => {
@@ -73486,8 +73552,8 @@ function renderLegacyGrid() {
     header.className = "legacy-tree-header";
     const spent = legacySpentInTree(treeId);
     header.innerHTML =
-      '<div class="legacy-tree-name" style="color:' + tree.color + '">' + tree.name + '</div>' +
-      '<div class="legacy-tree-desc">' + tree.desc + '</div>' +
+      '<div class="legacy-tree-name" style="color:' + tree.color + '">' + getLegacyTreeName(treeId) + '</div>' +
+      '<div class="legacy-tree-desc">' + getLegacyTreeDesc(treeId) + '</div>' +
       '<div class="legacy-tree-spent">\u2728 ' + spent + ' almas investidas</div>';
     treeEl.appendChild(header);
     // Nodes
@@ -73506,8 +73572,8 @@ function renderLegacyGrid() {
       const status = owned ? "ATIVO \u2713" : (unlocked ? "" : "BLOQUEADO");
       nodeEl.innerHTML =
         '<div class="legacy-node-name" style="color:' + (owned ? tree.color : "#ffd68a") + '">' +
-          (i + 1) + '. ' + node.name + '</div>' +
-        '<div class="legacy-node-desc">' + node.desc + '</div>' +
+          (i + 1) + '. ' + getLegacyNodeName(treeId, node) + '</div>' +
+        '<div class="legacy-node-desc">' + getLegacyNodeDesc(treeId, node) + '</div>' +
         '<div class="legacy-node-cost">' +
           (owned ? '\u2713 EQUIPADO' : '\u2728 ' + node.cost + ' almas' + (status ? ' \u00b7 ' + status : '')) +
         '</div>';
@@ -74638,7 +74704,7 @@ function buildUnitCard(classId) {
   const desc = document.createElement("div");
   desc.className = "uc-desc";
   // 2026-05-11 — i18n: usa getBossDesc pra chefes
-  let _displayDesc = cls.desc || "";
+  let _displayDesc = getUnitDesc(classId) || cls.desc || "";
   if (cls.isBoss && typeof getBossDesc === "function") _displayDesc = getBossDesc(classId) || _displayDesc;
   const _unseenMsg = _currentLang === "en" ? "Defeat this unit at least once to reveal its info." : _currentLang === "es" ? "Derrota esta unidad al menos una vez para revelar su información." : "Derrote esta unidade ao menos uma vez para revelar suas informações.";
   desc.textContent = unseen ? _unseenMsg : _displayDesc;
@@ -74929,7 +74995,7 @@ function renderItemsMenu() {
     const key = buff.kind === "resist" ? ("resist" + (buff.subtype || "")) : buff.kind;
     const title = document.createElement("div");
     title.className = "item-title";
-    title.textContent = ITEM_NAMES[key] || (buff.label || key).toUpperCase();
+    title.textContent = getItemNameI(key) || (buff.label || key).toUpperCase();
     card.appendChild(title);
     const value = document.createElement("div");
     value.className = "item-rarity";
@@ -74939,7 +75005,7 @@ function renderItemsMenu() {
     card.appendChild(value);
     const desc = document.createElement("div");
     desc.className = "item-desc";
-    desc.textContent = ITEM_DESCRIPTIONS[key] || "Bônus permanente durante a run.";
+    desc.textContent = getItemDescI(key) || "Bônus permanente durante a run.";
     card.appendChild(desc);
     const rarity = document.createElement("div");
     rarity.className = "item-rarity";
@@ -75840,8 +75906,8 @@ function renderDailyMenu() {
   if (modEl) {
     modEl.innerHTML = `
       <div class="dm-title">⚡ MODIFICADOR DE HOJE</div>
-      <div><b>${mod.name}</b></div>
-      <div style="font-size:8px; margin-top:4px; color:#c0a060;">${mod.desc}</div>
+      <div><b>${getModName(mod)}</b></div>
+      <div style="font-size:8px; margin-top:4px; color:#c0a060;">${getModDesc(mod)}</div>
     `;
   }
   const lb = document.getElementById("dailyLeaderboard");
@@ -76329,7 +76395,7 @@ document.addEventListener("click", (e) => {
         setRunDifficulty(d);
         document.querySelectorAll("#difficultySelector .diff-btn").forEach(b2 => b2.classList.toggle("active", b2.dataset.diff === d));
         const m = DIFF_MODES[d];
-        showToast(m.icon + " Dificuldade: " + m.label + (d === "easy" ? " — inimigos −25%" : d === "hard" ? " — inimigos +30% HP / +25% dano" : ""), 2200, d === "hard" ? "danger" : "magic");
+        showToast(m.icon + " " + (_currentLang === "en" ? "Difficulty: " : _currentLang === "es" ? "Dificultad: " : "Dificuldade: ") + getDiffLabel(d) + (d === "easy" ? (_currentLang === "en" ? " — enemies −25%" : _currentLang === "es" ? " — enemigos −25%" : " — inimigos −25%") : d === "hard" ? (_currentLang === "en" ? " — enemies +30% HP / +25% dmg" : _currentLang === "es" ? " — enemigos +30% HP / +25% daño" : " — inimigos +30% HP / +25% dano") : ""), 2200, d === "hard" ? "danger" : "magic");
       }
       break;
     }
@@ -77260,6 +77326,84 @@ function getRelicSource(id) {
   try { if (_currentLang !== "pt" && RELIC_I18N[_currentLang][id]) return RELIC_I18N[_currentLang][id].source; } catch (e) {}
   return (RELICS[id] && (RELICS[id].source || RELICS[id].unlock)) || "";
 }
+
+// R18 (2026-07-04) — i18n de RELEASE (Poki global): tabelas EN/ES + getters no
+// padrao getRelicName (pt = fallback no dado hardcoded). Traducoes autoradas em
+// workflow paralelo e validadas (parse JS).
+const UNITDESC_I18N = { en: { bandido: "Nimble, fragile raider. Attacks fast but crumples easily.", soldado: "Line trooper with a breastplate. Balanced, easy to recruit.", archer: "Long range and composite bow. Melee is death.", lancer: "Heavy shield and long spear. A containment wall.", musketeer: "Elite marksman. Heavy damage, agonizingly slow reload.", capitao: "Veteran in officer's armor. Fast for a heavy class.", ceifeiro: "Grim reaper. Devastating damage with a wide scythe.", ogro: "Massive beast. Raw HP and heavy blows.", escorpiao: "Venomous stinger — each sting poisons for 2s.", nomadeArqueiro: "Desert archer. Precise with a barbed arrow.", mumia: "Bandaged corpse — blows apply a lingering plague.", bandoleiro: "Curved scimitar — fast, precise attack.", clerigoAreia: "Summons sunbeams from the skies — briefly stuns enemies.", colossoDunas: "Sandstone giant — each blow buries allies in the sand (slow 1s).", loboPolar: "Hunts in a pack — icy bite applies slow 0.8s.", goblinGelo: "Hurls ice shards — apply a brief slow.", ursoBranco: "Tundra predator — frozen paws slow.", xamaFrost: "Conjures heavy snowballs — strong slow on allies.", cavaleiroFrio: "Bluish armor — the freezing blade briefly freezes.", golemGelo: "Mountain of eternal ice — each blow slows for 1s.", imp: "Ember imp — hot claw applies a brief burn.", caoInferno: "Ember hound — paws leave sparks and burn.", demonioMenor: "Fire blade — a cut sets the enemy ablaze.", cultistaFogo: "Hurls fire barbs from afar — burn on impact.", gargulaMagma: "Molten statue — a blow melts skin (high burn).", balrog: "Primordial beast — each charge scorches and burns everything.", sapoVenen: "Toxic skin — each bite poisons.", slimeVerde: "Acidic jelly — sticks and slows on touch.", bruxaPantano: "Spits venomous bubbles — poisonous ranged attack.", mortoAfogado: "Waterlogged corpse — drags allies into the mud (slow).", medusa: "Swamp gorgon — a mane of serpents poisons every blow.", leviatao: "Colossal reptile — acidic tail poisons and slows.", bossFaraoCarcomido: "Dead king of the desert. Commands mummies and buries the living.", bossLichCoroado: "Necromancer frozen in a crown of ice. Master of the cold.", bossDemonioLava: "Igneous avatar. Hurls magma and charges ablaze.", bossBruxoAnciao: "Millennia-old sorcerer of the mire. Controls poisons and roots.", esporulado: "Walking mushroom. Each punch releases toxic spores.", larvaFungo: "Mycelial larva — spits purple spores from afar.", guerreiroFungo: "Cap-shield and mycelial mace. Poisons from within.", lancadorEsporos: "Fires dense purple spore bubbles. Area poison.", goliasMicelial: "Mushroom brute. Slow, devastating blows, slow from spores.", mestreEsporos: "Fungal sorcerer. Purple spores corrupt the soul.", bossRainhaEsporos: "Fungal sovereign. Each blow releases a cloud of corrosive spores.", cherubim: "Corrupted cherub. Small wings, a celestial dagger, floats over the terrain.", acolitoCorrupto: "Fallen priest. Casts malignant golden bolts.", cavaleiroLuz: "Corrupted templar. Flaming sword and blazoned shield.", paladinoCaido: "Once a holy protector. Huge shield, war hammer, radiates corrupted healing to nearby allies.", arquimago: "Fallen angel-mage. Fires 3 golden projectiles in a fan. Keeps the spell when raised.", homemPeixe: "Fishy hybrid of the shallows. Fast, venomous bites.", caranguejoGigante: "Armored crustacean — hard armor, heavy blows. Slow.", sereia: "Singer of the deep — aquatic projectiles that slow.", profundo: "Tentacled abomination of the abyss. Very venomous.", leviataProfundo: "Aquatic colossus — area blows that poison.", compLichPet: "Small lich apprentice loyal to the King. Casts piercing bones.", compNecroPhantom: "Ethereal shadow. Immune to half of physical damage — fluid as the night.", compGolemAncestral: "Stone construct. Slow, but draws enemies in and absorbs their attacks.", compCacadorReal: "The King's elite marksman. Immense range and precise shots — takes down targets from afar.", compSombraReal: "The King's assassin. Extreme speed, critical strikes, 25% dodge.", necroSpider: "Summoned necromancer spider. Poison on bite.", bossNecroKing: "Millennia-old necromancer king. Summons undead, casts curses, and is reborn as a titanic skull.", bossChefeGuilda: "Merchant-warrior of immeasurable greed and a SECRET BOSS. Rains coins as projectiles and shields himself with gold. Those who dare attack the Guild face his overwhelming fury.", bossSenhorSombras: "Fleeting specter. Teleports between shadows and fires black bolts.", bossTitaAncestral: "Primordial colossus of living stone. Slow but devastating. Its slams break the earth.", bossAnjoCaido: "Once a servant of the Light. Wings in tatters, corrupted light — divine punishment turned into a weapon.", bossLeviataRei: "Ancestral titan of the abyss. A body of black tentacles, a hypnotic eye. Reigns in the depths.", bossAvatarVazio: "The Void incarnate. Exists between dimensions. Every move corrupts the fabric of reality.", bossDragaoEsqueletico: "Wyrm of flying bones. Breathes a flaming breath and summons dead legions.", carroca: "Merchants' Guild wagon. White and purple. Sells items — attack it = hostile!", guardiaoMercador: "Elite knight of the Guild. White and purple armor, ornate sword.", arqueiroMercador: "Fires enchanted purple arrows. Defends the caravan from afar.", feiticeiroMercador: "Guild mage. Casts orbs of purple energy. A venerable member.", mestreMercador: "Leader of the Merchants' Guild. Devastating with his scepter of power." }, es: { bandido: "Saqueador ágil y frágil. Ataca rápido pero se rompe fácil.", soldado: "Tropa de línea con peto. Equilibrado, fácil de reclutar.", archer: "Largo alcance y arco compuesto. El cuerpo a cuerpo es muerte.", lancer: "Escudo pesado y lanza larga. Muro de contención.", musketeer: "Tirador de élite. Daño pesado, recarga lentísima.", capitao: "Veterano con armadura de oficial. Rápido para una clase pesada.", ceifeiro: "Segador sombrío. Daño devastador con guadaña ancha.", ogro: "Bestia masiva. HP bruto y golpes pesados.", escorpiao: "Aguijón ponzoñoso — cada picadura envenena por 2s.", nomadeArqueiro: "Arquero del desierto. Preciso con flecha con púas.", mumia: "Cadáver vendado — los golpes aplican una plaga persistente.", bandoleiro: "Cimitarra curva — rápido, ataque preciso.", clerigoAreia: "Invoca rayos solares del cielo — paraliza brevemente a los enemigos.", colossoDunas: "Gigante de arenisca — cada golpe entierra aliados en la arena (lentitud 1s).", loboPolar: "Caza en manada — mordida helada aplica lentitud 0,8s.", goblinGelo: "Lanza esquirlas de hielo — aplican una lentitud breve.", ursoBranco: "Depredador de la tundra — sus zarpas heladas ralentizan.", xamaFrost: "Invoca bolas de nieve pesadas — lentitud fuerte en aliados.", cavaleiroFrio: "Armadura azulada — la hoja congelante congela brevemente.", golemGelo: "Montaña de hielo eterno — cada golpe ralentiza por 1s.", imp: "Diablillo en brasa — su garra caliente aplica una quemadura breve.", caoInferno: "Perro en brasa — sus patas dejan chispas y queman.", demonioMenor: "Hoja de fuego — el corte deja al enemigo en llamas.", cultistaFogo: "Lanza púas de fuego a distancia — queman al impactar.", gargulaMagma: "Estatua fundida — el golpe derrite la piel (quemadura alta).", balrog: "Bestia primordial — cada embestida abrasa y quema todo.", sapoVenen: "Piel tóxica — cada mordida envenena.", slimeVerde: "Gelatina ácida — se pega y ralentiza al tocar.", bruxaPantano: "Escupe burbujas venenosas — ataque a distancia ponzoñoso.", mortoAfogado: "Cadáver empapado — arrastra aliados al lodo (lentitud).", medusa: "Gorgona del pantano — su cabello de serpientes envenena cada golpe.", leviatao: "Reptil colosal — cola ácida que envenena y ralentiza.", bossFaraoCarcomido: "Rey muerto del desierto. Comanda momias y entierra a los vivos.", bossLichCoroado: "Nigromante congelado en una corona de hielo. Domina el frío.", bossDemonioLava: "Avatar ígneo. Lanza magma y corre en brasa.", bossBruxoAnciao: "Hechicero milenario del fango. Controla venenos y raíces.", esporulado: "Hongo andante. Cada puñetazo libera esporas tóxicas.", larvaFungo: "Larva micelial — escupe esporas moradas a distancia.", guerreiroFungo: "Sombrero-escudo y maza micelial. Envenena por dentro.", lancadorEsporos: "Dispara burbujas de esporas moradas densas. Veneno en área.", goliasMicelial: "Bruto de hongo. Golpes lentos y devastadores, lentitud por esporas.", mestreEsporos: "Hechicero fúngico. Las esporas moradas corrompen el alma.", bossRainhaEsporos: "Soberana fúngica. Con cada golpe libera una nube de esporas corrosivas.", cherubim: "Querubín corrupto. Alas pequeñas, una daga celestial, flota sobre el terreno.", acolitoCorrupto: "Sacerdote caído. Lanza rayos dorados malignos.", cavaleiroLuz: "Templario corrupto. Espada flameante y escudo blasonado.", paladinoCaido: "Antaño protector sagrado. Escudo enorme, martillo de guerra, irradia cura corrupta a aliados cercanos.", arquimago: "Mago-ángel caído. Dispara 3 proyectiles dorados en abanico. Al ser resucitado, conserva el hechizo.", homemPeixe: "Híbrido pez de los bajíos. Veloz, mordidas venenosas.", caranguejoGigante: "Crustáceo acorazado — armadura dura, golpes pesados. Lento.", sereia: "Cantora de las profundidades — proyectiles acuáticos que ralentizan.", profundo: "Abominación tentacular del abismo. Muy venenosa.", leviataProfundo: "Coloso acuático — golpes en área que envenenan.", compLichPet: "Pequeño lich aprendiz leal al Rey. Lanza huesos perforantes.", compNecroPhantom: "Sombra etérea. Inmune a la mitad del daño físico — fluida como la noche.", compGolemAncestral: "Constructo de piedra. Lento, pero atrae enemigos y absorbe sus ataques.", compCacadorReal: "Tirador de élite del Rey. Alcance inmenso y tiros certeros — abate objetivos de lejos.", compSombraReal: "Asesino del Rey. Velocidad extrema, golpes críticos, evasión 25%.", necroSpider: "Araña nigromante invocada. Veneno al morder.", bossNecroKing: "Rey nigromante milenario. Invoca muertos vivientes, lanza maldiciones y renace como calavera titánica.", bossChefeGuilda: "Mercader-guerrero de avaricia inconmensurable y JEFE SECRETO. Llueve monedas como proyectiles y se blinda con oro. Quien osa atacar el Gremio enfrenta su furia avasalladora.", bossSenhorSombras: "Espectro fugaz. Se teletransporta entre sombras y dispara rayos negros.", bossTitaAncestral: "Coloso primordial de piedra viva. Lento pero devastador. Sus golpes quiebran la tierra.", bossAnjoCaido: "Antaño siervo de la Luz. Alas hechas jirones, luz corrupta — el castigo divino se volvió arma.", bossLeviataRei: "Titán ancestral del abismo. Un cuerpo de tentáculos negros, un ojo hipnótico. Reina en las profundidades.", bossAvatarVazio: "El Vacío encarnado. Existe entre dimensiones. Cada movimiento corrompe el tejido de la realidad.", bossDragaoEsqueletico: "Guiverno de huesos voladores. Escupe un aliento flameante e invoca legiones muertas.", carroca: "Carreta del Gremio de Mercaderes. Blanca y morada. Vende objetos — ¡atacarla = hostil!", guardiaoMercador: "Caballero de élite del Gremio. Armadura blanca y morada, espada ornada.", arqueiroMercador: "Dispara flechas moradas encantadas. Defiende la caravana desde lejos.", feiticeiroMercador: "Mago del Gremio. Lanza orbes de energía morada. Un miembro venerable.", mestreMercador: "Líder del Gremio de Mercaderes. Devastador con su cetro de poder." } };
+const SPELLTIP_I18N = { en: { necromancia: { desc: "Summons skeletons from nearby corpses. The King's signature." }, fireball: { desc: "Explosive fireball. 38px AoE on impact." }, ice: { desc: "Freezes enemies in a 60px radius. Immobilizes for 2.5s + bonus." }, lightning: { desc: "Bolt that jumps between nearby targets. Each hop: 28 damage." }, poison: { desc: "Cone of poison gas. DoT 4s + 40% slow." }, spore: { desc: "Heals allies in a radius. Does NOT heal the King." }, hellPortal: { desc: "HELL card. Opens a demonic portal — summons 5 imps + 2 Magma Gargoyles T3." }, iceThorns: { desc: "ICE card. Ice thorns grow in a cone (180px)." }, desertTornado: { desc: "DESERT card. Tornado chases nearby enemies. 5s." }, lightBurst: { desc: "HOLY card. Pillar of light at the cursor. 4× damage to undead." }, massHeal: { desc: "HOLY card. LARGE field (150px) that heals ~18% HP/s of TROOPS for 6s. Does NOT heal the King. CD 32s." }, sacredShield: { desc: "HOLY card. King becomes INVULNERABLE for 3s." } }, es: { necromancia: { desc: "Invoca esqueletos de cadáveres cercanos. El sello del Rey." }, fireball: { desc: "Bola de fuego explosiva. AoE 38px al impacto." }, ice: { desc: "Congela enemigos en radio 60px. Inmoviliza 2.5s + bonus." }, lightning: { desc: "Rayo que salta entre objetivos cercanos. Cada salto: 28 daño." }, poison: { desc: "Cono de gas venenoso. DoT 4s + lentitud 40%." }, spore: { desc: "Cura aliados en un radio. NO cura al Rey." }, hellPortal: { desc: "Carta del INFIERNO. Abre un portal demoníaco — invoca 5 diablillos + 2 Gárgolas de Magma T3." }, iceThorns: { desc: "Carta de HIELO. Espinas de hielo crecen en cono (180px)." }, desertTornado: { desc: "Carta del DESIERTO. Tornado persigue enemigos cercanos. 5s." }, lightBurst: { desc: "Carta SAGRADA. Pilar de luz en el cursor. 4× daño a muertos vivientes." }, massHeal: { desc: "Carta SAGRADA. Campo GRANDE (150px) que cura ~18% HP/s de las TROPAS por 6s. NO cura al Rey. CD 32s." }, sacredShield: { desc: "Carta SAGRADA. El Rey queda INVULNERABLE por 3s." } } };
+const QUESTS_I18N = { en: { quests: { elite_hunter: { name: "Elite Hunter", desc: "Kill 5 elites" }, genocide: { name: "Genocide", desc: "Kill 100 T3+ enemies" }, speed_killer: { name: "Speed Killer", desc: "Defeat 1 boss in <30s" }, butcher: { name: "Butcher", desc: "Kill 200 enemies with the King" }, lone_wolf: { name: "Lone Wolf", desc: "Kill 50 enemies with no ally alive" }, untouched: { name: "Untouched", desc: "Survive 3min without damage" }, marathon: { name: "Marathoner", desc: "Run active >10min" }, no_revive: { name: "No Revive", desc: "Don't use Second Chance" }, horde: { name: "Army of the Dead", desc: "Have 20 allies alive at once" }, necro_master: { name: "Master Necromancer", desc: "Summon 50 skeletons" }, soul_collector: { name: "Soul Collector", desc: "Raise 30 corpses" }, versatile_mage: { name: "Versatile Mage", desc: "Use 3 different spells" }, pyromaniac: { name: "Pyromaniac", desc: "Cast any spell 20×" }, treasure_hunter: { name: "Treasure Hunter", desc: "Open 8 chests" }, billionaire: { name: "Billionaire", desc: "Collect 1500 coins" } }, mods: { clear: { name: "", desc: "" }, fog: { name: "DENSE FOG", desc: "Reduced vision" }, storm: { name: "STORM", desc: "Severe weather" }, haunted: { name: "HAUNTED LAND", desc: "Ancient corpses along the way — raise them!" }, rich: { name: "TREASURE ROUTE", desc: "Extra hidden chests" }, ambush: { name: "HOSTILE TERRITORY", desc: "Double ambushes" }, hazards: { name: "TREACHEROUS TERRAIN", desc: "Natural hazards everywhere" } }, diff: { easy: { label: "EASY" }, normal: { label: "NORMAL" }, hard: { label: "HARD" } } }, es: { quests: { elite_hunter: { name: "Cazador de Élites", desc: "Mata 5 élites" }, genocide: { name: "Genocida", desc: "Mata 100 enemigos T3+" }, speed_killer: { name: "Asesino Veloz", desc: "Derrota 1 jefe en <30s" }, butcher: { name: "Carnicero", desc: "Mata 200 enemigos con el Rey" }, lone_wolf: { name: "Lobo Solitario", desc: "Mata 50 enemigos sin aliado vivo" }, untouched: { name: "Inmaculado", desc: "Sobrevive 3min sin daño" }, marathon: { name: "Maratonista", desc: "Partida activa >10min" }, no_revive: { name: "Sin Resurrección", desc: "No uses Segunda Oportunidad" }, horde: { name: "Ejército de los Muertos", desc: "Ten 20 aliados vivos a la vez" }, necro_master: { name: "Nigromante Maestro", desc: "Invoca 50 esqueletos" }, soul_collector: { name: "Coleccionista de Almas", desc: "Resucita 30 cadáveres" }, versatile_mage: { name: "Mago Versátil", desc: "Usa 3 hechizos diferentes" }, pyromaniac: { name: "Pirotécnico", desc: "Lanza cualquier hechizo 20×" }, treasure_hunter: { name: "Cazador de Tesoros", desc: "Abre 8 cofres" }, billionaire: { name: "Multimillonario", desc: "Recolecta 1500 monedas" } }, mods: { clear: { name: "", desc: "" }, fog: { name: "NIEBLA DENSA", desc: "Visión reducida" }, storm: { name: "TORMENTA", desc: "Clima severo" }, haunted: { name: "TIERRA EMBRUJADA", desc: "Cadáveres antiguos en el camino — ¡levántalos!" }, rich: { name: "RUTA DEL TESORO", desc: "Cofres extra escondidos" }, ambush: { name: "TERRITORIO HOSTIL", desc: "Emboscadas dobles" }, hazards: { name: "TERRENO TRAICIONERO", desc: "Peligros naturales por doquier" } }, diff: { easy: { label: "FÁCIL" }, normal: { label: "NORMAL" }, hard: { label: "DIFÍCIL" } } } };
+const SHOP_I18N = { en: { merchant: { potHp: { name: "Life Potion", desc: "Restores 200 HP to the King" }, potMp: { name: "Mana Potion", desc: "Restores 100 mana to the King" }, potHeal: { name: "Full Heal", desc: "Restores King's HP+mana to max" }, buffArmor: { name: "Armor Blessing", desc: "+15% physical damage reduction (rest of the run)" }, buffSpeed: { name: "Speed Blessing", desc: "+25% King speed (rest of the run)" }, buffRevive: { name: "Tome of Wisdom", desc: "Next death revives the King with 100 HP" }, rerollQuest: { name: "Scroll of Fate", desc: "Swaps a random objective for another" }, swapCard: { name: "Scroll of Exchange", desc: "Swap a run card for another from your Grimoire" } }, itemNames: { hpMax: "VITALITY FLASK", manaMax: "ARCANE CRYSTAL", manaRegen: "ETHER ESSENCE", kingSpeed: "ZEPHYR BOOTS", allyDmg: "WAR BANNER", allyHp: "BULWARK FLAG", allySpeed: "SWIFT BANNER", necroCap: "RESONANT SKULL", resistPhysical: "BULWARK AMULET", resistFire: "FIRE TALISMAN", resistIce: "GLACIAL TALISMAN", resistLightning: "STORM TALISMAN", resistPoison: "PURITY TALISMAN" }, itemDescs: { hpMax: "Raises the King's max Life. Heals the King to the new cap immediately.", manaMax: "Raises the King's max Mana. Refills to the new cap immediately.", manaRegen: "Speeds up passive Mana regen. Stacks over the run.", kingSpeed: "Raises the King's move speed (cap 50%). Excess becomes ◈.", allyDmg: "Raises the damage of ALL allies (current + future). Additive stack.", allyHp: "Raises the max HP of all allies. Heals on apply.", allySpeed: "Raises ally speed (cap 40%). Excess becomes ◈.", necroCap: "+1 corpse per Necromancy cast (absolute cap 12).", resistPhysical: "Reduces physical damage taken by the King (cap 60%).", resistFire: "Reduces fire damage taken by the King (including burn). Cap 60%.", resistIce: "Reduces ice damage taken by the King. Cap 60%.", resistLightning: "Reduces lightning damage taken by the King. Cap 60%.", resistPoison: "Reduces poison damage taken by the King. Cap 60%." }, biomeNames: { deserto: { name: "Dune Desert", bossName: "Withered Pharaoh" }, gelo: { name: "Frozen Vale", bossName: "Crowned Lich" }, inferno: { name: "Igneous Abyss", bossName: "Lava Demon" }, pantano: { name: "Gloomy Swamp", bossName: "Elder Warlock" }, cogumelo: { name: "Spore Grove", bossName: "Spore Queen" }, catedral: { name: "Fallen Cathedral", bossName: "Fallen Angel" }, aquatico: { name: "Aquatic Abyss", bossName: "Leviathan King" } } }, es: { merchant: { potHp: { name: "Poción de Vida", desc: "Restaura 200 HP del Rey" }, potMp: { name: "Poción de Maná", desc: "Restaura 100 maná del Rey" }, potHeal: { name: "Cura Total", desc: "Restaura HP+maná del Rey al máx" }, buffArmor: { name: "Bendición de Armadura", desc: "+15% reducción de daño físico (resto de la partida)" }, buffSpeed: { name: "Bendición de Veloc.", desc: "+25% velocidad del Rey (resto de la partida)" }, buffRevive: { name: "Tomo de la Sabiduría", desc: "La próxima muerte revive al Rey con 100 HP" }, rerollQuest: { name: "Pergamino del Destino", desc: "Cambia un objetivo aleatorio por otro" }, swapCard: { name: "Pergamino del Trueque", desc: "Cambia una carta de la partida por otra de tu Grimorio" } }, itemNames: { hpMax: "FRASCO DE VITALIDAD", manaMax: "CRISTAL ARCANO", manaRegen: "ESENCIA DEL ÉTER", kingSpeed: "BOTAS DEL CÉFIRO", allyDmg: "ESTANDARTE DE GUERRA", allyHp: "BANDERA DEL BALUARTE", allySpeed: "ESTANDARTE LIGERO", necroCap: "CRÁNEO RESONANTE", resistPhysical: "AMULETO DEL BALUARTE", resistFire: "TALISMÁN ÍGNEO", resistIce: "TALISMÁN GLACIAL", resistLightning: "TALISMÁN DE TORMENTAS", resistPoison: "TALISMÁN DE PUREZA" }, itemDescs: { hpMax: "Aumenta la Vida máxima del Rey. Cura al Rey hasta el nuevo límite de inmediato.", manaMax: "Aumenta el Maná máximo del Rey. Recarga hasta el nuevo límite de inmediato.", manaRegen: "Acelera la regeneración pasiva de Maná. Acumulable durante la partida.", kingSpeed: "Aumenta la velocidad de movimiento del Rey (tope 50%). El excedente se vuelve ◈.", allyDmg: "Aumenta el daño de TODOS los aliados (actuales + futuros). Acumulación aditiva.", allyHp: "Aumenta el HP máximo de todos los aliados. Cura al aplicar.", allySpeed: "Aumenta la velocidad de los aliados (tope 40%). El excedente se vuelve ◈.", necroCap: "+1 cadáver por uso de Nigromancia (tope absoluto 12).", resistPhysical: "Reduce el daño físico recibido por el Rey (tope 60%).", resistFire: "Reduce el daño de fuego recibido por el Rey (incluida la quemadura). Tope 60%.", resistIce: "Reduce el daño de hielo recibido por el Rey. Tope 60%.", resistLightning: "Reduce el daño eléctrico recibido por el Rey. Tope 60%.", resistPoison: "Reduce el daño de veneno recibido por el Rey. Tope 60%." }, biomeNames: { deserto: { name: "Desierto de las Dunas", bossName: "Faraón Carcomido" }, gelo: { name: "Valle Helado", bossName: "Lich Coronado" }, inferno: { name: "Abismo Ígneo", bossName: "Demonio de Lava" }, pantano: { name: "Pantano Sombrío", bossName: "Brujo Anciano" }, cogumelo: { name: "Bosque de las Esporas", bossName: "Reina de las Esporas" }, catedral: { name: "Catedral Caída", bossName: "Ángel Caído" }, aquatico: { name: "Abismo Acuático", bossName: "Rey Leviatán" } } } };
+const COMPMENU_I18N = { en: { defs: { lichPet: { name: "Apprentice Lich", desc: "Loyal ranged caster. Solid damage at range.", unlock: "Starter — always available." }, necroPhantom: { name: "Royal Wraith", desc: "Immune to 50% physical damage. Fast melee, hooks back to the King.", unlock: "Defeat 100 enemies." }, cacadorReal: { name: "Royal Hunter", desc: "Elite marksman. Huge range, high damage, kills from afar.", unlock: "Defeat 5 bosses (any biome)." }, sombraReal: { name: "Royal Shadow", desc: "Swift assassin. 25% dodge, 40% crit (×2.5 dmg).", unlock: "Defeat the NecroKing." } }, abilities: { lichPet: [null, { name: "Bone Volley", desc: "Fires 5 bones in all directions (25 dmg each)" }, { name: "Explosive Skull", desc: "Throws a skull that bursts in a purple AoE (60 dmg + slow 1.5s)" }, { name: "Bone Army", desc: "Summons 3 T2 skeletons for 15s" }], necroPhantom: [null, { name: "Phantom Dash", desc: "Teleports behind the target + next hit 2x dmg" }, { name: "Soul Reap", desc: "Purple 90° AoE sweep (50 dmg + drains soul)" }, { name: "Possession", desc: "Intangible 4s + 100% dmg during" }], cacadorReal: [null, { name: "Arrow Volley", desc: "Fires arrows in all directions (25 dmg each)" }, { name: "Explosive Skull", desc: "Arrow that bursts in an AoE (60 dmg + slow 1.5s)" }, { name: "Summon Scouts", desc: "Summons 3 T2 archer skeletons for 15s" }], sombraReal: [null, { name: "Backstab", desc: "Teleports behind + guaranteed crit (3x dmg)" }, { name: "Multi-Dash", desc: "3 consecutive dashes on 3 nearby targets" }, { name: "Massacre", desc: "Invisible 4s + ALL hits = crit" }] }, levels: { 0: { label: "BASE", desc: "Original stats" }, 1: { label: "VETERAN", desc: "+30% HP, +20% ATK · Ability I" }, 2: { label: "ELITE", desc: "+60% HP, +40% ATK · Ability II" }, 3: { label: "LEGENDARY", desc: "+100% HP, +60% ATK · Ability III + unique bonus · opens the TALENT TREE" } } }, es: { defs: { lichPet: { name: "Liche Aprendiz", desc: "Lanzador a distancia leal. Buen daño a distancia.", unlock: "Inicial — siempre disponible." }, necroPhantom: { name: "Espectro Real", desc: "Inmune al 50% del daño físico. Cuerpo a cuerpo veloz con gancho al Rey.", unlock: "Derrota a 100 enemigos." }, cacadorReal: { name: "Cazador Real", desc: "Tirador de élite. Alcance enorme, daño alto, abate de lejos.", unlock: "Derrota a 5 jefes (cualquier bioma)." }, sombraReal: { name: "Sombra Real", desc: "Asesino veloz. Evasión 25%, crítico 40% (×2.5 daño).", unlock: "Derrota al NecroKing." } }, abilities: { lichPet: [null, { name: "Andanada Ósea", desc: "Dispara 5 huesos en todas direcciones (25 daño cada uno)" }, { name: "Cráneo Explosivo", desc: "Lanza un cráneo que explota en AoE morada (60 daño + lentitud 1.5s)" }, { name: "Ejército de Huesos", desc: "Invoca 3 esqueletos T2 por 15s" }], necroPhantom: [null, { name: "Embestida Fantasma", desc: "Se teletransporta tras el objetivo + próximo golpe 2x daño" }, { name: "Siega de Almas", desc: "Barrido AoE morado 90° (50 daño + drena alma)" }, { name: "Posesión", desc: "Intangible 4s + 100% daño durante" }], cacadorReal: [null, { name: "Andanada de Flechas", desc: "Dispara flechas en todas direcciones (25 daño cada una)" }, { name: "Cráneo Explosivo", desc: "Flecha que explota en un AoE (60 daño + lentitud 1.5s)" }, { name: "Convocar Batidores", desc: "Invoca 3 esqueletos arqueros T2 por 15s" }], sombraReal: [null, { name: "Apuñalar", desc: "Se teletransporta detrás + crítico garantizado (3x daño)" }, { name: "Multi-Embestida", desc: "3 embestidas consecutivas en 3 objetivos cercanos" }, { name: "Masacre", desc: "Invisible 4s + TODOS los golpes = crítico" }] }, levels: { 0: { label: "BASE", desc: "Stats originales" }, 1: { label: "VETERANO", desc: "+30% HP, +20% ATK · Habilidad I" }, 2: { label: "ÉLITE", desc: "+60% HP, +40% ATK · Habilidad II" }, 3: { label: "LEGENDARIO", desc: "+100% HP, +60% ATK · Habilidad III + bonificación única · abre el ÁRBOL DE TALENTOS" } } } };
+const LEGACY_I18N = { en: { cards: { name: "CARDS", desc: "Arcane pact with the old spells.", nodes: { cards_1: { name: "Deft Hands", desc: "-15% cooldown on all cards." }, cards_2: { name: "Arcane Focus", desc: "-25% mana cost on ALL cards." }, cards_3: { name: "Eternal Tome", desc: "15% chance to NOT trigger cooldown when using a card." }, cards_4: { name: "Multiplicity", desc: "-25% cooldown on boss cards." }, cards_5: { name: "Magnitude", desc: "+20% spell damage." }, cards_6: { name: "Master Ritual", desc: "EXTRA card SLOT (4 → 5)." } } }, army: { name: "ARMY", desc: "Deep bond with your dead servants.", nodes: { army_1: { name: "Dark Pact", desc: "Necromancy radius +25% (hit + corpses)." }, army_2: { name: "Bone Bond", desc: "Allies +15% max HP." }, army_3: { name: "Malignant Growth", desc: "+5 max ally limit." }, army_4: { name: "Ancestral Blood", desc: "Allies +15% damage." }, army_5: { name: "Immortal Lineage", desc: "Resurrected allies spawn at 100% HP." }, army_6: { name: "Army of the Dead", desc: "Necromancy raises +1 corpse per cast." } } }, king: { name: "KING", desc: "Raises the King to a supernatural form.", nodes: { king_1: { name: "Royal Lineage", desc: "King +100 max HP permanently." }, king_2: { name: "Immortal Mind", desc: "King +60 max mana + regen +1.5/s." }, king_3: { name: "Death Breath", desc: "King hits deal AOE 5 dmg in radius 30." }, king_4: { name: "Blood Glyphs", desc: "Enemy killed within radius 100 heals King +2 HP." }, king_5: { name: "Aura of Death", desc: "King regenerates 2 HP/s passively." }, king_6: { name: "Sovereign", desc: "Start each run with 1 random chest buff." } } } }, es: { cards: { name: "CARTAS", desc: "Pacto arcano con los antiguos hechizos.", nodes: { cards_1: { name: "Manos Hábiles", desc: "-15% de enfriamiento en todas las cartas." }, cards_2: { name: "Foco Arcano", desc: "-25% de coste de maná en TODAS las cartas." }, cards_3: { name: "Tomo Eterno", desc: "15% de probabilidad de NO activar enfriamiento al usar una carta." }, cards_4: { name: "Multiplicidad", desc: "-25% de enfriamiento en cartas de jefe." }, cards_5: { name: "Magnitud", desc: "+20% de daño de hechizos." }, cards_6: { name: "Ritual Maestro", desc: "RANURA EXTRA de carta (4 → 5)." } } }, army: { name: "EJÉRCITO", desc: "Vínculo profundo con tus siervos muertos.", nodes: { army_1: { name: "Pacto Sombrío", desc: "Radio de necromancia +25% (impacto + cadáveres)." }, army_2: { name: "Vínculo Óseo", desc: "Aliados +15% de HP máximo." }, army_3: { name: "Crecimiento Maligno", desc: "+5 al límite máximo de aliados." }, army_4: { name: "Sangre Ancestral", desc: "Aliados +15% de daño." }, army_5: { name: "Linaje Inmortal", desc: "Aliados resucitados nacen con 100% de HP." }, army_6: { name: "Ejército de los Muertos", desc: "La necromancia resucita +1 cadáver por lanzamiento." } } }, king: { name: "REY", desc: "Eleva al Rey a una forma sobrenatural.", nodes: { king_1: { name: "Linaje Real", desc: "Rey +100 de HP máximo permanente." }, king_2: { name: "Mente Inmortal", desc: "Rey +60 de maná máx + regen +1.5/s." }, king_3: { name: "Aliento de la Muerte", desc: "Los golpes del Rey causan AOE 5 daño en radio 30." }, king_4: { name: "Glifos de Sangre", desc: "Enemigo muerto en radio 100 cura al Rey +2 HP." }, king_5: { name: "Aura de la Muerte", desc: "El Rey regenera 2 HP/s pasivamente." }, king_6: { name: "Soberano", desc: "Comienza cada partida con 1 buff de cofre aleatorio." } } } } };
+function _i18nLang(){ return (typeof _currentLang !== "undefined") ? _currentLang : "pt"; }
+function getUnitDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&UNITDESC_I18N[L]&&UNITDESC_I18N[L][id])return UNITDESC_I18N[L][id]; }catch(e){} return (CLASSES[id]&&CLASSES[id].desc)||""; }
+function getSpellTipDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&SPELLTIP_I18N[L]&&SPELLTIP_I18N[L][id])return SPELLTIP_I18N[L][id].desc; }catch(e){} return (SPELL_TOOLTIP_INFO[id]&&SPELL_TOOLTIP_INFO[id].desc)||""; }
+function getQuestName(q){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].quests[q.id])return QUESTS_I18N[L].quests[q.id].name; }catch(e){} return q.name; }
+function getQuestDesc(q){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].quests[q.id])return QUESTS_I18N[L].quests[q.id].desc; }catch(e){} return q.desc; }
+function getModName(m){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].mods[m.id])return QUESTS_I18N[L].mods[m.id].name; }catch(e){} return m.name; }
+function getModDesc(m){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].mods[m.id])return QUESTS_I18N[L].mods[m.id].desc; }catch(e){} return m.desc; }
+function getDiffLabel(d){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].diff[d])return QUESTS_I18N[L].diff[d].label; }catch(e){} return (DIFF_MODES[d]&&DIFF_MODES[d].label)||d; }
+function getMerchantName(it){ try{ const L=_i18nLang(); if(L!=="pt"&&SHOP_I18N[L].merchant[it.id])return SHOP_I18N[L].merchant[it.id].name; }catch(e){} return it.name; }
+function getMerchantDesc(it){ try{ const L=_i18nLang(); if(L!=="pt"&&SHOP_I18N[L].merchant[it.id])return SHOP_I18N[L].merchant[it.id].desc; }catch(e){} return it.desc; }
+function getItemNameI(key){ try{ const L=_i18nLang(); if(L!=="pt"&&SHOP_I18N[L].itemNames[key])return SHOP_I18N[L].itemNames[key]; }catch(e){} return (typeof ITEM_NAMES!=="undefined")?ITEM_NAMES[key]:undefined; }
+function getItemDescI(key){ try{ const L=_i18nLang(); if(L!=="pt"&&SHOP_I18N[L].itemDescs[key])return SHOP_I18N[L].itemDescs[key]; }catch(e){} return (typeof ITEM_DESCRIPTIONS!=="undefined")?ITEM_DESCRIPTIONS[key]:undefined; }
+function getBiomeNameI(id){ try{ const L=_i18nLang(); if(L!=="pt"&&SHOP_I18N[L].biomeNames[id])return SHOP_I18N[L].biomeNames[id].name; }catch(e){} return (BIOMES[id]&&BIOMES[id].name)||id; }
+function getCompDefName(id){ try{ const L=_i18nLang(); if(L!=="pt"&&COMPMENU_I18N[L].defs[id])return COMPMENU_I18N[L].defs[id].name; }catch(e){} return (COMPANION_BY_ID[id]&&COMPANION_BY_ID[id].name)||id; }
+function getCompDefDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&COMPMENU_I18N[L].defs[id])return COMPMENU_I18N[L].defs[id].desc; }catch(e){} return (COMPANION_BY_ID[id]&&COMPANION_BY_ID[id].desc)||""; }
+function getCompDefUnlock(id){ try{ const L=_i18nLang(); if(L!=="pt"&&COMPMENU_I18N[L].defs[id])return COMPMENU_I18N[L].defs[id].unlock; }catch(e){} return (COMPANION_BY_ID[id]&&COMPANION_BY_ID[id].unlock)||""; }
+function getCompLevelLabel(lvl){ try{ const L=_i18nLang(); if(L!=="pt"&&COMPMENU_I18N[L].levels[lvl])return COMPMENU_I18N[L].levels[lvl].label; }catch(e){} return (COMPANION_LEVEL_DATA[lvl]&&COMPANION_LEVEL_DATA[lvl].label)||""; }
+function getCompLevelDesc(lvl){ try{ const L=_i18nLang(); if(L!=="pt"&&COMPMENU_I18N[L].levels[lvl])return COMPMENU_I18N[L].levels[lvl].desc; }catch(e){} return (COMPANION_LEVEL_DATA[lvl]&&COMPANION_LEVEL_DATA[lvl].desc)||""; }
+function getLegacyTreeName(id){ try{ const L=_i18nLang(); if(L!=="pt"&&LEGACY_I18N[L][id])return LEGACY_I18N[L][id].name; }catch(e){} return (LEGACY_TREES[id]&&LEGACY_TREES[id].name)||id; }
+function getLegacyTreeDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&LEGACY_I18N[L][id])return LEGACY_I18N[L][id].desc; }catch(e){} return (LEGACY_TREES[id]&&LEGACY_TREES[id].desc)||""; }
+function getLegacyNodeName(treeId,node){ try{ const L=_i18nLang(); const t=LEGACY_I18N[L]&&LEGACY_I18N[L][treeId]; if(L!=="pt"&&t&&t.nodes&&t.nodes[node.id])return t.nodes[node.id].name; }catch(e){} return node.name; }
+function getLegacyNodeDesc(treeId,node){ try{ const L=_i18nLang(); const t=LEGACY_I18N[L]&&LEGACY_I18N[L][treeId]; if(L!=="pt"&&t&&t.nodes&&t.nodes[node.id])return t.nodes[node.id].desc; }catch(e){} return node.desc; }
+
+// R18 (verificação adversarial) — 2 gaps corrigidos:
+// (1) menu DAILY usa DAILY_MODIFIERS (ids proprios) — getModName caia no PT; adiciona
+//     os 7 ids em QUESTS_I18N.mods (disjunto dos campaign mods, sem colisao).
+// (2) variantes rare/epic de buff de bau (kingArmorBlock/*Big/*Epic/allRes) nao
+//     estavam em ITEM_NAMES nem na tabela — painel mostrava PT; adiciona 9 keys.
+try {
+  Object.assign(QUESTS_I18N.en.mods, {
+    noheal:{name:"No Healing",desc:"Cards and regen are disabled"},
+    fastenemy:{name:"Fast Enemies",desc:"Enemies +50% speed"},
+    doubleboss:{name:"Double Bosses",desc:"Bosses with 2× HP"},
+    noskeletons:{name:"No Necromancy",desc:"Necromancy disabled"},
+    elitewave:{name:"Elite Wave",desc:"Elite chance 4× higher (up to 12%)"},
+    hardcore:{name:"Hardcore",desc:"One life only — no revival"},
+    speedrun:{name:"Speedrun",desc:"Enemies +30% atk, but double drops"},
+  });
+  Object.assign(QUESTS_I18N.es.mods, {
+    noheal:{name:"Sin Curación",desc:"Cartas y regeneración desactivadas"},
+    fastenemy:{name:"Enemigos Rápidos",desc:"Enemigos +50% de velocidad"},
+    doubleboss:{name:"Jefes Dobles",desc:"Jefes con 2× HP"},
+    noskeletons:{name:"Sin Nigromancia",desc:"Nigromancia desactivada"},
+    elitewave:{name:"Oleada de Élites",desc:"Probabilidad de élite 4× mayor (hasta 12%)"},
+    hardcore:{name:"Hardcore",desc:"Una sola vida — sin reaparición"},
+    speedrun:{name:"Speedrun",desc:"Enemigos +30% ATK, pero botín doble"},
+  });
+  Object.assign(SHOP_I18N.en.itemNames, {
+    kingArmorBlock:"ROYAL WARD", allyDmgBig:"WAR BANNER (RARE)", allyHpBig:"SHIELD BANNER (RARE)",
+    manaRegenBig:"ARCANE ESSENCE (RARE)", kingSpeedBig:"SWIFT BOOTS (RARE)", allyDmgEpic:"WAR BANNER (EPIC)",
+    allyHpEpic:"SHIELD BANNER (EPIC)", kingSpeedEpic:"WINGED BOOTS (EPIC)", allRes:"AEGIS TALISMAN",
+  });
+  Object.assign(SHOP_I18N.en.itemDescs, {
+    kingArmorBlock:"+8% King damage block", allyDmgBig:"Allies +5 damage", allyHpBig:"Allies +30 HP",
+    manaRegenBig:"+2.5 mana/s", kingSpeedBig:"King +20% speed", allyDmgEpic:"Allies +12 damage",
+    allyHpEpic:"Allies +80 HP", kingSpeedEpic:"King +40% speed", allRes:"+20% resistance to all",
+  });
+  Object.assign(SHOP_I18N.es.itemNames, {
+    kingArmorBlock:"GUARDIA REAL", allyDmgBig:"ESTANDARTE (RARO)", allyHpBig:"ESTANDARTE ESCUDO (RARO)",
+    manaRegenBig:"ESENCIA ARCANA (RARO)", kingSpeedBig:"BOTAS VELOCES (RARO)", allyDmgEpic:"ESTANDARTE (ÉPICO)",
+    allyHpEpic:"ESTANDARTE ESCUDO (ÉPICO)", kingSpeedEpic:"BOTAS ALADAS (ÉPICO)", allRes:"TALISMÁN ÉGIDA",
+  });
+  Object.assign(SHOP_I18N.es.itemDescs, {
+    kingArmorBlock:"+8% de bloqueo del Rey", allyDmgBig:"Aliados +5 de daño", allyHpBig:"Aliados +30 HP",
+    manaRegenBig:"+2.5 maná/s", kingSpeedBig:"Rey +20% de velocidad", allyDmgEpic:"Aliados +12 de daño",
+    allyHpEpic:"Aliados +80 HP", kingSpeedEpic:"Rey +40% de velocidad", allRes:"+20% de resistencia a todo",
+  });
+} catch (e) { console.warn("[i18n] patch falhou:", e); }
 
 // === BOSSES (name + desc) ===
 const BOSS_I18N = {
