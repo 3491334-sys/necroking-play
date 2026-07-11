@@ -6001,7 +6001,7 @@
       <h1 class="menu-title" data-i18n="menu.title">NECROKING</h1>
       <div class="menu-buttons">
         <!-- 2026-06-15 — menu inicial mostra os 3 modos direto (Campanha/Endless/Boss Rush) -->
-        <button class="menu-btn" data-menu-action="go-campaign">🗺️ CAMPANHA</button>
+        <button class="menu-btn" data-menu-action="go-campaign" data-i18n="r19.campBtn">🗺️ CAMPANHA</button>
         <button class="menu-btn" data-menu-action="go-endless">♾️ ENDLESS</button>
         <button class="menu-btn" data-menu-action="start-bossrush">⚔ BOSS RUSH</button>
         <!-- COMBO 14: Codex consolida Como Jogar + Bestiário + Itens + Conquistas + Estatísticas -->
@@ -6135,15 +6135,15 @@
           <div class="mc-icon">♾️</div>
           <div>
             <div class="mc-name">ENDLESS</div>
-            <div class="mc-desc">Mundo único com todos os biomas. Explore, destrua os covis e enfrente o NecroKing. (modo clássico)</div>
+            <div class="mc-desc" data-i18n="r19.endlessDesc">Mundo único com todos os biomas. Explore, destrua os covis e enfrente o NecroKing. (modo clássico)</div>
           </div>
         </div>
         <!-- CAMPANHA (novo) -->
         <div class="mode-card" data-menu-action="mode-campaign">
           <div class="mc-icon">🗺️</div>
           <div>
-            <div class="mc-name">CAMPANHA</div>
-            <div class="mc-desc">Avance bioma por bioma: 3 níveis + o boss de cada bioma. Entre os níveis, melhore upgrades e compre cartas.</div>
+            <div class="mc-name" data-i18n="r19.campName">CAMPANHA</div>
+            <div class="mc-desc" data-i18n="r19.campDesc">Avance bioma por bioma: 3 níveis + o boss de cada bioma. Entre os níveis, melhore upgrades e compre cartas.</div>
           </div>
         </div>
       </div>
@@ -6198,7 +6198,7 @@
       </div>
       <div class="tutorial-actions">
         <button class="btn secondary" onclick="skipTutorial()">PULAR</button>
-        <button class="btn" id="tutorialNextBtn" onclick="nextTutorialStep()">PRÓXIMO</button>
+        <button class="btn" id="tutorialNextBtn" onclick="nextTutorialStep()" data-i18n="r19.next">PRÓXIMO</button>
       </div>
     </div>
   </div>
@@ -6404,7 +6404,7 @@
       <div class="menu-buttons">
         <button class="menu-btn" data-menu-action="resume" data-i18n="menu.resume">CONTINUAR</button>
         <!-- FEEDBACK 2026-07-02 (R5 QoL) — só aparece na campanha (toggle em showMenu) -->
-        <button class="menu-btn" id="pauseRestartBtn" data-menu-action="restart-level" style="display:none;">⟲ REINICIAR NÍVEL</button>
+        <button class="menu-btn" id="pauseRestartBtn" data-menu-action="restart-level" style="display:none;" data-i18n="r19.restartLevel">⟲ REINICIAR NÍVEL</button>
         <!-- COMBO 18 — Codex contextual (run atual) -->
         <button class="menu-btn" data-menu-action="open-codex-pause" data-i18n="menu.codexRun">CODEX (RUN)</button>
         <button class="menu-btn" data-menu-action="open-settings-pause" data-i18n="menu.settings">CONFIGURAÇÕES</button>
@@ -6422,7 +6422,7 @@
         <span class="ctree-icon" id="ctreeIcon">💀</span>
         <div>
           <div class="ctree-name" id="ctreeName">COMPANION</div>
-          <div class="ctree-sub" id="ctreeSub">Árvore de Talentos — node exige o anterior do ramo; capstone exige 6 talentos</div>
+          <div class="ctree-sub" id="ctreeSub" data-i18n="r19.ctreeSub">Árvore de Talentos — node exige o anterior do ramo; capstone exige 6 talentos</div>
         </div>
         <div class="ctree-souls">✦ <span id="ctreeSouls">0</span></div>
         <button class="ctree-close" data-menu-action="close-companion-tree">✕ FECHAR</button>
@@ -6436,7 +6436,7 @@
   <div id="cardPickMenu" class="menu-overlay">
     <div class="menu-wrap pick-wrap">
       <h2 class="menu-h2 font-pixel-med">ESCOLHA SUAS CARTAS</h2>
-      <div class="pick-hint font-pixel" id="pickHint">Arraste cartas do grimório para os slots</div>
+      <div class="pick-hint font-pixel" id="pickHint" data-i18n="r19.pickHint">Arraste cartas do grimório para os slots</div>
 
       <!-- FEEDBACK R14 — seletor de DIFICULDADE (preferência global, vale pra todos os modos) -->
     <div class="difficulty-selector" id="difficultySelector">
@@ -6448,7 +6448,7 @@
 
       <div class="pick-lower">
         <div class="pick-deck-wrap">
-          <div class="pick-deck-title font-pixel">GRIMÓRIO</div>
+          <div class="pick-deck-title font-pixel" data-i18n="r19.grimoire">GRIMÓRIO</div>
           <div class="pick-deck" id="pickDeck"></div>
         </div>
         <div class="pick-desc" id="pickDesc">
@@ -6488,7 +6488,7 @@
   <!-- ============ RELIC/PASSIVE DRAFT (escolha 1 de 3) — 2026-06-12 Etapa 5 ============ -->
   <div id="relicDraftModal" style="display:none; position:fixed; inset:0; z-index:60;
        background:rgba(6,4,12,0.92); align-items:center; justify-content:center; flex-direction:column;">
-    <h2 class="menu-h2" id="relicDraftTitle" style="margin-bottom:6px; letter-spacing:2px;">ESCOLHA UMA RELÍQUIA</h2>
+    <h2 class="menu-h2" id="relicDraftTitle" style="margin-bottom:6px; letter-spacing:2px;" data-i18n="r19.chooseRelic">ESCOLHA UMA RELÍQUIA</h2>
     <div id="relicDraftHint" style="margin-bottom:18px; font-size:11px; color:#a89878; letter-spacing:1px;">Clique para escolher</div>
     <div id="relicDraftCards" style="display:flex; gap:18px; justify-content:center; flex-wrap:wrap; max-width:560px;"></div>
   </div>
@@ -6520,7 +6520,7 @@
   <!-- 2026-06-14 — CAMPANHA: INTERMISSION (entre níveis/biomas e ao morrer) — abas Aprimoramentos/Cartas -->
   <div id="campaignIntermission" class="menu-overlay">
     <div class="menu-wrap menu-wrap-wide">
-      <h2 class="menu-h2" id="ciTitle">INTERMISSÃO</h2>
+      <h2 class="menu-h2" id="ciTitle" data-i18n="r19.intermission">INTERMISSÃO</h2>
       <div class="menu-info" id="ciSubtitle" style="font-size:10px; color:#a0a098; margin-bottom:8px;"></div>
       <div class="shop-coins" style="margin-bottom:10px;">◈ <span id="ciCoins">0</span></div>
       <div class="shop-tabs" id="ciTabs">
@@ -7626,7 +7626,7 @@ function abilityBoneVolley(u) {
       update(dt) { this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
     });
   }
-  if (typeof showToast === "function") showToast("✦ SALVA ÓSSEA", 900, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ SALVA ÓSSEA","✦ BONE VOLLEY","✦ ANDANADA ÓSEA"), 900, "magic");
 }
 
 // === LICH APRENDIZ — LV 2: CRÂNIO EXPLOSIVO ===
@@ -7707,7 +7707,7 @@ function abilitySkullBomb(u, target) {
       try { if (Sfx && Sfx.fireExplode) Sfx.fireExplode(); } catch (e) {}
     },
   });
-  if (typeof showToast === "function") showToast("✦ CRÂNIO EXPLOSIVO", 900, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ CRÂNIO EXPLOSIVO","✦ EXPLOSIVE SKULL","✦ CRÁNEO EXPLOSIVO"), 900, "magic");
 }
 
 // === LICH APRENDIZ — LV 3: EXÉRCITO DE OSSOS ===
@@ -7735,7 +7735,7 @@ function abilityBoneArmy(u) {
     type: "shockwave", x: u.x, y: u.y - 4,
     color: "#a040d0", maxR: 60, lifetime: 600, maxLifetime: 600,
   });
-  if (typeof showToast === "function") showToast("✦ EXÉRCITO DE OSSOS", 1200, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ EXÉRCITO DE OSSOS","✦ BONE ARMY","✦ EJÉRCITO DE HUESOS"), 1200, "magic");
 }
 
 // === ESPECTRO REAL — LV 1: DASH FANTASMA ===
@@ -7806,7 +7806,7 @@ function abilitySoulReap(u) {
     type: "shockwave", x: u.x, y: u.y - 4,
     color: "#a040d0", maxR: 70, lifetime: 400, maxLifetime: 400,
   });
-  if (typeof showToast === "function") showToast("✦ CORTE DAS ALMAS (" + hits + " hits)", 900, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ CORTE DAS ALMAS (","✦ SOUL REAP (","✦ SIEGA DE ALMAS (") + hits + " hits)", 900, "magic");
 }
 
 // === ESPECTRO REAL — LV 3: POSSESSÃO ===
@@ -7833,7 +7833,7 @@ function abilityPossession(u) {
     type: "shockwave", x: u.x, y: u.y - 4,
     color: "#d880ff", maxR: 50, lifetime: 600, maxLifetime: 600,
   });
-  if (typeof showToast === "function") showToast("✦ POSSESSÃO ATIVA", 1200, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ POSSESSÃO ATIVA","✦ POSSESSION ACTIVE","✦ POSESIÓN ACTIVA"), 1200, "magic");
 }
 
 // === GOLEM ANCESTRAL — LV 1: TERREMOTO ===
@@ -8031,7 +8031,7 @@ function abilityMassacre(u) {
     color: "#ff60a0", maxR: 60, lifetime: 700, maxLifetime: 700,
   });
   if (typeof flashScreen === "function") flashScreen(0.18, 200, "#ff60a0");
-  if (typeof showToast === "function") showToast("✦ MASSACRE — invisível + crit", 1500, "magic");
+  if (typeof showToast === "function") showToast(TR("✦ MASSACRE — invisível + crit","✦ MASSACRE — invisible + crit","✦ MASACRE — invisible + crit"), 1500, "magic");
 }
 
 // Tick dos efeitos temporários de habilidades (deve ser chamado em update)
@@ -8207,7 +8207,15 @@ const RELIC_RARITY = {
 function rarityColor(r)     { return RELIC_RARITY[r] ? RELIC_RARITY[r].color : "#a0a0a8"; }
 function rarityColorDark(r) { return RELIC_RARITY[r] ? RELIC_RARITY[r].colorDark : "#404048"; }
 function rarityGlow(r)      { return RELIC_RARITY[r] ? RELIC_RARITY[r].glow : 0; }
-function rarityName(r)      { return RELIC_RARITY[r] ? RELIC_RARITY[r].name : "?"; }
+function rarityName(r)      {
+  // R19 — i18n (usado em toasts e no draft)
+  const L = (typeof _currentLang !== "undefined") ? _currentLang : "pt";
+  const en = { comum: "COMMON", incomum: "UNCOMMON", raro: "RARE", epico: "EPIC", lendario: "LEGENDARY" };
+  const es = { comum: "COMÚN", incomum: "POCO COMÚN", raro: "RARA", epico: "ÉPICA", lendario: "LEGENDARIA" };
+  if (L === "en" && en[r]) return en[r];
+  if (L === "es" && es[r]) return es[r];
+  return RELIC_RARITY[r] ? RELIC_RARITY[r].name : "?";
+}
 
 // === REWORK DE ITENS 2026-07-01 — ARQUÉTIPOS (tags de build) ===
 // Cada relíquia pertence a 1 de 5 arquétipos. O draft 1-de-3 tem viés pró-tags
@@ -10303,7 +10311,7 @@ function loadProgress(slotIdx) {
         return recovered;
       } catch (e2) { /* backup also corrupt */ }
     }
-    showToast("⚠ Save corrompido — começando do zero neste slot", 4000, "danger");
+    showToast(TR("⚠ Save corrompido — começando do zero neste slot","⚠ Corrupted save — starting fresh in this slot","⚠ Partida dañada — empezando de cero en esta ranura"), 4000, "danger");
     const fresh2 = cloneDefaultProgress();
     fresh2.upgrades = {};
     fresh2.bossCardsUnlocked = {};
@@ -10658,7 +10666,7 @@ function showEndlessNgPicker() {
       ov.style.display = "none";
       if (n < 0) { game._endlessProfile = false; showMenu("mainMenu"); return; }
       game.ngPlusLevel = n;
-      if (n > 0) { try { showToast("⚡ NEW GAME+ " + n + " ATIVADO!", 2200, "magic"); } catch (e) {} }
+      if (n > 0) { try { showToast("⚡ NEW GAME+ " + n + TR(" ATIVADO!"," ACTIVATED!"," ¡ACTIVADO!"), 2200, "magic"); } catch (e) {} }
       openCardPickFlow();
     });
   });
@@ -12900,7 +12908,7 @@ function _completeQuest(q) {
   q.completed = true;
   q.progress = q.target;
   if (typeof showToast === "function") {
-    showToast("OBJETIVO COMPLETO: " + q.name, 3200, "magic");
+    showToast(TR("OBJETIVO COMPLETO: ","QUEST COMPLETE: ","OBJETIVO COMPLETADO: ") + getQuestName(q), 3200, "magic");
   }
   if (typeof Sfx !== "undefined" && Sfx.levelUp) Sfx.levelUp();
 }
@@ -13456,7 +13464,7 @@ function startNewRun(preselectedSpellIds, opts) {
   // Survival mode também — set ANTES de startNewRun pelo handler.
   if (game.bossRushMode) {
     game.bossRushNextSpawnT = 2000;  // 2s grace antes do 1º boss
-    showToast("⚔ BOSS RUSH — 12 CHEFES CONSECUTIVOS", 3000, "magic");
+    showToast(TR("⚔ BOSS RUSH — 12 CHEFES CONSECUTIVOS","⚔ BOSS RUSH — 12 BOSSES BACK-TO-BACK","⚔ BOSS RUSH — 12 JEFES SEGUIDOS"), 3000, "magic");
   }
   if (game.survivalMode) {
     showToast("🛡 SURVIVAL — SOBREVIVA O QUANTO PUDER", 3000, "magic");
@@ -13472,7 +13480,7 @@ function startNewRun(preselectedSpellIds, opts) {
     progress.dailyTotalRuns = (progress.dailyTotalRuns || 0) + 1;  // COMBO 10 D1
     if (typeof saveProgress === "function") saveProgress();
     if (typeof showToast === "function") {
-      showToast("🏆 DESAFIO DIÁRIO — " + (game.dailyModifier ? game.dailyModifier.name : ""), 2400, "magic");
+      showToast(TR("🏆 DESAFIO DIÁRIO — ","🏆 DAILY CHALLENGE — ","🏆 DESAFÍO DIARIO — ") + (game.dailyModifier ? getModName(game.dailyModifier) : ""), 2400, "magic");
     }
   }
   if (game.ngPlusLevel > 0) {
@@ -13577,7 +13585,7 @@ function startNewRun(preselectedSpellIds, opts) {
   }
 
   renderSpellBar();
-  showToast("NOVA PARTIDA", 1600);
+  showToast(TR("NOVA PARTIDA","NEW GAME","NUEVA PARTIDA"), 1600);
 
   // Inicia a trilha sonora de fundo (respeita mudo).
   Sfx.startMusic();
@@ -14559,7 +14567,7 @@ function updateGuildVillage(dt) {
     progress.guildVillageDestroyed = true;
     if (typeof saveProgress === "function") saveProgress();
     if (typeof checkAchievements === "function") checkAchievements({ event: "guildDestroyed" });
-    showToast("⚔ A VILA DA GUILDA FOI DESTRUÍDA!", 2800, "danger");
+    showToast(TR("⚔ A VILA DA GUILDA FOI DESTRUÍDA!","⚔ THE GUILD VILLAGE WAS DESTROYED!","⚔ ¡LA ALDEA DEL GREMIO FUE DESTRUIDA!"), 2800, "danger");
     // Delay 2s antes do boss (drama). Validação extra no setTimeout pra
     // proteger contra game.guildVillage ficar null durante o delay.
     setTimeout(() => {
@@ -14605,7 +14613,7 @@ function spawnGuildBoss(v) {
       game.activeBossRef = boss;
     }
   }
-  showToast("⚔⚔ O CHEFE DA GUILDA APARECE! ⚔⚔", 3200, "danger");
+  showToast(TR("⚔⚔ O CHEFE DA GUILDA APARECE! ⚔⚔","⚔⚔ THE GUILD BOSS APPEARS! ⚔⚔","⚔⚔ ¡EL JEFE DEL GREMIO APARECE! ⚔⚔"), 3200, "danger");
   if (typeof doShake === "function") doShake(15, 1000);
   if (typeof flashScreen === "function") flashScreen(0.5, 700, "#ffd060");
   if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
@@ -15373,7 +15381,7 @@ function awakenLair(lair) {
   }
   lair.state = "awakening";
   lair.awakenT = 1600; // 1.6s de telegraph antes do boss nascer
-  showToast("COVIL DO " + lair.bossName.toUpperCase() + " DESPERTA!", 2400, "danger");
+  showToast(TR("COVIL DO {X} DESPERTA!","LAIR OF {X} AWAKENS!","¡LA GUARIDA DE {X} DESPIERTA!").replace("{X}", getBiomeBossName(lair.biomeId, lair.bossName).toUpperCase()), 2400, "danger");
   doShake(6, 700);
   Sfx.waveStart();
   // Anel expandindo no covil.
@@ -15481,7 +15489,7 @@ function summonBossAtLair(lair) {
   game.effects.push({ type: "lightpillar", x: lair.x, y: lair.y, lifetime: 600, maxLifetime: 600, update() {} });
   doShake(8, 500);
   Sfx.waveStart();
-  showToast("CHEFE: " + lair.bossName.toUpperCase(), 2400, "danger");
+  showToast(TR("CHEFE: ","BOSS: ","JEFE: ") + getBiomeBossName(lair.biomeId, lair.bossName).toUpperCase(), 2400, "danger");
 }
 
 function updateLairs(dt) {
@@ -15609,7 +15617,7 @@ function updateLairs(dt) {
       if (inPortal && portalLocked && (!game._portalLockToastT || game.runTime - game._portalLockToastT > 4)) {
         game._portalLockToastT = game.runTime;
         const remaining = budgetLeft + nearEnemies;
-        if (typeof showToast === "function") showToast("🔒 PORTAL SELADO — derrote os inimigos (" + remaining + " restantes)", 2400, "danger");
+        if (typeof showToast === "function") showToast(TR("🔒 PORTAL SELADO — derrote os inimigos ({X} restantes)","🔒 PORTAL SEALED — defeat the enemies ({X} left)","🔒 PORTAL SELLADO — derrota a los enemigos ({X} restantes)").replace("{X}", remaining), 2400, "danger");
       }
       // FEEDBACK R7 (2026-07-02) — motes orbitais sendo sugados pro portal aberto.
       // FX contínuo (~1 a cada 120ms, ~7 vivos no pior caso) → gate _shouldSkipFx.
@@ -15870,7 +15878,7 @@ function trySpawnEndlessLair() {
   // Mini-shake e som de despertar
   if (typeof doShake === "function") doShake(3, 320);
   if (Sfx && Sfx.waveStart) Sfx.waveStart();
-  showToast("NOVO COVIL · " + biome.bossName.toUpperCase(), 2800, "danger");
+  showToast(TR("NOVO COVIL · ","NEW LAIR · ","NUEVA GUARIDA · ") + getBiomeBossName(Object.keys(BIOMES).find(k => BIOMES[k] === biome), biome.bossName).toUpperCase(), 2800, "danger");
   // Mostra direção pelo minimapa: spark dourado pulsando no novo covil
   game.effects.push({
     type: "spark",
@@ -15944,7 +15952,7 @@ function spawnPOIGuards(poi) {
     const last = game.units[game.units.length - 1];
     if (last) last._poiGuard = poi.id;
   }
-  showToast("GUARDAS DO " + poi.def.name.toUpperCase() + " DESPERTAM!", 1500, "danger");
+  showToast(TR("GUARDAS DO {X} DESPERTAM!","GUARDS OF THE {X} AWAKEN!","¡LOS GUARDIAS DE {X} DESPIERTAN!").replace("{X}", getPOIName(poi.biomeId).toUpperCase()), 1500, "danger");
 }
 
 /* ============================================================
@@ -17876,7 +17884,7 @@ function doHomingMissiles(u) {
       },
     });
   }
-  try { if (typeof showToast === "function") showToast("⚠ MÍSSEIS PERSEGUIDORES!", 1500, "danger"); } catch(e) {}
+  try { if (typeof showToast === "function") showToast(TR("⚠ MÍSSEIS PERSEGUIDORES!","⚠ HOMING MISSILES!","⚠ ¡MISILES PERSEGUIDORES!"), 1500, "danger"); } catch(e) {}
 }
 
 // GROUND POUND TELEGRAPHED — telegraph na posição atual do king. Erupção massiva.
@@ -19355,7 +19363,7 @@ function doSoulDrain(u, tx, ty) {
             }, t0);
           }
           // Toast curtinho
-          if (heal > 5) showToast("CURA: +" + heal, 1200, "magic");
+          if (heal > 5) showToast(TR("CURA: +","HEAL: +","CURA: +") + heal, 1200, "magic");
         }
         doShake(5, 250);
         if (typeof flashScreen === "function") flashScreen(0.18, 200, "#a040d0");
@@ -21887,7 +21895,7 @@ function triggerAnjoCaidoPhase2(u) {
   u.phaseFlashMax = 1500;
   // Toast (único momento textual — usuário pediu "remova indicadores de fase",
   // mas pra fase 2 do boss especial vale dar feedback narrativo curto)
-  showToast("⚡ ANJO CAÍDO — FÚRIA SAGRADA", 2000, "danger");
+  showToast(TR("⚡ ANJO CAÍDO — FÚRIA SAGRADA","⚡ FALLEN ANGEL — HOLY FURY","⚡ ÁNGEL CAÍDO — FURIA SAGRADA"), 2000, "danger");
 }
 
 function triggerNecroKingPhase2(u) {
@@ -21946,7 +21954,7 @@ function triggerNecroKingPhase2(u) {
   }
   doShake(14, 1400);
   Sfx.waveStart();
-  showToast("NECROKING DESPERTA — FORMA DE CAVEIRA!", 2800, "danger");
+  showToast(TR("NECROKING DESPERTA — FORMA DE CAVEIRA!","NECROKING AWAKENS — SKULL FORM!","¡NECROKING DESPIERTA — FORMA DE CALAVERA!"), 2800, "danger");
   // Flash de tela
   if (typeof flashScreen === "function") flashScreen(0.45, 700, "#c888ff");
   // Stun breve: i-frames enquanto transforma (500ms)
@@ -22207,7 +22215,7 @@ function doGoldShield(u) {
       lifetime: 700, maxLifetime: 700, size: 2,
     });
   }
-  showToast("🛡 ESCUDO DOURADO ATIVADO", 1400, "danger");
+  showToast(TR("🛡 ESCUDO DOURADO ATIVADO","🛡 GOLDEN SHIELD ACTIVE","🛡 ESCUDO DORADO ACTIVADO"), 1400, "danger");
 }
 
 // SUMMON GUARDS: invoca 3 guardas mercantes nas bordas da arena
@@ -22394,7 +22402,7 @@ function updateWaveSystem(dt) {
     // Chefes ficam em COVIS espalhados pelo mapa (sistema espacial), não
     // dispararam mais por onda. A onda marca só o pulso de spawn — pequeno
     // toast + squad reforçado imediato + encurta o próximo spawnTimer.
-    showToast("ONDA " + game.waveIndex, 1400, "magic");
+    showToast(TR("ONDA ","WAVE ","OLEADA ") + game.waveIndex, 1400, "magic");
     // COMBO 6 B3 — log onda
     try { logRunEvent("wave", "🚩", "Onda " + game.waveIndex); } catch(e) {}
     // FEEDBACK R7 (2026-07-02) — FX de início de onda: pulso sombrio emanando do Rei
@@ -23940,7 +23948,7 @@ function update(dt) {
     const enemiesLeft = game.units.some(u => isAlive(u) && u.faction === "enemy" && !u.isWagon);
     if (!enemiesLeft) {
       game._areaClearAnnounced = true;
-      if (typeof showToast === "function") showToast("⚔ Área limpa — siga até o PORTAL!", 2600, "magic");
+      if (typeof showToast === "function") showToast(TR("⚔ Área limpa — siga até o PORTAL!","⚔ Area clear — head to the PORTAL!","⚔ Área despejada — ¡ve al PORTAL!"), 2600, "magic");
     }
   }
 
@@ -25383,7 +25391,7 @@ function applyDamage(attacker, target, amount, opts) {
         progress.totalKills = (progress.totalKills || 0) + 1;
         // Toast quando descobre nova unidade (1º kill)
         if (wasUnseen && !target.isBoss && CLASSES[target.unitClass]) {
-          showToast("📖 NOVA UNIDADE: " + CLASSES[target.unitClass].name.toUpperCase(), 1800, "magic");
+          showToast(TR("📖 NOVA UNIDADE: ","📖 NEW UNIT: ","📖 NUEVA UNIDAD: ") + getUnitName(target.unitClass).toUpperCase(), 1800, "magic");
         }
         // COMBO 10 C2 — desbloqueia Espectro Real aos 100 kills
         // 2026-05-02 COMBO 50 BUGFIX A5: trocar === por >= pra cobrir AOE multi-kill
@@ -25392,7 +25400,7 @@ function applyDamage(attacker, target, amount, opts) {
         if (!progress.companionsUnlocked) progress.companionsUnlocked = {};
         if ((progress.totalKills || 0) >= 100 && !progress.companionsUnlocked.necroPhantom) {
           progress.companionsUnlocked.necroPhantom = true;
-          showToast("👻 ESPECTRO REAL DESBLOQUEADO (companion)", 4500, "magic");
+          showToast("👻 " + getCompDefName("necroPhantom").toUpperCase() + TR(" DESBLOQUEADO (companion)"," UNLOCKED (companion)"," DESBLOQUEADO (compañero)"), 4500, "magic");
         }
       }
       // 2026-05-03 COMBO 55 — XP do Rei DESATIVADO (nivel removido por pedido user).
@@ -25653,7 +25661,7 @@ function killUnit(u, attacker) {
         if (!game.activeRelics.includes("hunter_crown")) {
           game.activeRelics.push("hunter_crown");
           if (typeof onRelicEquipped === "function") onRelicEquipped("hunter_crown");
-          showToast("👑 RELÍQUIA: " + RELICS.hunter_crown.name, 3500, "magic");
+          showToast(TR("👑 RELÍQUIA: ","👑 RELIC: ","👑 RELIQUIA: ") + getRelicName("hunter_crown"), 3500, "magic");
         }
       } catch(e) {}
     }
@@ -25723,7 +25731,7 @@ function killUnit(u, attacker) {
         const eliteBuff = rollBuff("rare") || rollBuff("common");
         spawnRarityChest(u.x, u.y, "rare", { forcedBuff: eliteBuff });
       }
-      if (typeof showToast === "function") showToast("⚜ ELITE DERROTADO — BUFF RARO!", 2000, "magic");
+      if (typeof showToast === "function") showToast(TR("⚜ ELITE DERROTADO — BUFF RARO!","⚜ ELITE DEFEATED — RARE BUFF!","⚜ ÉLITE DERROTADO — ¡BUFF RARO!"), 2000, "magic");
       // COMBO 6 B3 — log elite kill
       try {
         const eName = (CLASSES[u.unitClass] && CLASSES[u.unitClass].name) || "Inimigo";
@@ -26618,7 +26626,7 @@ function onBossDefeated(u) {
     if (!progress.campaignRelics[relicId]) {
       progress.campaignRelics[relicId] = true;
       if (typeof saveProgress === "function") saveProgress();
-      if (typeof showToast === "function") showToast("✦ RELÍQUIA PERMANENTE DA CAMPANHA: " + relic, 3400, "magic");
+      if (typeof showToast === "function") showToast(TR("✦ RELÍQUIA PERMANENTE DA CAMPANHA: ","✦ PERMANENT CAMPAIGN RELIC: ","✦ RELIQUIA PERMANENTE DE CAMPAÑA: ") + (relicId ? getRelicName(relicId) : relic), 3400, "magic");
     }
   }
   game.bossesDefeated = (game.bossesDefeated || 0) + 1;
@@ -26672,7 +26680,7 @@ function onBossDefeated(u) {
     const allRegional = REGIONAL.every(id => (bk[id] || 0) >= 1);
     if (allRegional) {
       progress.companionsUnlocked.cacadorReal = true;
-      try { setTimeout(() => showToast("🏹 CAÇADOR REAL DESBLOQUEADO (companion)", 4500, "magic"), 800); } catch(e) {}
+      try { setTimeout(() => showToast("🏹 " + getCompDefName("cacadorReal").toUpperCase() + TR(" DESBLOQUEADO (companion)"," UNLOCKED (companion)"," DESBLOQUEADO (compañero)"), 4500, "magic"), 800); } catch(e) {}
     }
   }
   // COMBO 6 B3 — log boss defeat na timeline
@@ -26698,8 +26706,8 @@ function onBossDefeated(u) {
       progress.holyCardsUnlocked = true;
       // Toast de desbloqueio (mostra os dois)
       try { if (typeof showToast === "function") {
-        showToast("✨ HOLY KING DESBLOQUEADO! Ative em CONFIGS.", 6500);
-        setTimeout(() => showToast("📜 3 CARTAS SAGRADAS adicionadas ao pool!", 5500), 1200);
+        showToast(TR("✨ HOLY KING DESBLOQUEADO! Ative em CONFIGS.","✨ HOLY KING UNLOCKED! Enable it in SETTINGS.","✨ ¡HOLY KING DESBLOQUEADO! Actívalo en AJUSTES."), 6500);
+        setTimeout(() => showToast(TR("📜 3 CARTAS SAGRADAS adicionadas ao pool!","📜 3 HOLY CARDS added to the pool!","📜 ¡3 CARTAS SAGRADAS añadidas al pool!"), 5500), 1200);
       } } catch(e) {}
       // COMBO 6 B3 — log unlock
       try { logRunEvent("holy-king-unlock", "✨", "HOLY KING + 3 cartas sagradas desbloqueadas"); } catch(e) {}
@@ -26726,14 +26734,14 @@ function onBossDefeated(u) {
         game.activeRelics = game.activeRelics || [];
         game.activeRelics.push("necromancer_tear");
         if (typeof onRelicEquipped === "function") onRelicEquipped("necromancer_tear");
-        setTimeout(() => showToast("💧 RELÍQUIA: " + RELICS.necromancer_tear.name, 4500, "magic"), 4000);
+        setTimeout(() => showToast(TR("💧 RELÍQUIA: ","💧 RELIC: ","💧 RELIQUIA: ") + getRelicName("necromancer_tear"), 4500, "magic"), 4000);
       } catch(e) {}
     }
     if (justCleared === 0) {
       // 1ª vitória — anuncia NG+ desbloqueado
-      try { setTimeout(() => showToast("⚡ NEW GAME+ DESBLOQUEADO! Inimigos +25% mais fortes.", 6000, "magic"), 2400); } catch(e) {}
+      try { setTimeout(() => showToast(TR("⚡ NEW GAME+ DESBLOQUEADO! Inimigos +25% mais fortes.","⚡ NEW GAME+ UNLOCKED! Enemies +25% stronger.","⚡ ¡NEW GAME+ DESBLOQUEADO! Enemigos +25% más fuertes."), 6000, "magic"), 2400); } catch(e) {}
     } else {
-      try { setTimeout(() => showToast("⚡ NG+" + justCleared + " COMPLETO! NG+" + (justCleared+1) + " disponível.", 6000, "magic"), 2400); } catch(e) {}
+      try { setTimeout(() => showToast("⚡ NG+" + justCleared + TR(" COMPLETO! NG+"," COMPLETE! NG+"," ¡COMPLETO! NG+") + (justCleared+1) + TR(" disponível."," available."," disponible."), 6000, "magic"), 2400); } catch(e) {}
     }
   }
   if (u.unitClass) {
@@ -26756,7 +26764,7 @@ function onBossDefeated(u) {
   const soulsDrop = (u.unitClass === "bossNecroKing") ? 60 : (15 + (u.bossTier || 1) * 5);
   progress.souls = (progress.souls || 0) + soulsDrop;
   saveProgress();
-  showToast("+" + soulsDrop + " ALMAS  ✦  TOTAL: " + progress.souls, 3200, "magic");
+  showToast("+" + soulsDrop + TR(" ALMAS  ✦  TOTAL: "," SOULS  ✦  TOTAL: "," ALMAS  ✦  TOTAL: ") + progress.souls, 3200, "magic");
   // ETAPA C: MODO ENDLESS desbloqueia ao derrotar NecroKing
   // ETAPA G: agora dispara cutscene final ANTES de ativar endless mode.
   if (u.unitClass === "bossNecroKing" && !game.endlessMode) {
@@ -26779,7 +26787,7 @@ function onBossDefeated(u) {
     progress.bossCardsUnlocked[biomeId] = true;
     saveProgress();
     // Toast extra só na PRIMEIRA vez que desbloqueia nesse slot.
-    showToast("CARTA DESBLOQUEADA: " + cardUnlock.name.toUpperCase(), 3200, "magic");
+    showToast(TR("CARTA DESBLOQUEADA: ","CARD UNLOCKED: ","CARTA DESBLOQUEADA: ") + ((typeof getCardName === "function") ? getCardName(cardUnlock.spellId) : cardUnlock.name).toUpperCase(), 3200, "magic");
   }
   // 2026-06-14 — CAMPANHA: derrotar o boss do bioma atual CONCLUI o bioma → intermission
   // e avanço pro próximo bioma (ou conclusão da campanha). Só o boss do bioma da campanha
@@ -26804,8 +26812,8 @@ function onBossDefeated(u) {
     game.bossArena.stateT = 0;
   }
   if (game.activeBossRef === u) game.activeBossRef = null;
-  showToast("CHEFE DERROTADO: " + bossName.toUpperCase(), 2400, "magic");
-  showToast("+" + goldReward + "◈  RELÍQUIA: " + relic.toUpperCase(), 2600, "magic");
+  showToast(TR("CHEFE DERROTADO: ","BOSS DEFEATED: ","JEFE DERROTADO: ") + bossName.toUpperCase(), 2400, "magic");
+  showToast("+" + goldReward + TR("◈  RELÍQUIA: ","◈  RELIC: ","◈  RELIQUIA: ") + ((typeof relicId !== "undefined" && relicId) ? getRelicName(relicId) : relic).toUpperCase(), 2600, "magic");
   // Toast extra mostrando o EFEITO da relíquia
   const relicDef = relicId ? RELICS[relicId] : null;
   if (relicDef) {
@@ -27152,7 +27160,7 @@ function spawnRelicPickup(x, y, relicId) {
     });
   }
   if (typeof showToast === "function") {
-    showToast("RELÍQUIA " + rarityName(r.rarity).toUpperCase() + " — chegue perto", 2000, "magic");
+    showToast(TR("RELÍQUIA {X} — chegue perto","{X} RELIC — get close","RELIQUIA {X} — acércate").replace("{X}", rarityName(r.rarity).toUpperCase()), 2000, "magic");
   }
 }
 
@@ -27208,7 +27216,7 @@ function openRelicDraft(kind, rollOpts) {
     const reward = kind === "relic" ? 120 : 100;
     progress.coins += reward; game.coinsThisRun = (game.coinsThisRun || 0) + reward;
     if (typeof saveProgress === "function") saveProgress();
-    showToast("+" + reward + " ◆ (sem " + (kind === "relic" ? "relíquia" : "passiva") + " nova)", 1800, "magic");
+    showToast("+" + reward + " ◆ " + (kind === "relic" ? TR("(sem relíquia nova)","(no new relic)","(sin reliquia nueva)") : TR("(sem passiva nova)","(no new passive)","(sin pasiva nueva)")), 1800, "magic");
     return false;
   }
   // EDGE: só 1 opção → auto-concede (não faz sentido "escolher" 1).
@@ -27227,7 +27235,7 @@ function openRelicDraft(kind, rollOpts) {
 
 function renderRelicDraft() {
   const st = _relicDraftState; if (!st) return;
-  document.getElementById("relicDraftTitle").textContent = st.kind === "relic" ? "ESCOLHA UMA RELÍQUIA" : "ESCOLHA UMA PASSIVA";
+  document.getElementById("relicDraftTitle").textContent = st.kind === "relic" ? TR("ESCOLHA UMA RELÍQUIA","CHOOSE A RELIC","ELIGE UNA RELIQUIA") : TR("ESCOLHA UMA PASSIVA","CHOOSE A PASSIVE","ELIGE UNA PASIVA");
   document.getElementById("relicDraftHint").textContent = "Clique para escolher (1 de " + st.options.length + ")";
   const root = document.getElementById("relicDraftCards");
   root.innerHTML = "";
@@ -27621,7 +27629,7 @@ function collectCoinValue(c) {
     game._midasCoins = (game._midasCoins || 0) + c.value;
     const nowStep = Math.floor(game._midasCoins / 100);
     if (nowStep > prevStep && nowStep * 2 <= 40) {
-      showToast("◆ MIDAS: exército +" + (nowStep * 2) + "% dano", 1400, "magic");
+      showToast(TR("◆ MIDAS: exército +","◆ MIDAS: army +","◆ MIDAS: ejército +") + (nowStep * 2) + TR("% dano","% damage","% daño"), 1400, "magic");
     }
   }
   // 2026-04-29 COMBO 31 — quest "Bilionário"
@@ -27740,7 +27748,7 @@ function dropSpellCard(x, y) {
       },
     });
   }
-  showToast("BAÚ DA CARAVANA", 1100, "magic");
+  showToast(TR("BAÚ DA CARAVANA","CARAVAN CHEST","COFRE DE LA CARAVANA"), 1100, "magic");
 }
 
 // Ao rei chegar perto do baú: começa animação de abrir.
@@ -27819,7 +27827,7 @@ function grantChestLoot(p) {
       showToast("+" + p.coinReward + " ◆ TESOURO", 1500, "magic");
       try { if (typeof questProgressEvent === "function") questProgressEvent("coinPick", { value: p.coinReward }); } catch (e) {}
     } else {
-      showToast("+" + p.coinReward + " ◆ (sem relíquia disponível)", 1500, "magic");
+      showToast("+" + p.coinReward + TR(" ◆ (sem relíquia disponível)"," ◆ (no relic available)"," ◆ (sin reliquia disponible)"), 1500, "magic");
     }
     renderSpellBar();
     return;
@@ -27849,7 +27857,7 @@ function grantChestLoot(p) {
     progress.coins += reward;
     game.coinsThisRun = (game.coinsThisRun || 0) + reward;
     saveProgress();
-    showToast("+" + reward + " ◆ (já tem " + spellName + ")", 1200, "magic");
+    showToast("+" + reward + TR(" ◆ (já tem "," ◆ (already have "," ◆ (ya tienes ") + spellName + ")", 1200, "magic");
     renderSpellBar();
     return;
   }
@@ -27865,7 +27873,7 @@ function grantChestLoot(p) {
     progress.coins += reward;
     game.coinsThisRun = (game.coinsThisRun || 0) + reward;
     saveProgress();
-    showToast("+" + reward + " ◆ (deck cheio — compre Bolso/Grimório)", 1500, "magic");
+    showToast("+" + reward + " ◆ " + TR("(deck cheio — compre Bolso/Grimório)","(deck full — buy Pocket/Grimoire)","(mazo lleno — compra Bolsillo/Grimorio)"), 1500, "magic");
   }
   renderSpellBar();
 }
@@ -28046,7 +28054,7 @@ function checkAchievements(ctx) {
   }
   if (!progress.ossuaryUnlocked && ((progress.knockbacksApplied || 0) >= 150 || (progress.totalKills || 0) >= 700)) {
     progress.ossuaryUnlocked = true;
-    showToast("🦴 OSSÁRIO DESBLOQUEADO (carta)", 3200, "magic");
+    showToast(TR("🦴 OSSÁRIO DESBLOQUEADO (carta)","🦴 OSSUARY UNLOCKED (card)","🦴 OSARIO DESBLOQUEADO (carta)"), 3200, "magic");
     if (typeof saveProgress === "function") saveProgress();
   }
   for (const a of ACHIEVEMENTS) {
@@ -28370,7 +28378,7 @@ function grantPassiveLoot(p) {
     progress.coins += reward;
     game.coinsThisRun = (game.coinsThisRun || 0) + reward;
     saveProgress();
-    showToast("+" + reward + " ◆ (já tem " + pass.name + ")", 1400, "magic");
+    showToast("+" + reward + TR(" ◆ (já tem "," ◆ (already have "," ◆ (ya tienes ") + getPassiveName(pass.id) + ")", 1400, "magic");
     return;
   }
   game.permaBuffs.passives[pass.id] = true;
@@ -28505,7 +28513,7 @@ function grantBuffLoot(p) {
       progress.coins += reward;
       game.coinsThisRun = (game.coinsThisRun || 0) + reward;
       saveProgress();
-      showToast("+" + reward + " ◆ (resist. no máx.)", 1400, "magic");
+      showToast("+" + reward + TR(" ◆ (resist. no máx.)"," ◆ (resist maxed)"," ◆ (resist. al máx.)"), 1400, "magic");
       return;
     }
     game.permaBuffs[key] = Math.min(cap, cur + buff.amount);
@@ -28538,7 +28546,7 @@ function grantBuffLoot(p) {
       progress.coins += reward;
       game.coinsThisRun = (game.coinsThisRun || 0) + reward;
       saveProgress();
-      showToast("+" + reward + " ◆ (vel. no máx.)", 1400, "magic");
+      showToast("+" + reward + TR(" ◆ (vel. no máx.)"," ◆ (speed maxed)"," ◆ (vel. al máx.)"), 1400, "magic");
       return;
     }
     game.permaBuffs.kingSpeedBonus = Math.min(cap, cur + buff.amount);
@@ -28557,7 +28565,7 @@ function grantBuffLoot(p) {
       progress.coins += reward;
       game.coinsThisRun = (game.coinsThisRun || 0) + reward;
       saveProgress();
-      showToast("+" + reward + " ◆ (bloqueio no máx.)", 1400, "magic");
+      showToast("+" + reward + TR(" ◆ (bloqueio no máx.)"," ◆ (block maxed)"," ◆ (bloqueo al máx.)"), 1400, "magic");
       return;
     }
     game.permaBuffs.kingArmorBlockBonus = Math.min(cap, cur + buff.amount);
@@ -28580,7 +28588,7 @@ function grantBuffLoot(p) {
       progress.coins += reward;
       game.coinsThisRun = (game.coinsThisRun || 0) + reward;
       saveProgress();
-      showToast("+" + reward + " ◆ (todas resist. no máx.)", 1600, "magic");
+      showToast("+" + reward + TR(" ◆ (todas resist. no máx.)"," ◆ (all resists maxed)"," ◆ (todas resist. al máx.)"), 1600, "magic");
       return;
     }
     showItemToast(buff);
@@ -28670,7 +28678,7 @@ function tryNecromance(wx, wy, rangeOverride) {
   }
   if (currentAllies >= maxAllies) {
     Sfx.deny();
-    showToast("EXÉRCITO NO LIMITE", 900, "danger");
+    showToast(TR("EXÉRCITO NO LIMITE","ARMY AT THE LIMIT","EJÉRCITO AL LÍMITE"), 900, "danger");
     return;
   }
 
@@ -28688,7 +28696,7 @@ function tryNecromance(wx, wy, rangeOverride) {
   const minCost = Math.min(...toNecro.map(c => necromanceCostForTier(c.tier)));
   if (game.king.mana < minCost) {
     Sfx.deny();
-    showToast("SEM MANA", 700, "danger");
+    showToast(TR("SEM MANA","NO MANA","SIN MANÁ"), 700, "danger");
     return;
   }
 
@@ -29829,7 +29837,7 @@ const SPELL_DATA = [
         duration: 25000, hpMult: 1.4, atkMult: 0.9, taunts: true,
         fxColor: "#a89878",
       });
-      if (typeof showToast === "function") showToast("GUARDIÃO DE GRANITO (25s)", 1500, "magic");
+      if (typeof showToast === "function") showToast(TR("GUARDIÃO DE GRANITO (25s)","GRANITE GUARDIAN (25s)","GUARDIÁN DE GRANITO (25s)"), 1500, "magic");
     },
   },
   {
@@ -29893,7 +29901,7 @@ const SPELL_DATA = [
           game.corpses = game.corpses.filter(x => x !== nearestCorpse);
         }
       }
-      if (typeof showToast === "function") showToast("VIÚVA DAS ALMAS (18s)", 1500, "magic");
+      if (typeof showToast === "function") showToast(TR("VIÚVA DAS ALMAS (18s)","SOUL WIDOW (18s)","VIUDA DE LAS ALMAS (18s)"), 1500, "magic");
     },
   },
   {
@@ -29978,8 +29986,8 @@ const SPELL_TOOLTIP_INFO = {
       const skelLvl = (typeof upgradeLvl === "function" ? upgradeLvl("skeletonCount") : 0) || 0;
       const tierLvl = (typeof upgradeLvl === "function" ? upgradeLvl("skeletonTier") : 0) || 0;
       const base = 8 + Math.min(12, (game.bonuses && game.bonuses.skeletonCountBonus) || 0);
-      lines.push(`Esqueletos: ${base} ${skelLvl > 0 ? "(+" + Math.min(5, skelLvl) + " upg)" : ""}`);
-      if (tierLvl > 0) lines.push(`Tier: até T${1 + Math.min(3, tierLvl)}`);
+      lines.push(TR("Esqueletos: ","Skeletons: ","Esqueletos: ") + base + " " + (skelLvl > 0 ? "(+" + Math.min(5, skelLvl) + " upg)" : ""));
+      if (tierLvl > 0) lines.push(TR("Tier: até T","Tier: up to T","Tier: hasta T") + (1 + Math.min(3, tierLvl)));
       return lines;
     },
   },
@@ -29988,15 +29996,15 @@ const SPELL_TOOLTIP_INFO = {
     damageDesc: (b) => `${40 + (b.fireballBonus || 0)} (AoE)`,
     extras: () => {
       const lvl = (typeof upgradeLvl === "function" ? upgradeLvl("fireballPow") : 0) || 0;
-      return lvl > 0 ? [`Poder: +${lvl * 8} dano`] : [];
+      return lvl > 0 ? [TR("Poder: +","Power: +","Poder: +") + (lvl * 8) + TR(" dano"," damage"," daño")] : [];
     },
   },
   ice: {
     desc: "Congela inimigos no raio 60px. Imobiliza por 2.5s + bônus.",
-    damageDesc: () => `8 + congela 2.5s`,
+    damageDesc: () => "8 + " + TR("congela 2.5s","freezes 2.5s","congela 2.5s"),
     extras: () => {
       const lvl = (typeof upgradeLvl === "function" ? upgradeLvl("iceDur") : 0) || 0;
-      return lvl > 0 ? [`Duração: +${lvl}s congelamento`] : [];
+      return lvl > 0 ? [TR("Duração: +","Duration: +","Duración: +") + lvl + TR("s congelamento","s freeze","s congelación")] : [];
     },
   },
   lightning: {
@@ -30012,25 +30020,25 @@ const SPELL_TOOLTIP_INFO = {
     damageDesc: () => `tick 8 + slow 40%`,
     extras: () => {
       const lvl = (typeof upgradeLvl === "function" ? upgradeLvl("poisonDur") : 0) || 0;
-      return lvl > 0 ? [`Duração: +${lvl}s persistência`] : [];
+      return lvl > 0 ? [TR("Duração: +","Duration: +","Duración: +") + lvl + TR("s persistência","s lingering","s persistencia")] : [];
     },
   },
   spore: {
     desc: "Cura aliados num raio. NÃO cura o Rei.",
-    damageDesc: () => `cura aliados`,
+    damageDesc: () => TR("cura aliados","heals allies","cura aliados"),
     extras: () => {
       const lvl = (typeof upgradeLvl === "function" ? upgradeLvl("sporesDur") : 0) || 0;
-      return lvl > 0 ? [`Duração: +${lvl}s cura ativa`] : [];
+      return lvl > 0 ? [TR("Duração: +","Duration: +","Duración: +") + lvl + TR("s cura ativa","s active healing","s curación activa")] : [];
     },
   },
   hellPortal: {
     desc: "Carta do INFERNO. Abre portal demoníaco — invoca 5 imps + 2 GargulaMagma T3.",
-    damageDesc: () => `pulso 16+ + invocações`,
+    damageDesc: () => TR("pulso 16+ + invocações","pulse 16+ + summons","pulso 16+ + invocaciones"),
     extras: () => {
       const lines = [];
-      if (game.bonuses && game.bonuses.hellPortalDmg) lines.push("Dano +14");
-      if (game.bonuses && game.bonuses.hellPortalCnt) lines.push("Horda Demoníaca: +2 imps");
-      if (game.bonuses && game.bonuses.hellPortalTier) lines.push("Sangue Nobre: +1 T3");
+      if (game.bonuses && game.bonuses.hellPortalDmg) lines.push(TR("Dano +14","Damage +14","Daño +14"));
+      if (game.bonuses && game.bonuses.hellPortalCnt) lines.push(TR("Horda Demoníaca: +2 imps","Demon Horde: +2 imps","Horda Demoníaca: +2 imps"));
+      if (game.bonuses && game.bonuses.hellPortalTier) lines.push(TR("Sangue Nobre: +1 T3","Noble Blood: +1 T3","Sangre Noble: +1 T3"));
       return lines;
     },
   },
@@ -30049,20 +30057,20 @@ const SPELL_TOOLTIP_INFO = {
     damageDesc: (b) => `${12 + (b.desertTornadoDmg || 0)}/tick + knockback`,
     extras: () => {
       const lines = [];
-      if (game.bonuses && game.bonuses.desertTornadoDur) lines.push("Duração 7s");
-      if (game.bonuses && game.bonuses.desertTornadoSplit) lines.push("Divide em 2 mini-furacões");
+      if (game.bonuses && game.bonuses.desertTornadoDur) lines.push(TR("Duração 7s","Duration 7s","Duración 7s"));
+      if (game.bonuses && game.bonuses.desertTornadoSplit) lines.push(TR("Divide em 2 mini-furacões","Splits into 2 mini-tornadoes","Se divide en 2 mini-tornados"));
       return lines;
     },
   },
   // COMBO 3 K — Cartas Sagradas
   lightBurst: {
     desc: "Carta SAGRADA. Pilar de luz no cursor. 4× dano em mortos-vivos.",
-    damageDesc: () => `50 (200 vs mortos-vivos)`,
+    damageDesc: () => TR("50 (200 vs mortos-vivos)","50 (200 vs undead)","50 (200 vs no-muertos)"),
     extras: () => [],
   },
   massHeal: {
     desc: "Carta SAGRADA. Campo GRANDE (150px) que cura ~18% HP/s das TROPAS por 6s. NÃO cura o Rei. CD 32s.",
-    damageDesc: () => `~18% HP/s nas tropas · 6s · raio 150`,
+    damageDesc: () => TR("~18% HP/s nas tropas · 6s · raio 150","~18% HP/s on troops · 6s · radius 150","~18% HP/s en tropas · 6s · radio 150"),
     extras: () => [],
   },
   sacredShield: {
@@ -31079,7 +31087,7 @@ function updatePickScreenUI() {
     return;
   }
 
-  hint.textContent = `ARRASTE ATÉ ${max} CARTA${max > 1 ? "S" : ""} DO GRIMÓRIO (${filled}/${max})`;
+  hint.textContent = TR("ARRASTE ATÉ ","DRAG UP TO ","ARRASTRA HASTA ") + max + TR(" CARTA"," CARD"," CARTA") + (max > 1 ? "S" : "") + TR(" DO GRIMÓRIO ("," FROM THE GRIMOIRE ("," DEL GRIMORIO (") + filled + "/" + max + ")";
   if (filled >= 1) {
     hint.classList.add("full");
     confirmBtn.classList.remove("disabled");
@@ -31188,7 +31196,7 @@ function tryCastCardInSlot(slotIdx, wx, wy) {
   const manaCost = Math.max(1, Math.ceil(spell.cost * manaMult));
   if (!game._testAllCards && game.king.mana < manaCost) {
     Sfx.deny();
-    showToast("SEM MANA", 600, "danger");
+    showToast(TR("SEM MANA","NO MANA","SIN MANÁ"), 600, "danger");
     return;
   }
   if (!game._testAllCards) game.king.mana -= manaCost;
@@ -31896,7 +31904,7 @@ function castCarnage(wx, wy) {
     if (typeof flashScreen === "function") flashScreen(0.12, 150, "#c060ff");
     if (typeof doShake === "function") doShake(2.5, 220);
   } else if (typeof showToast === "function") {
-    showToast("Sem cadáveres por perto", 1400, "info");
+    showToast(TR("Sem cadáveres por perto","No corpses nearby","No hay cadáveres cerca"), 1400, "info");
   }
 }
 
@@ -33733,11 +33741,11 @@ function updateBossRush(dt) {
         game.activeRelics = game.activeRelics || [];
         game.activeRelics.push("alliance_ring");
         if (typeof onRelicEquipped === "function") onRelicEquipped("alliance_ring");
-        showToast("⚔ RELÍQUIA: " + RELICS.alliance_ring.name, 4500, "magic");
+        showToast(TR("⚔ RELÍQUIA: ","⚔ RELIC: ","⚔ RELIQUIA: ") + getRelicName("alliance_ring"), 4500, "magic");
       } catch(e) {}
     }
     saveProgress();
-    showToast("🏆 BOSS RUSH COMPLETO! Tempo: " + Math.floor(game.bossRushClearTime / 60) + "m" + (game.bossRushClearTime % 60) + "s", 6000, "magic");
+    showToast(TR("🏆 BOSS RUSH COMPLETO! Tempo: ","🏆 BOSS RUSH COMPLETE! Time: ","🏆 ¡BOSS RUSH COMPLETO! Tiempo: ") + Math.floor(game.bossRushClearTime / 60) + "m" + (game.bossRushClearTime % 60) + "s", 6000, "magic");
     // Trigger game over (vitória — exibe stats normal)
     game.gameOver = true;
     setTimeout(() => { try { showGameOver(); } catch(e) {} }, 800);
@@ -33754,7 +33762,7 @@ function updateBossRush(dt) {
   if (bossUnit) {
     bossUnit._bossRushCurrent = true;
   }
-  showToast("⚔ CHEFE " + (game.bossRushIndex + 1) + "/12: " + def.name.toUpperCase(), 2400, "danger");
+  showToast(TR("⚔ CHEFE ","⚔ BOSS ","⚔ JEFE ") + (game.bossRushIndex + 1) + "/12: " + ((typeof getBossName === "function") ? getBossName(def.id) : def.name).toUpperCase(), 2400, "danger");
   doShake && doShake(8, 500);
   if (typeof flashScreen === "function") flashScreen(0.30, 350, def.biomeColor);
   try { if (Sfx && Sfx.waveStart) Sfx.waveStart(); } catch(e) {}
@@ -37035,7 +37043,7 @@ function summonSkeletons(wx, wy, count) {
   const capacity = Math.max(0, maxAllies - current);
   const actual = Math.min(count, capacity);
   if (actual <= 0) {
-    showToast("EXÉRCITO NO LIMITE", 900, "danger");
+    showToast(TR("EXÉRCITO NO LIMITE","ARMY AT THE LIMIT","EJÉRCITO AL LÍMITE"), 900, "danger");
     return;
   }
 
@@ -67464,7 +67472,7 @@ let _merchantShopRef = null;
 const MERCHANT_ITEMS = [
   { id: "potHp",   name: "Poção de Vida",     desc: "Restaura 200 HP do Rei",        cost: 100, action: () => { if (game.king) { game.king.hp = Math.min(game.king.maxHp, game.king.hp + 200); showToast("+200 HP", 1200, "magic"); }}},
   { id: "potMp",   name: "Poção de Mana",     desc: "Restaura 100 MP do Rei",        cost: 80,  action: () => { if (game.king) { game.king.mana = Math.min(game.king.maxMana, game.king.mana + 100); showToast("+100 MANA", 1200, "magic"); }}},
-  { id: "potHeal", name: "Cura Total",        desc: "Restaura HP+MP do Rei ao máx",  cost: 250, action: () => { if (game.king) { game.king.hp = game.king.maxHp; game.king.mana = game.king.maxMana; showToast("CURA TOTAL", 1500, "magic"); }}},
+  { id: "potHeal", name: "Cura Total",        desc: "Restaura HP+MP do Rei ao máx",  cost: 250, action: () => { if (game.king) { game.king.hp = game.king.maxHp; game.king.mana = game.king.maxMana; showToast(TR("CURA TOTAL","FULL HEAL","CURACIÓN TOTAL"), 1500, "magic"); }}},
   { id: "buffArmor", name: "Bênção Armadura", desc: "+15% redução de dano físico (resto da run)", cost: 200, action: () => {
     if (!game.king) return;
     game.king.armorBlock = Math.min(75, (game.king.armorBlock || 0) + 15);
@@ -67477,7 +67485,7 @@ const MERCHANT_ITEMS = [
   }},
   { id: "buffRevive", name: "Tomo da Sabedoria", desc: "Próxima morte revive o Rei com 100 HP", cost: 500, action: () => {
     game._merchantRevive = true;
-    showToast("TOMO ATIVADO — 1 RESSURREIÇÃO", 1800, "magic");
+    showToast(TR("TOMO ATIVADO — 1 RESSURREIÇÃO","TOME ACTIVE — 1 RESURRECTION","TOMO ACTIVADO — 1 RESURRECCIÓN"), 1800, "magic");
   }},
   // 2026-04-29 COMBO 31 — REROLL DE OBJETIVO
   { id: "rerollQuest", name: "Pergaminho do Destino", desc: "Troca um objetivo aleatório por outro", cost: 350, action: () => {
@@ -67498,7 +67506,7 @@ function openCardSwapUI(standalone) {
   // Verifica que tem cartas pra trocar
   const equipped = (game.cardSlots || []).filter(c => c && c.spellId);
   if (equipped.length === 0) {
-    showToast("SEM CARTAS PRA TROCAR", 1200, "danger");
+    showToast(TR("SEM CARTAS PRA TROCAR","NO CARDS TO SWAP","SIN CARTAS PARA CAMBIAR"), 1200, "danger");
     return;
   }
   // Cartas no grimório (desbloqueadas) que NÃO estão equipadas
@@ -67506,7 +67514,7 @@ function openCardSwapUI(standalone) {
   const equippedIds = equipped.map(c => c.spellId);
   const availableNew = unlockedIds.filter(id => !equippedIds.includes(id));
   if (availableNew.length === 0) {
-    showToast("GRIMÓRIO VAZIO (TODAS AS CARTAS JÁ EQUIPADAS)", 1800, "danger");
+    showToast(TR("GRIMÓRIO VAZIO (TODAS AS CARTAS JÁ EQUIPADAS)","GRIMOIRE EMPTY (ALL CARDS EQUIPPED)","GRIMORIO VACÍO (TODAS LAS CARTAS EQUIPADAS)"), 1800, "danger");
     return;
   }
   // MODO TESTE: aberto sob demanda (botão DECK) — pausa o jogo e habilita trocas ilimitadas.
@@ -67548,7 +67556,7 @@ function renderCardSwapUI() {
   html += '<h2 style="color:#ffd060;margin:0;letter-spacing:3px;font-size:22px;">⚖ TROCA DE CARTA ⚖</h2>';
   html += '<div style="color:#fff080;font-weight:900;">CUSTO: ◈ ' + cost + '   |   SEU OURO: ◈ ' + (progress.coins || 0) + '</div>';
   html += '</div>';
-  html += '<div style="color:#a890b8;font-size:13px;margin-bottom:14px;text-align:center;">Selecione uma carta EQUIPADA (esquerda) e uma carta do GRIMÓRIO (direita) para trocar.</div>';
+  html += '<div style="color:#a890b8;font-size:13px;margin-bottom:14px;text-align:center;">' + TR("Selecione uma carta EQUIPADA (esquerda) e uma carta do GRIMÓRIO (direita) para trocar.","Select an EQUIPPED card (left) and a GRIMOIRE card (right) to swap.","Selecciona una carta EQUIPADA (izquierda) y una carta del GRIMORIO (derecha) para intercambiar.") + '</div>';
 
   // Layout 2 colunas
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">';
@@ -67570,7 +67578,7 @@ function renderCardSwapUI() {
   html += '</div></div>';
 
   // === COLUNA DIREITA: grimório disponível ===
-  html += '<div><h3 style="color:#80c0ff;margin:0 0 10px;letter-spacing:2px;text-align:center;">GRIMÓRIO (DISPONÍVEIS)</h3>';
+  html += '<div><h3 style="color:#80c0ff;margin:0 0 10px;letter-spacing:2px;text-align:center;">' + TR("GRIMÓRIO (DISPONÍVEIS)","GRIMOIRE (AVAILABLE)","GRIMORIO (DISPONIBLES)") + '</h3>';
   html += '<div style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;">';
   for (const id of availableNew) {
     const sel = _cardSwapState.selectedNewSpellId === id;
@@ -67610,8 +67618,8 @@ function renderCardSwapUI() {
   });
   const confirmBtn = overlay.querySelector("[data-swap-confirm]");
   if (confirmBtn) confirmBtn.addEventListener("click", () => {
-    if (!ready) { showToast("SELECIONE 2 CARTAS", 1000, "danger"); return; }
-    if (!canAfford) { showToast("MOEDAS INSUFICIENTES", 1000, "danger"); return; }
+    if (!ready) { showToast(TR("SELECIONE 2 CARTAS","SELECT 2 CARDS","SELECCIONA 2 CARTAS"), 1000, "danger"); return; }
+    if (!canAfford) { showToast(TR("MOEDAS INSUFICIENTES","NOT ENOUGH COINS","MONEDAS INSUFICIENTES"), 1000, "danger"); return; }
     // Executa troca
     progress.coins -= cost;
     if (cost > 0 && typeof saveProgress === "function") saveProgress();
@@ -67684,8 +67692,8 @@ function renderMerchantShop() {
       // closure da render). Antes duplo-clique rápido fazia 2 handlers rodarem
       // antes de re-render — ambos viam soldOut=false / affordable=true e
       // descontavam moedas DUAS VEZES.
-      if (game._merchantPurchased[it.id]) { showToast("ITEM JÁ COMPRADO NESTA RUN", 1200, "danger"); return; }
-      if ((progress.coins || 0) < it.cost) { showToast("MOEDAS INSUFICIENTES", 800, "danger"); return; }
+      if (game._merchantPurchased[it.id]) { showToast(TR("ITEM JÁ COMPRADO NESTA RUN","ALREADY BOUGHT THIS RUN","YA COMPRADO EN ESTA RUN"), 1200, "danger"); return; }
+      if ((progress.coins || 0) < it.cost) { showToast(TR("MOEDAS INSUFICIENTES","NOT ENOUGH COINS","MONEDAS INSUFICIENTES"), 800, "danger"); return; }
       // 2026-05-02 COMBO 47 — items interactive (ex: swapCard) NÃO descontam antes;
       // a UI do item cuida do flow de cobrança/cancelamento + marca purchased.
       if (it.interactive) {
@@ -67892,7 +67900,7 @@ function closeCutscene(activateEndless) {
       game.endlessLairTimer = 25000;
       game.endlessLairCount = 0;
       showToast("✨ MODO ENDLESS ATIVO ✨", 4000, "magic");
-      setTimeout(() => showToast("CHEFES ÚNICOS EMERGEM PELO MAPA!", 3500, "danger"), 1500);
+      setTimeout(() => showToast(TR("CHEFES ÚNICOS EMERGEM PELO MAPA!","UNIQUE BOSSES EMERGE ACROSS THE MAP!","¡JEFES ÚNICOS EMERGEN POR EL MAPA!"), 3500, "danger"), 1500);
       // Restart music if available
       if (Sfx && Sfx.startMusic) try { Sfx.startMusic(); } catch(e){}
     }
@@ -67964,7 +67972,7 @@ function acceptRevival() {
   // COMBO 13 F4 — UNTOUCHABLE: invuln 4s após reviver
   if (game.permaBuffs && game.permaBuffs.passives && game.permaBuffs.passives.untouchable && game.king) {
     game.king.sacredShieldTimer = Math.max(game.king.sacredShieldTimer || 0, 4000);
-    showToast("✨ INTANGÍVEL — INVULN 4s", 2400, "magic");
+    showToast(TR("✨ INTANGÍVEL — INVULN 4s","✨ INTANGIBLE — INVULN 4s","✨ INTANGIBLE — INVULN 4s"), 2400, "magic");
   }
   game.revivalUsed = true;
   hideRevivalModal();
@@ -68021,7 +68029,7 @@ function acceptRevival() {
   if (typeof flashScreen === "function") flashScreen(0.4, 600, "#c080ff");
   if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
   showToast("⚱ ALMA RESTAURADA — REI REVIVE!", 3000, "magic");
-  showToast("Inimigos próximos foram empurrados.", 2400, "good");
+  showToast(TR("Inimigos próximos foram empurrados.","Nearby enemies were pushed back.","Los enemigos cercanos fueron empujados."), 2400, "good");
 }
 
 // FEEDBACK R6 (auditoria) — coleta das recompensas de quest extraída pra função:
@@ -68157,7 +68165,7 @@ function showGameOver() {
     if (s >= 600 && !(progress.unlockedRelics && progress.unlockedRelics.world_heart)) {
       if (!progress.unlockedRelics) progress.unlockedRelics = {};
       progress.unlockedRelics.world_heart = true;
-      showToast("💚 CORAÇÃO DO MUNDO desbloqueado pra próxima run!", 4500, "magic");
+      showToast(TR("💚 CORAÇÃO DO MUNDO desbloqueado pra próxima run!","💚 WORLD HEART unlocked for the next run!","💚 ¡CORAZÓN DEL MUNDO desbloqueado para la próxima run!"), 4500, "magic");
     }
   }
   // COMBO 10 C3 — registra score no leaderboard se for daily mode
@@ -73308,7 +73316,7 @@ function openCampaignIntermission(opts) {
   opts = opts || {};
   _ciOnContinue = opts.onContinue || null;
   _ciTab = "upgrades";
-  const t = document.getElementById("ciTitle"); if (t) t.textContent = opts.title || "INTERMISSÃO";
+  const t = document.getElementById("ciTitle"); if (t) t.textContent = opts.title || TR("INTERMISSÃO","INTERMISSION","INTERMEDIO");
   const s = document.getElementById("ciSubtitle"); if (s) s.textContent = opts.subtitle || "Gaste suas moedas antes de continuar.";
   const b = document.getElementById("ciContinueBtn"); if (b) b.textContent = opts.continueLabel || "CONTINUAR";
   document.querySelectorAll("#ciTabs .shop-tab").forEach(el => el.classList.toggle("active", el.dataset.ciTab === "upgrades"));
@@ -73462,7 +73470,7 @@ function campaignLevelComplete() {
         // desativado em nível 4 pela guarda campaignLevel<=3, mas resetamos por garantia).
         if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
         game._campaignLevelDone = false;
-        if (typeof showToast === "function") showToast("⚔ VÁ ATÉ O COVIL E DESPERTE O BOSS!", 3200, "danger");
+        if (typeof showToast === "function") showToast(TR("⚔ VÁ ATÉ O COVIL E DESPERTE O BOSS!","⚔ GO TO THE LAIR AND AWAKEN THE BOSS!","⚔ ¡VE A LA GUARIDA Y DESPIERTA AL JEFE!"), 3200, "danger");
       },
     });
   } else {
@@ -73485,7 +73493,7 @@ function campaignLevelComplete() {
         // e o próximo nível concluía no mesmo frame → dava pra pular níveis 2/3).
         if (game.levelGoal) { game.levelGoal.standTimer = 0; game.levelGoal.reached = false; game.levelGoal.inPortal = false; }
         game._campaignLevelDone = false;
-        if (typeof showToast === "function") showToast("NÍVEL " + (lvl + 1) + " / 3", 2000, "magic");
+        if (typeof showToast === "function") showToast(TR("NÍVEL ","LEVEL ","NIVEL ") + (lvl + 1) + " / 3", 2000, "magic");
       },
     });
   }
@@ -73953,6 +73961,26 @@ const TUTORIAL_STEPS = [
   },
 ];
 
+// R19 — i18n do tutorial (primeira impressão do jogador global). Fallback = PT do dado.
+const TUTORIAL_I18N = {
+  en: [
+    { title: "WELCOME, KING!", body: "Move with WASD (or arrows). LEFT mouse commands the army to the clicked spot — with no click, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar.", bodyMobile: "Move with the JOYSTICK. TAP the map to command the army — with no tap, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar." },
+    { title: "NECROMANCY", body: "RIGHT mouse near enemy corpses raises them as your allies (costs mana; higher tiers cost more). This is the heart of the game: EVERY dead enemy is a potential soldier.", bodyMobile: "The ⚰ BUTTON near enemy corpses raises them as your allies (costs mana; higher tiers cost more). This is the heart of the game: EVERY dead enemy is a potential soldier." },
+    { title: "CARDS", body: "Keys 1-5 (or click the slots) arm a card; click the map to cast; ESC cancels. Unlock more cards and slots in the shop between runs.", bodyMobile: "TAP a slot to arm the card and TAP the map to cast (tap the slot again to cancel). Unlock more cards and slots in the shop between runs." },
+    { title: "EXPLORE AND GROW STRONG", body: "Follow the MINIMAP: chests, merchants (key E nearby) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty.", bodyMobile: "Follow the MINIMAP: chests, merchants (get close) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty." },
+  ],
+  es: [
+    { title: "¡BIENVENIDO, REY!", body: "Muévete con WASD (o flechas). El clic IZQUIERDO manda al ejército al punto clicado — sin clic, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central.", bodyMobile: "Muévete con el JOYSTICK. TOCA el mapa para mandar al ejército — sin toque, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central." },
+    { title: "NIGROMANCIA", body: "El clic DERECHO cerca de cadáveres enemigos los resucita como aliados (cuesta maná; tiers altos cuestan más). Es el corazón del juego: TODO enemigo muerto es un soldado en potencia.", bodyMobile: "El BOTÓN ⚰ cerca de cadáveres enemigos los resucita como aliados (cuesta maná; tiers altos cuestan más). Es el corazón del juego: TODO enemigo muerto es un soldado en potencia." },
+    { title: "CARTAS", body: "Teclas 1-5 (o clic en las ranuras) arman una carta; clic en el mapa para lanzar; ESC cancela. Desbloquea más cartas y ranuras en la tienda entre partidas.", bodyMobile: "TOCA una ranura para armar la carta y TOCA el mapa para lanzar (toca de nuevo la ranura para cancelar). Desbloquea más cartas y ranuras en la tienda entre partidas." },
+    { title: "EXPLORA Y HAZTE FUERTE", body: "Sigue el MINIMAPA: cofres, mercaderes (tecla E cerca) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad.", bodyMobile: "Sigue el MINIMAPA: cofres, mercaderes (acércate) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad." },
+  ],
+};
+function _tutTxt(idx, field, fallback) {
+  try { const L = _i18nLang(); if (L !== "pt" && TUTORIAL_I18N[L] && TUTORIAL_I18N[L][idx] && TUTORIAL_I18N[L][idx][field]) return TUTORIAL_I18N[L][idx][field]; } catch (e) {}
+  return fallback;
+}
+
 let _tutorialStepIndex = 0;
 let _tutorialActive = false;
 
@@ -73972,7 +74000,7 @@ function showTutorialStep() {
     finishTutorial();
     return;
   }
-  document.getElementById("tutorialStep").textContent = "PASSO " + (_tutorialStepIndex + 1) + "/" + TUTORIAL_STEPS.length;
+  document.getElementById("tutorialStep").textContent = TR("PASSO ","STEP ","PASO ") + (_tutorialStepIndex + 1) + "/" + TUTORIAL_STEPS.length;
   // 2026-04-29 COMBO 33 — usa SVG themed icon (GAME_ICONS) em vez de emoji
   const iconEl = document.getElementById("tutorialIcon");
   if (step.iconKey && typeof GAME_ICONS !== "undefined" && GAME_ICONS[step.iconKey]) {
@@ -73983,12 +74011,12 @@ function showTutorialStep() {
   } else if (step.icon) {
     iconEl.textContent = step.icon;
   }
-  document.getElementById("tutorialTitle").textContent = step.title;
+  document.getElementById("tutorialTitle").textContent = _tutTxt(_tutorialStepIndex, "title", step.title);
   // 2026-06-12 FIX (Etapa 4): tutorial mostrava controles de DESKTOP (WASD/Mouse/Teclas/E)
   // pra todos — o jogador mobile (~60% da Poki) lia instruções de controles que não tem.
   // Usa a variante bodyMobile (controles touch) quando em dispositivo móvel.
   const _isMob = (typeof isMobileDevice === "function") && isMobileDevice();
-  document.getElementById("tutorialBody").textContent = (_isMob && step.bodyMobile) ? step.bodyMobile : step.body;
+  document.getElementById("tutorialBody").textContent = (_isMob && step.bodyMobile) ? _tutTxt(_tutorialStepIndex, "bodyMobile", step.bodyMobile) : _tutTxt(_tutorialStepIndex, "body", step.body);
   // COMBO 11 E2 — gera dots dinâmicos (antes era hardcoded 6 no HTML)
   const dotsContainer = document.getElementById("tutorialProgressDots");
   if (dotsContainer && dotsContainer.children.length !== TUTORIAL_STEPS.length) {
@@ -75048,7 +75076,7 @@ function switchCodexTab(tab) {
   else if (tab === "bestiary" && typeof renderUnitsMenu === "function") renderUnitsMenu();
   else if (tab === "items" && typeof renderItemsMenu === "function") renderItemsMenu();
   else if (tab === "achievs" && typeof renderAchievementsMenu === "function") renderAchievementsMenu();
-  else if (tab === "stats" && typeof renderStatsCodex === "function") renderStatsCodex();
+  else if (tab === "stats" && typeof renderStatsCodex === "function") { renderStatsCodex(); if (typeof _statsI18nPass === "function") _statsI18nPass(); }   // R19
 }
 // Liga clicks dos tabs (delegated, idempotente)
 document.addEventListener("click", (e) => {
@@ -75060,6 +75088,60 @@ document.addEventListener("click", (e) => {
 //   "global" (main menu) → agrega TODOS os 3 saves
 //   "pause"  (pause)     → SÓ a run atual (game.killsThisRun, game.runTime, etc.)
 //   "save"   (default)   → acumulado deste save (comportamento antigo)
+// R19 — i18n do painel de ESTATÍSTICAS por passe DOM (o HTML é montado por concat
+// em dezenas de pontos; trocar os text nodes conhecidos é mais robusto que 44 edits).
+// Preserva ícones SVG dos h4 (só substitui NODES DE TEXTO cujo trim casa no dicionário).
+const _STATS_I18N = {
+  "Almas (todos saves)": ["Souls (all saves)", "Almas (todas las partidas)"],
+  "Almas atuais": ["Current souls", "Almas actuales"],
+  "Biomas conquistados": ["Biomes conquered", "Biomas conquistados"],
+  "Bloqueio": ["Block", "Bloqueo"],
+  "Caravanas saqueadas": ["Caravans plundered", "Caravanas saqueadas"],
+  "Chefes derrotados": ["Bosses defeated", "Jefes derrotados"],
+  "Companions desbloqueados": ["Companions unlocked", "Compañeros desbloqueados"],
+  "Conquistas (soma)": ["Achievements (total)", "Logros (total)"],
+  "Conquistas": ["Achievements", "Logros"],
+  "Elites derrotados": ["Elites defeated", "Élites derrotados"],
+  "Itens coletados": ["Items collected", "Objetos recogidos"],
+  "Kills nesta run": ["Kills this run", "Kills en esta run"],
+  "Mais kills (run)": ["Most kills (run)", "Más kills (run)"],
+  "Melhor tempo (run)": ["Best time (run)", "Mejor tiempo (run)"],
+  "Modo": ["Mode", "Modo"],
+  "Moedas (todos saves)": ["Coins (all saves)", "Monedas (todas las partidas)"],
+  "Moedas atuais": ["Current coins", "Monedas actuales"],
+  "Moedas ganhas": ["Coins earned", "Monedas ganadas"],
+  "NG+ máximo completo": ["Highest NG+ cleared", "NG+ máximo completado"],
+  "NG+ máximo": ["Highest NG+", "NG+ máximo"],
+  "Nível": ["Level", "Nivel"],
+  "Onda": ["Wave", "Oleada"],
+  "Passivas raras": ["Rare passives", "Pasivas raras"],
+  "Passivas vistas": ["Passives seen", "Pasivas vistas"],
+  "Relíquias coletadas": ["Relics collected", "Reliquias recogidas"],
+  "Revivals usados": ["Revivals used", "Reapariciones usadas"],
+  "Tempo decorrido": ["Time elapsed", "Tiempo transcurrido"],
+  "Total de kills": ["Total kills", "Kills totales"],
+  "Total de runs": ["Total runs", "Runs totales"],
+  "Velocidade": ["Speed", "Velocidad"],
+  "ESTATÍSTICAS GLOBAIS": ["GLOBAL STATISTICS", "ESTADÍSTICAS GLOBALES"],
+  "RECORDES (MELHOR SAVE)": ["RECORDS (BEST SAVE)", "RÉCORDS (MEJOR PARTIDA)"],
+  "MODOS EXTRAS": ["EXTRA MODES", "MODOS EXTRA"],
+  "✦ META-PROGRESSÃO GLOBAL": ["✦ GLOBAL META-PROGRESSION", "✦ METAPROGRESIÓN GLOBAL"],
+  "✦ META-PROGRESSÃO": ["✦ META-PROGRESSION", "✦ METAPROGRESIÓN"],
+};
+function _statsI18nPass() {
+  try {
+    const L = _i18nLang();
+    if (L === "pt") return;
+    const li = L === "en" ? 0 : 1;
+    document.querySelectorAll(".cs-label, .cs-section h4").forEach(el => {
+      for (const nd of el.childNodes) {
+        if (nd.nodeType !== 3) continue;
+        const key = nd.nodeValue.trim();
+        if (_STATS_I18N[key]) nd.nodeValue = nd.nodeValue.replace(key, _STATS_I18N[key][li]);
+      }
+    });
+  } catch (e) {}
+}
 function renderStatsCodex() {
   const root = document.getElementById("codexStatsContent");
   if (!root) return;
@@ -75106,6 +75188,7 @@ function renderStatsCodex() {
     }
     html += '</div>';
     root.innerHTML = html;
+  if (typeof _statsI18nPass === "function") setTimeout(_statsI18nPass, 0);   // R19 — i18n do painel (após o render síncrono completo)
     return;
   }
 
@@ -75716,7 +75799,7 @@ function refreshStartMenu() {
       const cp = document.createElement("div");
       cp.className = "save-slot-stat";
       const _cIdx = Math.min(BIOME_ORDER.length, (slotProgress.campaignBiomeIndex || 0) + 1);
-      cp.innerHTML = "<span>CAMPANHA</span><b>Região " + _cIdx + "/" + BIOME_ORDER.length + "</b>";
+      cp.innerHTML = "<span>" + TR("CAMPANHA","CAMPAIGN","CAMPAÑA") + "</span><b>" + TR("Região ","Region ","Región ") + _cIdx + "/" + BIOME_ORDER.length + "</b>";
       body.appendChild(cp);
       const co = document.createElement("div");
       co.className = "save-slot-stat";
@@ -76171,7 +76254,7 @@ if (_jrBtn) {
     // 2026-06-24 FIX (auditoria): auto-cancela se o jogador não reposicionar em ~7s (senão
     // a flag ficava presa e o próximo gesto de mover virava reposicionamento).
     if (game._joyPlaceTimer) clearTimeout(game._joyPlaceTimer);
-    game._joyPlaceTimer = setTimeout(() => { if (game._joyPlacing) { game._joyPlacing = false; if (typeof showToast === "function") showToast("Reposição cancelada", 1200, "magic"); } }, 7000);
+    game._joyPlaceTimer = setTimeout(() => { if (game._joyPlacing) { game._joyPlacing = false; if (typeof showToast === "function") showToast(TR("Reposição cancelada","Repositioning canceled","Reposición cancelada"), 1200, "magic"); } }, 7000);
     if (typeof hideAllMenus === "function") hideAllMenus();
     if (typeof showToast === "function") showToast("ARRASTE O JOYSTICK PARA ONDE QUISER", 2600, "magic");
   });
@@ -76430,11 +76513,11 @@ document.addEventListener("click", (e) => {
       const curLvl = getCompanionLevel(cid);
       const nextLvlData = COMPANION_LEVEL_DATA[curLvl + 1];
       if (!nextLvlData) {
-        showToast("Já no nível máximo", 1400);
+        showToast(TR("Já no nível máximo","Already at max level","Ya en el nivel máximo"), 1400);
         return;
       }
       if ((progress.souls || 0) < nextLvlData.cost) {
-        showToast("Faltam almas (✦ " + ((progress.souls || 0)) + " / " + nextLvlData.cost + ")", 1800, "danger");
+        showToast(TR("Faltam almas (✦ ","Not enough souls (✦ ","Faltan almas (✦ ") + ((progress.souls || 0)) + " / " + nextLvlData.cost + ")", 1800, "danger");
         return;
       }
       progress.souls -= nextLvlData.cost;
@@ -76595,7 +76678,7 @@ document.addEventListener("click", (e) => {
       game.ngPlusLevel = Math.max(1, ngLvl);
       _pendingCampaign = null;
       _pendingModeChoice = null;
-      try { showToast("⚡ NEW GAME+ " + ngLvl + " ATIVADO!", 2400, "magic"); } catch(e) {}
+      try { showToast("⚡ NEW GAME+ " + ngLvl + TR(" ATIVADO!"," ACTIVATED!"," ¡ACTIVADO!"), 2400, "magic"); } catch(e) {}
       openCardPickFlow();
       break;
     }
@@ -77156,6 +77239,49 @@ try {
   }
 } catch (e) {}
 
+// R19 — chaves novas dos elementos estáticos convertidos (Object.assign pra não
+// mexer no literal gigante do LANG_DATA)
+try {
+  Object.assign(LANG_DATA.pt, {
+    "r19.campBtn": "🗺️ CAMPANHA",
+    "r19.campName": "CAMPANHA",
+    "r19.campDesc": "Avance bioma por bioma: 3 níveis + o boss de cada bioma. Entre os níveis, melhore upgrades e compre cartas.",
+    "r19.endlessDesc": "Mundo único com todos os biomas. Explore, destrua os covis e enfrente o NecroKing. (modo clássico)",
+    "r19.grimoire": "GRIMÓRIO",
+    "r19.pickHint": "Arraste cartas do grimório para os slots",
+    "r19.next": "PRÓXIMO",
+    "r19.restartLevel": "⟲ REINICIAR NÍVEL",
+    "r19.ctreeSub": "Árvore de Talentos — node exige o anterior do ramo; capstone exige 6 talentos",
+    "r19.chooseRelic": "ESCOLHA UMA RELÍQUIA",
+    "r19.intermission": "INTERMISSÃO",
+  });
+  Object.assign(LANG_DATA.en, {
+    "r19.campBtn": "🗺️ CAMPAIGN",
+    "r19.campName": "CAMPAIGN",
+    "r19.campDesc": "Advance biome by biome: 3 levels + each biome's boss. Between levels, improve upgrades and buy cards.",
+    "r19.endlessDesc": "One world with every biome. Explore, destroy the lairs and face the NecroKing. (classic mode)",
+    "r19.grimoire": "GRIMOIRE",
+    "r19.pickHint": "Drag cards from the grimoire to the slots",
+    "r19.next": "NEXT",
+    "r19.restartLevel": "⟲ RESTART LEVEL",
+    "r19.ctreeSub": "Talent Tree — each node requires the previous in its branch; capstone requires 6 talents",
+    "r19.chooseRelic": "CHOOSE A RELIC",
+    "r19.intermission": "INTERMISSION",
+  });
+  Object.assign(LANG_DATA.es, {
+    "r19.campBtn": "🗺️ CAMPAÑA",
+    "r19.campName": "CAMPAÑA",
+    "r19.campDesc": "Avanza bioma a bioma: 3 niveles + el jefe de cada bioma. Entre niveles, mejora upgrades y compra cartas.",
+    "r19.endlessDesc": "Un mundo con todos los biomas. Explora, destruye las guaridas y enfrenta al NecroKing. (modo clásico)",
+    "r19.grimoire": "GRIMORIO",
+    "r19.pickHint": "Arrastra cartas del grimorio a las ranuras",
+    "r19.next": "SIGUIENTE",
+    "r19.restartLevel": "⟲ REINICIAR NIVEL",
+    "r19.ctreeSub": "Árbol de Talentos — cada nodo exige el anterior de su rama; el capstone exige 6 talentos",
+    "r19.chooseRelic": "ELIGE UNA RELIQUIA",
+    "r19.intermission": "INTERMEDIO",
+  });
+} catch (e) {}
 function T(key, fallback) {
   const dict = LANG_DATA[_currentLang] || LANG_DATA.pt;
   return dict[key] || fallback || (LANG_DATA.pt[key] || key);
@@ -77337,6 +77463,15 @@ const SHOP_I18N = { en: { merchant: { potHp: { name: "Life Potion", desc: "Resto
 const COMPMENU_I18N = { en: { defs: { lichPet: { name: "Apprentice Lich", desc: "Loyal ranged caster. Solid damage at range.", unlock: "Starter — always available." }, necroPhantom: { name: "Royal Wraith", desc: "Immune to 50% physical damage. Fast melee, hooks back to the King.", unlock: "Defeat 100 enemies." }, cacadorReal: { name: "Royal Hunter", desc: "Elite marksman. Huge range, high damage, kills from afar.", unlock: "Defeat 5 bosses (any biome)." }, sombraReal: { name: "Royal Shadow", desc: "Swift assassin. 25% dodge, 40% crit (×2.5 dmg).", unlock: "Defeat the NecroKing." } }, abilities: { lichPet: [null, { name: "Bone Volley", desc: "Fires 5 bones in all directions (25 dmg each)" }, { name: "Explosive Skull", desc: "Throws a skull that bursts in a purple AoE (60 dmg + slow 1.5s)" }, { name: "Bone Army", desc: "Summons 3 T2 skeletons for 15s" }], necroPhantom: [null, { name: "Phantom Dash", desc: "Teleports behind the target + next hit 2x dmg" }, { name: "Soul Reap", desc: "Purple 90° AoE sweep (50 dmg + drains soul)" }, { name: "Possession", desc: "Intangible 4s + 100% dmg during" }], cacadorReal: [null, { name: "Arrow Volley", desc: "Fires arrows in all directions (25 dmg each)" }, { name: "Explosive Skull", desc: "Arrow that bursts in an AoE (60 dmg + slow 1.5s)" }, { name: "Summon Scouts", desc: "Summons 3 T2 archer skeletons for 15s" }], sombraReal: [null, { name: "Backstab", desc: "Teleports behind + guaranteed crit (3x dmg)" }, { name: "Multi-Dash", desc: "3 consecutive dashes on 3 nearby targets" }, { name: "Massacre", desc: "Invisible 4s + ALL hits = crit" }] }, levels: { 0: { label: "BASE", desc: "Original stats" }, 1: { label: "VETERAN", desc: "+30% HP, +20% ATK · Ability I" }, 2: { label: "ELITE", desc: "+60% HP, +40% ATK · Ability II" }, 3: { label: "LEGENDARY", desc: "+100% HP, +60% ATK · Ability III + unique bonus · opens the TALENT TREE" } } }, es: { defs: { lichPet: { name: "Liche Aprendiz", desc: "Lanzador a distancia leal. Buen daño a distancia.", unlock: "Inicial — siempre disponible." }, necroPhantom: { name: "Espectro Real", desc: "Inmune al 50% del daño físico. Cuerpo a cuerpo veloz con gancho al Rey.", unlock: "Derrota a 100 enemigos." }, cacadorReal: { name: "Cazador Real", desc: "Tirador de élite. Alcance enorme, daño alto, abate de lejos.", unlock: "Derrota a 5 jefes (cualquier bioma)." }, sombraReal: { name: "Sombra Real", desc: "Asesino veloz. Evasión 25%, crítico 40% (×2.5 daño).", unlock: "Derrota al NecroKing." } }, abilities: { lichPet: [null, { name: "Andanada Ósea", desc: "Dispara 5 huesos en todas direcciones (25 daño cada uno)" }, { name: "Cráneo Explosivo", desc: "Lanza un cráneo que explota en AoE morada (60 daño + lentitud 1.5s)" }, { name: "Ejército de Huesos", desc: "Invoca 3 esqueletos T2 por 15s" }], necroPhantom: [null, { name: "Embestida Fantasma", desc: "Se teletransporta tras el objetivo + próximo golpe 2x daño" }, { name: "Siega de Almas", desc: "Barrido AoE morado 90° (50 daño + drena alma)" }, { name: "Posesión", desc: "Intangible 4s + 100% daño durante" }], cacadorReal: [null, { name: "Andanada de Flechas", desc: "Dispara flechas en todas direcciones (25 daño cada una)" }, { name: "Cráneo Explosivo", desc: "Flecha que explota en un AoE (60 daño + lentitud 1.5s)" }, { name: "Convocar Batidores", desc: "Invoca 3 esqueletos arqueros T2 por 15s" }], sombraReal: [null, { name: "Apuñalar", desc: "Se teletransporta detrás + crítico garantizado (3x daño)" }, { name: "Multi-Embestida", desc: "3 embestidas consecutivas en 3 objetivos cercanos" }, { name: "Masacre", desc: "Invisible 4s + TODOS los golpes = crítico" }] }, levels: { 0: { label: "BASE", desc: "Stats originales" }, 1: { label: "VETERANO", desc: "+30% HP, +20% ATK · Habilidad I" }, 2: { label: "ÉLITE", desc: "+60% HP, +40% ATK · Habilidad II" }, 3: { label: "LEGENDARIO", desc: "+100% HP, +60% ATK · Habilidad III + bonificación única · abre el ÁRBOL DE TALENTOS" } } } };
 const LEGACY_I18N = { en: { cards: { name: "CARDS", desc: "Arcane pact with the old spells.", nodes: { cards_1: { name: "Deft Hands", desc: "-15% cooldown on all cards." }, cards_2: { name: "Arcane Focus", desc: "-25% mana cost on ALL cards." }, cards_3: { name: "Eternal Tome", desc: "15% chance to NOT trigger cooldown when using a card." }, cards_4: { name: "Multiplicity", desc: "-25% cooldown on boss cards." }, cards_5: { name: "Magnitude", desc: "+20% spell damage." }, cards_6: { name: "Master Ritual", desc: "EXTRA card SLOT (4 → 5)." } } }, army: { name: "ARMY", desc: "Deep bond with your dead servants.", nodes: { army_1: { name: "Dark Pact", desc: "Necromancy radius +25% (hit + corpses)." }, army_2: { name: "Bone Bond", desc: "Allies +15% max HP." }, army_3: { name: "Malignant Growth", desc: "+5 max ally limit." }, army_4: { name: "Ancestral Blood", desc: "Allies +15% damage." }, army_5: { name: "Immortal Lineage", desc: "Resurrected allies spawn at 100% HP." }, army_6: { name: "Army of the Dead", desc: "Necromancy raises +1 corpse per cast." } } }, king: { name: "KING", desc: "Raises the King to a supernatural form.", nodes: { king_1: { name: "Royal Lineage", desc: "King +100 max HP permanently." }, king_2: { name: "Immortal Mind", desc: "King +60 max mana + regen +1.5/s." }, king_3: { name: "Death Breath", desc: "King hits deal AOE 5 dmg in radius 30." }, king_4: { name: "Blood Glyphs", desc: "Enemy killed within radius 100 heals King +2 HP." }, king_5: { name: "Aura of Death", desc: "King regenerates 2 HP/s passively." }, king_6: { name: "Sovereign", desc: "Start each run with 1 random chest buff." } } } }, es: { cards: { name: "CARTAS", desc: "Pacto arcano con los antiguos hechizos.", nodes: { cards_1: { name: "Manos Hábiles", desc: "-15% de enfriamiento en todas las cartas." }, cards_2: { name: "Foco Arcano", desc: "-25% de coste de maná en TODAS las cartas." }, cards_3: { name: "Tomo Eterno", desc: "15% de probabilidad de NO activar enfriamiento al usar una carta." }, cards_4: { name: "Multiplicidad", desc: "-25% de enfriamiento en cartas de jefe." }, cards_5: { name: "Magnitud", desc: "+20% de daño de hechizos." }, cards_6: { name: "Ritual Maestro", desc: "RANURA EXTRA de carta (4 → 5)." } } }, army: { name: "EJÉRCITO", desc: "Vínculo profundo con tus siervos muertos.", nodes: { army_1: { name: "Pacto Sombrío", desc: "Radio de necromancia +25% (impacto + cadáveres)." }, army_2: { name: "Vínculo Óseo", desc: "Aliados +15% de HP máximo." }, army_3: { name: "Crecimiento Maligno", desc: "+5 al límite máximo de aliados." }, army_4: { name: "Sangre Ancestral", desc: "Aliados +15% de daño." }, army_5: { name: "Linaje Inmortal", desc: "Aliados resucitados nacen con 100% de HP." }, army_6: { name: "Ejército de los Muertos", desc: "La necromancia resucita +1 cadáver por lanzamiento." } } }, king: { name: "REY", desc: "Eleva al Rey a una forma sobrenatural.", nodes: { king_1: { name: "Linaje Real", desc: "Rey +100 de HP máximo permanente." }, king_2: { name: "Mente Inmortal", desc: "Rey +60 de maná máx + regen +1.5/s." }, king_3: { name: "Aliento de la Muerte", desc: "Los golpes del Rey causan AOE 5 daño en radio 30." }, king_4: { name: "Glifos de Sangre", desc: "Enemigo muerto en radio 100 cura al Rey +2 HP." }, king_5: { name: "Aura de la Muerte", desc: "El Rey regenera 2 HP/s pasivamente." }, king_6: { name: "Soberano", desc: "Comienza cada partida con 1 buff de cofre aleatorio." } } } } };
 function _i18nLang(){ return (typeof _currentLang !== "undefined") ? _currentLang : "pt"; }
+// R19 — helper de string transitória (toasts/labels dinamicos): T(pt, en, es).
+// es omitido cai no en; pt e o fallback universal.
+function TR(pt, en, es){ const L = _i18nLang(); return L === "en" ? en : (L === "es" ? (es || en) : pt); }
+const POI_I18N = {
+  en: { deserto: "Obelisk", gelo: "Sanctuary", inferno: "Altar", pantano: "Hut", cogumelo: "Grove", catedral: "Bell Tower", aquatico: "Sunken Lighthouse" },
+  es: { deserto: "Obelisco", gelo: "Santuario", inferno: "Altar", pantano: "Choza", cogumelo: "Bosquecillo", catedral: "Campanario", aquatico: "Faro Hundido" },
+};
+function getPOIName(biomeId){ try{ const L=_i18nLang(); if(L!=="pt"&&POI_I18N[L][biomeId])return POI_I18N[L][biomeId]; }catch(e){} return (POI_DEFS[biomeId]&&POI_DEFS[biomeId].name)||""; }
+function getBiomeBossName(biomeId, fb){ try{ const L=_i18nLang(); const t=SHOP_I18N[L]&&SHOP_I18N[L].biomeNames&&SHOP_I18N[L].biomeNames[biomeId]; if(L!=="pt"&&t&&t.bossName)return t.bossName; }catch(e){} return fb||((BIOMES[biomeId]&&BIOMES[biomeId].bossName)||""); }
 function getUnitDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&UNITDESC_I18N[L]&&UNITDESC_I18N[L][id])return UNITDESC_I18N[L][id]; }catch(e){} return (CLASSES[id]&&CLASSES[id].desc)||""; }
 function getSpellTipDesc(id){ try{ const L=_i18nLang(); if(L!=="pt"&&SPELLTIP_I18N[L]&&SPELLTIP_I18N[L][id])return SPELLTIP_I18N[L][id].desc; }catch(e){} return (SPELL_TOOLTIP_INFO[id]&&SPELL_TOOLTIP_INFO[id].desc)||""; }
 function getQuestName(q){ try{ const L=_i18nLang(); if(L!=="pt"&&QUESTS_I18N[L].quests[q.id])return QUESTS_I18N[L].quests[q.id].name; }catch(e){} return q.name; }
@@ -78259,7 +78394,7 @@ if (!_isPokiEnv && "serviceWorker" in navigator && (location.protocol === "http:
           if (newSw.state === "installed" && navigator.serviceWorker.controller) {
             // Nova versão pronta. Mostra toast suave (não força reload)
             if (typeof showToast === "function") {
-              showToast("✦ NOVA VERSÃO — recarregue pra atualizar", 5000, "magic");
+              showToast(TR("✦ NOVA VERSÃO — recarregue pra atualizar","✦ NEW VERSION — reload to update","✦ NUEVA VERSIÓN — recarga para actualizar"), 5000, "magic");
             }
           }
         });
