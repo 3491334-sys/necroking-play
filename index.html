@@ -190,19 +190,22 @@
     opacity: 0;
     transition: opacity 200ms ease-out;
   }
+  /* R22 (dono): a vinheta cobria do raio 25% pra fora com alpha até 0.95 pulsando
+     rápido — agressivo demais. Agora só as BORDAS (transparente até ~60%), alpha
+     máx 0.45 e pulso lento/suave. */
   #kingHitVignette.flash {
     opacity: 1;
-    background: radial-gradient(ellipse at center, transparent 30%, rgba(220, 30, 30, 0.5) 75%, rgba(180, 10, 10, 0.85) 100%);
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(220, 30, 30, 0.28) 82%, rgba(180, 10, 10, 0.5) 100%);
     transition: opacity 120ms ease-in;
   }
   #kingHitVignette.critical {
     opacity: 1;
-    background: radial-gradient(ellipse at center, transparent 25%, rgba(255, 40, 40, 0.7) 65%, rgba(220, 0, 0, 0.95) 100%);
-    animation: kingHitCritPulse 800ms ease-in-out infinite;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(255, 40, 40, 0.25) 84%, rgba(220, 0, 0, 0.45) 100%);
+    animation: kingHitCritPulse 1600ms ease-in-out infinite;
   }
   @keyframes kingHitCritPulse {
-    0%, 100% { opacity: 0.6; }
-    50%      { opacity: 1.0; }
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 0.9; }
   }
   .font-title { font-family: "Press Start 2P", "Silkscreen", monospace; letter-spacing: 1px; font-weight: 700; }
   canvas#game {
@@ -10444,10 +10447,12 @@ function saveProgressNow() {
     clearTimeout(_saveProgressTimer);
     _saveProgressTimer = null;
   }
-  // FEEDBACK 2026-07-02 — perfil ENDLESS não escreve nos saves (freeplay):
-  // só o highscore do endless persiste, em chave própria.
+  // R22 — o perfil ENDLESS agora tem SAVE PRÓPRIO (não toca nos slots da campanha):
+  // grava o progress inteiro em ENDLESS_SAVE_KEY (compras de cartas/upgrades/almas
+  // do endless persistem entre runs) + o highscore na chave meta antiga.
   if (typeof game !== "undefined" && game && game._endlessProfile) {
     try {
+      localStorage.setItem(ENDLESS_SAVE_KEY, JSON.stringify(progress));
       localStorage.setItem(ENDLESS_META_KEY, JSON.stringify({
         endlessHighscore: (progress && progress.endlessHighscore) || 0,
       }));
@@ -10568,7 +10573,18 @@ function switchProgressToSlot(slotIdx) {
 // do endless suja os saves. Só o highscore do endless persiste, numa chave
 // própria (necroking_endless_meta).
 const ENDLESS_META_KEY = "necroking_endless_meta";
+// R22 (dono): "o endless será à parte — o jogador terá apenas UM save, onde compra
+// cartas e upgrades à parte da campanha." O perfil endless agora PERSISTE em chave
+// própria. 1ª vez (sem save endless): semeia com a união dos slots de campanha
+// (migração única, ninguém perde o que tinha); daí em diante o endless evolui só.
+const ENDLESS_SAVE_KEY = "necroking_endless_save";
 function buildEndlessProfile() {
+  // R22 — 1º: se já existe o SAVE PRÓPRIO do endless, ele É o perfil (a união dos
+  // slots vira só a semente da primeira vez).
+  try {
+    const raw = localStorage.getItem(ENDLESS_SAVE_KEY);
+    if (raw) return _validateProgress(JSON.parse(raw));
+  } catch (e) {}
   const slots = [];
   for (let s = 0; s < _PROGRESS_NUM_SLOTS; s++) {
     try {
@@ -10718,6 +10734,10 @@ function showConfirmModal(message, onConfirm, opts) {
 // nível jogado (regionProgress) ou cujo boss já caiu (bossCardsUnlocked).
 // Deserto sempre. Daily NÃO usa este filtro (mundo do dia é igual pra todos).
 function endlessAllowedBiomes() {
+  // R22 (dono): o endless é À PARTE da campanha — mundo COMPLETO sempre (o gate por
+  // progresso de campanha morreu junto com o perfil mesclado).
+  return BIOME_ORDER.slice();
+  /* eslint-disable no-unreachable */
   const out = [];
   for (let i = 0; i < BIOME_ORDER.length; i++) {
     const id = BIOME_ORDER[i];
@@ -64600,6 +64620,7 @@ const coinsTxtEl = document.getElementById("coinsTxt");
 const timeTxtEl = document.getElementById("timeTxt");
 const tierTxtEl = document.getElementById("tierTxt");
 const tierNextEl = document.getElementById("tierNext");
+const tierRowEl = document.getElementById("tierRow");   // R22: some na campanha
 const armyTxtEl = document.getElementById("armyTxt");
 
 const tierBarFillEl = document.getElementById("tierBarFill");
@@ -64775,6 +64796,10 @@ function updateHUD() {
       } else { _op.style.display = "none"; }
     }
   } catch (e) {}
+  // R22 (dono): a escada temporal de dificuldade é identidade do ENDLESS — na
+  // campanha os níveis têm inimigos/tier PRESETADOS (campaignDifficultyTier), então
+  // o HUD de tier/countdown não existe lá.
+  if (tierRowEl) tierRowEl.style.display = game.campaignLinear ? "none" : "";
   if (tier < 5) {
     const nextAt = TIER_UNLOCK[tier + 1];
     const rem = Math.max(0, Math.ceil(nextAt - game.runTime));
@@ -72273,6 +72298,29 @@ function legacyResetTree(treeId) {
    ============================================================ */
 
 let lastTime = performance.now();
+// R22 (dono: "sair da página trava o jogo") — endurecimento da auto-pausa:
+// registro TOP-LEVEL (o handler antigo vive dentro de um init que pode não rodar
+// em todos os caminhos), + blur como segundo sinal, + reset do relógio do loop ao
+// VOLTAR (lastTime velho não explode o dt — já é clampado a 100ms — mas o reset
+// garante retomada limpa).
+(function _wireAutoPause() {
+  if (window._visPauseWired) return;
+  window._visPauseWired = true;
+  const pauseIfRunning = () => {
+    try {
+      if (typeof game !== "undefined" && game && game.runActive && !game.gameOver
+          && !game.paused && typeof showMenu === "function") {
+        showMenu("pauseMenu");
+      }
+    } catch (e) {}
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseIfRunning();
+    else lastTime = performance.now();
+  });
+  window.addEventListener("blur", pauseIfRunning);
+  window.addEventListener("focus", () => { lastTime = performance.now(); });
+})();
 // COMBO 11 G4 — FPS tracking pra frame budget
 let _fpsAccum = 0, _fpsFrames = 0, _fpsLastT = 0;
 function loop(now) {
@@ -74219,6 +74267,13 @@ function hideAllMenus() {
   try { document.body.classList.remove("menu-active"); } catch(e) {}
 }
 function showMenu(id) {
+  // R22 (dono): voltar do ENDLESS nunca abre a tela de saves da campanha — o
+  // endless é à parte. Restaura o slot de campanha e cai no menu principal.
+  if (id === "startMenu" && typeof game !== "undefined" && game && game._endlessProfile) {
+    try { if (typeof switchProgressToSlot === "function") switchProgressToSlot(game.activeSaveSlot || 0); } catch (e) {}
+    id = "mainMenu";
+  }
+
   hideAllMenus();
   // MODO TESTE (sessão): voltar pro MENU INICIAL sempre desliga o modo teste — garante que
   // nenhum modo iniciado direto (boss rush/survival/daily, que não passam pelo openCardPickFlow)
