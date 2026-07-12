@@ -9449,7 +9449,7 @@ const CLASSES = {
   cavaleiroLuz: {
     name: "Cavaleiro da Luz", tier: 3, ranged: false, biome: "catedral",
     hp: 200, atk: 24, range: 18, atkCd: 1100, speed: 56,
-    scale: 1.20, radius: 7, coin: 14, armorBlock: 45,
+    scale: 0.75 /* R21: era 1.20 → 31×41px; catedralRectFactory arredonda por rect (nítido) */, radius: 7, coin: 14, armorBlock: 45,
     desc: "Templário corrompido. Espada flamejante e escudo blasonado.",
     body: "#e8e8f0", bodyD: "#7a7a90", armor: "#d4a637", armorD: "#5a3818", accent: "#80c0ff",
     weapon: "longsword", shield: true,
@@ -52141,224 +52141,102 @@ function drawBandoleiro(cx, cy, t, u, c, pose) {
 }
 
 // Clérigo de Areia (sacerdote solar com manto + disco solar acima)
-function drawClerigoAreia(cx, cy, t, u, c, pose) {
-  // CLÉRIGO DE AREIA HD v2 (2026-05-04) — manto 5 tons (era 2), bordado
-  // central com símbolo solar gravado + gemas, capuz com sombra profunda
-  // e olhos amarelos peeking + halo, disco solar em 4 camadas concêntricas
-  // com 8 raios animados, cajado mais ornamentado.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.sin(t / 500) * 1);
-  // Manto 5 tons (era 2)
-  const M_W   = "#d4c898";    // peak (luz)
-  const M_L   = c.body || "#a89878";
-  const M_M   = c.bodyD || "#5a4830";
-  const M_D   = "#2a1808";
-  const M_K   = "#0a0404";
-  // Dourado solar
-  const G_L   = "#fff8c0";
-  const G_M   = c.accent || "#d4a637";
-  const G_D   = "#a87830";
-  const G_K   = "#5a3818";
-  const SUN_W = "#fff080";
-  const SUN_C = "#ffd060";
-  const SUN_O = "#ffa040";
-  const SHADOW= "#1a1004";
-  const EYE   = "#ffd060";
-  const EYE_L = "#fff080";
-  const SKIN  = "#a87850";
-
-  // Sombra
-  offCtx.globalAlpha = 0.4;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 9, cy + 4, 18, 1);
-  offCtx.fillRect(cx - 7, cy + 5, 14, 1);
+// R21 — TEMPLATE de CONJURADOR compacto (dono: magos/sacerdotes "muito grandes e
+// complicados de identificar" — clerigoAreia media 25×50, arquimago 43×51).
+// Silhueta ÚNICA e legível de mago (~15px corpo, bbox ~22): túnica com barra,
+// chapéu/capuz por variante, CAJADO à frente (+x) com FOCO brilhante na cor da
+// classe. Cast ergue o cajado. 100% determinista → cacheável (contorno de graça).
+function drawCasterHD(cx, cy, t, u, c, pose, o) {
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 300) * 0.7) + (pose.walking ? Math.round(Math.abs(Math.sin(t / 130))) : 0);
+  const p = pose.attackProg || 0;
+  const lift = p > 0 ? Math.round(Math.sin(p * Math.PI) * 3) : 0;
+  const SKIN = o.skin || "#e8c8a0";
+  // sombra
+  offCtx.globalAlpha = 0.25; offCtx.fillStyle = "#000";
+  offCtx.fillRect(cx - 5, cy + 1, 11, 2);
   offCtx.globalAlpha = 1;
-
-  // ===== Manto base no chão (sem pernas) — 5 camadas =====
-  rect(-8, -3, 16, 6, M_K);
-  rect(-8, -3, 16, 6, M_M);
-  rect(-8, -3, 16, 1, M_L);
-  rect(-8, 2, 16, 1, M_D);
-  // Bordas onduladas (frills)
-  rect(-9, 0, 1, 4, M_K);
-  rect(9, 0, 1, 4, M_K);
-  rect(-9, 0, 1, 3, M_M);
-  rect(9, 0, 1, 3, M_M);
-  // Babado triangular (5 pontas embaixo)
-  px(-7, 3, M_D);
-  px(-3, 3, M_D);
-  px(0, 3, M_D);
-  px(3, 3, M_D);
-  px(7, 3, M_D);
-
-  // ===== Corpo/manto superior (5 camadas) =====
-  rect(-7, -16 + bob, 14, 12, M_K);
-  rect(-7, -16 + bob, 14, 12, M_M);
-  rect(-7, -16 + bob, 14, 1, M_L);
-  rect(-6, -15 + bob, 12, 1, M_W);  // peak iluminado
-  rect(-7, -5 + bob, 14, 1, M_D);
-  // Listras decorativas verticais (textura de tecido)
-  px(-7, -13 + bob, M_K);
-  px(-7, -10 + bob, M_K);
-  px(-7, -7 + bob, M_K);
-  px(6, -13 + bob, M_K);
-  px(6, -10 + bob, M_K);
-  px(6, -7 + bob, M_K);
-
-  // ===== Bordado dourado vertical CENTRAL com símbolo solar =====
-  rect(-2, -15 + bob, 4, 11, G_K);
-  rect(-2, -15 + bob, 4, 11, G_M);
-  rect(-2, -15 + bob, 4, 1, G_L);
-  rect(-2, -5 + bob, 4, 1, G_D);
-  // Símbolo solar gravado (3 pontos brilhantes ao longo)
-  px(0, -13 + bob, SUN_W);
-  rect(-1, -13 + bob, 1, 1, SUN_O);
-  rect(1, -13 + bob, 1, 1, SUN_O);
-  px(0, -10 + bob, SUN_W);
-  rect(-1, -10 + bob, 3, 1, SUN_C);
-  px(0, -7 + bob, SUN_W);
-  rect(-1, -7 + bob, 1, 1, SUN_O);
-  rect(1, -7 + bob, 1, 1, SUN_O);
-  // Gemas decorativas (rubis nas extremidades)
-  px(-2, -14 + bob, "#d83048");
-  px(2, -14 + bob, "#d83048");
-  px(-2, -6 + bob, "#d83048");
-  px(2, -6 + bob, "#d83048");
-
-  // ===== Braços com mangas amplas (4 camadas) =====
-  rect(-9, -14 + bob, 2, 8, M_K);
-  rect(-9, -14 + bob, 2, 8, M_M);
-  rect(-9, -14 + bob, 2, 1, M_L);
-  rect(-9, -7 + bob, 2, 1, M_D);
-  rect(7, -14 + bob, 2, 8, M_K);
-  rect(7, -14 + bob, 2, 8, M_M);
-  rect(7, -14 + bob, 2, 1, M_L);
-  rect(7, -7 + bob, 2, 1, M_D);
-  // Mãos bronzeadas saindo das mangas
-  rect(-9, -7 + bob, 2, 2, SKIN);
-  rect(7, -7 + bob, 2, 2, SKIN);
-  px(-9, -6 + bob, M_D);
-  px(8, -6 + bob, M_D);
-
-  // ===== CAPUZ pontudo (4 camadas) =====
-  rect(-6, -24 + bob, 12, 8, G_K);
-  rect(-6, -24 + bob, 12, 8, G_M);
-  rect(-6, -24 + bob, 12, 1, G_L);
-  rect(-6, -17 + bob, 12, 1, G_D);
-  // Pico do capuz (3 segmentos)
-  rect(-3, -26 + bob, 6, 2, G_K);
-  rect(-3, -26 + bob, 6, 2, G_M);
-  rect(-3, -26 + bob, 6, 1, G_L);
-  rect(-1, -27 + bob, 2, 1, G_M);
-  px(0, -28 + bob, G_L);
-  // Bordas laterais (sombra)
-  px(-7, -22 + bob, G_K);
-  px(7, -22 + bob, G_K);
-
-  // ===== Rosto em sombra profunda (interior do capuz) =====
-  rect(-4, -22 + bob, 8, 5, SHADOW);
-
-  // ===== Olhos amarelos brilhantes peeking (com aura) =====
-  const eg = 0.7 + Math.sin(t / 220) * 0.3;
-  // Aura externa
-  offCtx.globalAlpha = eg * 0.4;
-  rect(-3, -21 + bob, 2, 3, EYE);
-  rect(1, -21 + bob, 2, 3, EYE);
-  offCtx.globalAlpha = 1;
-  // Olhos
-  offCtx.globalAlpha = eg;
-  rect(-2, -20 + bob, 1, 2, EYE);
-  rect(1, -20 + bob, 1, 2, EYE);
-  offCtx.globalAlpha = 1;
-  // Brilho central
-  px(-2, -20 + bob, EYE_L);
-  px(1, -20 + bob, EYE_L);
-
-  // ===== DISCO SOLAR flutuante acima (4 camadas concêntricas) =====
-  const halo = 0.6 + Math.sin(t / 300) * 0.4;
-  offCtx.globalAlpha = halo * 0.5;
-  offCtx.fillStyle = SUN_W;
-  fillCircle(cx, cy - 32 + bob, 9);  // halo externo
-  offCtx.globalAlpha = halo;
-  offCtx.fillStyle = SUN_W;
-  fillCircle(cx, cy - 32 + bob, 7);
-  offCtx.globalAlpha = halo * 0.85;
-  offCtx.fillStyle = SUN_C;
-  fillCircle(cx, cy - 32 + bob, 5);
-  offCtx.globalAlpha = halo;
-  offCtx.fillStyle = SUN_O;
-  fillCircle(cx, cy - 32 + bob, 3);
-  // Núcleo brilhante (cruz central)
-  offCtx.fillStyle = SUN_W;
-  offCtx.fillRect(cx - 1, cy - 32 + bob, 2, 2);
-  offCtx.fillRect(cx, cy - 33 + bob, 1, 4);
-  offCtx.fillRect(cx - 2, cy - 31 + bob, 5, 1);
-  offCtx.globalAlpha = 1;
-  // 8 raios solares animados (rotação)
-  for (let i = 0; i < 8; i++) {
-    const ang = (Math.PI * 2 * i) / 8 + t / 900;
-    const rx = cx + Math.round(Math.cos(ang) * 11);
-    const ry = cy - 32 + bob + Math.round(Math.sin(ang) * 11);
-    offCtx.globalAlpha = 0.7 * halo;
-    offCtx.fillStyle = SUN_O;
-    offCtx.fillRect(rx, ry, 2, 2);
-    // Raio extra brilhante
-    offCtx.globalAlpha = 0.5 * halo;
-    offCtx.fillStyle = SUN_W;
-    offCtx.fillRect(rx + Math.round(Math.cos(ang) * 1), ry + Math.round(Math.sin(ang) * 1), 1, 1);
+  // ===== TÚNICA (sino) com barra e sombra lateral
+  rect(-4, -9 + bob, 8, 5, c.body);
+  rect(-5, -4 + bob, 10, 4, c.body);
+  rect(-5, -1 + bob, 10, 1, c.bodyD);
+  rect(-4, -9 + bob, 2, 8, c.bodyD);
+  rect(-4, -5 + bob, 8, 1, c.armorD);
+  px(2, -7 + bob, o.trim || c.accent);
+  px(2, -3 + bob, o.trim || c.accent);
+  // ===== CABEÇA
+  rect(-2, -13 + bob, 5, 4, SKIN);
+  px(1, -12 + bob, "#180a04");
+  // ===== CHAPÉU/CAPUZ por variante
+  const hy = -13 + bob;
+  if (o.hat === "witch") {
+    rect(-4, hy - 1, 9, 2, c.armor);
+    rect(-2, hy - 3, 5, 2, c.armor);
+    rect(-1, hy - 5, 3, 2, c.armorD);
+    px(1, hy - 7, c.armorD); px(2, hy - 6, c.armorD);
+    px(0, hy - 3, o.trim || c.accent);
+  } else if (o.hat === "wizard") {
+    rect(-3, hy - 1, 7, 2, c.armor);
+    rect(-1, hy - 4, 4, 3, c.armor);
+    rect(0, hy - 7, 2, 3, c.armorD);
+    px(0, hy - 8, c.armorD);
+    px(0, hy - 2, o.trim || c.accent);
+  } else if (o.hat === "fur") {
+    rect(-3, hy - 3, 7, 4, c.armorD);
+    rect(-3, hy - 3, 7, 1, "#e8e0d0");
+    px(-3, hy, "#e8e0d0"); px(3, hy, "#e8e0d0");
+  } else if (o.hat === "mitre") {
+    rect(-2, hy - 4, 5, 4, c.armor);
+    rect(-1, hy - 6, 3, 2, c.armor);
+    px(0, hy - 3, o.trim || c.accent);
+    px(0, hy - 5, o.trim || c.accent);
+  } else if (o.hat === "shroom") {
+    rect(-4, hy - 2, 9, 3, c.armor);
+    rect(-3, hy - 4, 7, 2, c.armor);
+    px(-2, hy - 3, "#fff"); px(2, hy - 2, "#fff");
+  } else {   // hood
+    rect(-3, hy - 2, 7, 3, c.armor);
+    rect(-3, hy - 1, 2, 4, c.armor);
+    px(-3, hy + 1, c.armorD);
   }
-  offCtx.globalAlpha = 1;
-
-  // ===== CAJADO solar ornamentado (lado oposto) =====
-  const stSide = 1;  // 2026-06-12 FIX (audit): era -flip → rect já espelha (flip duplo deixava cajado/topo preso num lado)
-  const stX = 9 * stSide;
-  // Haste 3 camadas
-  rect(stX, -22 + bob, 2, 14, G_K);
-  rect(stX, -22 + bob, 2, 14, G_M);
-  rect(stX, -22 + bob, 2, 1, G_L);
-  rect(stX, -9 + bob, 2, 1, G_D);
-  // Anéis decorativos (3 anéis)
-  rect(stX, -19 + bob, 2, 1, G_L);
-  rect(stX, -15 + bob, 2, 1, G_L);
-  rect(stX, -11 + bob, 2, 1, G_L);
-  // Sol pequeno no topo do cajado (4 camadas)
-  rect(stX - stSide, -25 + bob, 4, 4, G_K);
-  rect(stX - stSide, -25 + bob, 4, 4, G_M);
-  rect(stX - stSide, -25 + bob, 4, 1, G_L);
-  rect(stX, -24 + bob, 2, 2, SUN_C);
-  px(stX, -24 + bob, SUN_W);
-  // Raios pequenos do sol do cajado (4 raios)
-  px(stX - stSide * 2, -23 + bob, SUN_O);
-  px(stX + stSide * 2, -23 + bob, SUN_O);
-  px(stX - stSide, -27 + bob, SUN_W);
-  px(stX, -28 + bob, SUN_C);
-  // Gem rubi central
-  px(stX, -23 + bob, "#d83048");
-
-  // ===== Faísca dourada ocasional =====
-  if (Math.random() < 0.12) {
-    game.effects.push({
-      type: "spark", color: SUN_C,
-      x: u.x + (Math.random() - 0.5) * 16,
-      y: u.y - 32 + bob,
-      vx: (Math.random() - 0.5) * 8, vy: -8 - Math.random() * 8,
-      lifetime: 400, maxLifetime: 600, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 30*dt/1000; },
-    });
+  // ===== BRAÇO + CAJADO (+x) com foco brilhante
+  const armY = -8 + bob - Math.round(lift / 2);
+  rect(3, armY, 2, 2, SKIN);
+  const stX = 5, stTop = -15 + bob - lift;
+  rect(stX, stTop + 3, 1, 13 + Math.round(lift / 2), o.staffCol || "#5a3818");
+  // FOCO por variante (pulso quantizado pelos buckets do cache)
+  const fp = Math.sin(t / 260) > 0;
+  const F = o.focusCol || c.accent, F2 = o.focusCol2 || "#fff";
+  if (o.focus === "disc") {
+    rect(stX - 1, stTop, 3, 3, F);
+    px(stX, stTop + 1, F2);
+    if (fp) { px(stX - 2, stTop + 1, F); px(stX + 2, stTop + 1, F); px(stX, stTop - 1, F); }
+  } else if (o.focus === "crystal") {
+    px(stX, stTop + 2, F); px(stX, stTop + 1, F); px(stX, stTop, F2);
+    px(stX - 1, stTop + 1, F); px(stX + 1, stTop + 1, F);
+    if (fp) px(stX, stTop - 1, F2);
+  } else if (o.focus === "flame") {
+    px(stX, stTop + 2, "#7a1808"); px(stX, stTop + 1, F);
+    px(stX, stTop, "#ffd060"); if (fp) px(stX, stTop - 1, F2);
+  } else if (o.focus === "cross") {
+    rect(stX, stTop - 1, 1, 4, F); rect(stX - 1, stTop, 3, 1, F);
+    if (fp) px(stX, stTop - 2, F2);
+  } else if (o.focus === "shroom") {
+    rect(stX - 1, stTop + 1, 3, 1, F); px(stX, stTop, F); px(stX, stTop + 2, "#e0d8b8");
+    if (fp) px(stX - 1, stTop, F2);
+  } else {   // orb
+    rect(stX - 1, stTop, 3, 2, F); px(stX, stTop, F2);
+    if (fp) { px(stX + 1, stTop - 1, F2); }
   }
-  // Brilho ao redor (aura sagrada)
-  if (Math.random() < 0.06) {
-    game.effects.push({
-      type: "spark", color: SUN_W,
-      x: u.x + (Math.random() - 0.5) * 14, y: u.y - 14,
-      vx: (Math.random() - 0.5) * 4, vy: -2 - Math.random() * 2,
-      lifetime: 500, maxLifetime: 500, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vx *= 0.92; },
-    });
-  }
+  // ===== braço livre (-x)
+  rect(-5, -8 + bob, 2, 2, c.bodyD);
 }
 
-// Colosso das Dunas (gigante de arenito, blocos angulares)
+function drawClerigoAreia(cx, cy, t, u, c, pose) {
+  // R21 — era 25×50 (maior que o colosso T4). Sacerdote do sol: capuz + disco solar.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "hood", focus: "disc", focusCol: "#ffd060", focusCol2: "#fff080", staffCol: "#7a5828", trim: "#ffd060" });
+}
+
 function drawColossoDunas(cx, cy, t, u, c, pose) {
   // COLOSSO DAS DUNAS HD v2 (2026-05-04) — corpo arenito 5 tons (era 3),
   // mosaicos com hieroglifos gravados, hieróglifo central com olho de Hórus
@@ -53139,464 +53017,48 @@ function drawUrsoBranco(cx, cy, t, u, c, pose) {
 }
 
 function drawXamaFrost(cx, cy, t, u, c, pose) {
-  // XAMÃ FROST HD v2 (2026-05-04) — manto 4 tons (era 2), capuz com sombra
-  // facial profunda, olhos azul brilhante peeking, barba congelada com cristais,
-  // cajado totem com crânio detalhado + ossos pendurados, aura de neblina aos pés.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.sin(t / 500) * 0.8);
-  const atkX = pose.attackProg || 0;
-  const atkSwingX = atkX > 0 ? Math.sin(atkX * Math.PI) : 0;
-  const staffLiftX = Math.round(atkSwingX * -3);
-  // Manto 4 tons
-  const R_W   = "#a8c0d8";          // claro highlight (luz)
-  const R_M   = c.body || "#4a7aa0"; // base
-  const R_D   = c.bodyD || "#1a3858"; // sombra
-  const R_K   = "#0a1828";          // sombra extrema
-  const TRIM  = c.accent || "#a0d8f0"; // bordado azul
-  const TRIM_W= "#ffffff";
-  const SKIN  = "#d8c8a8";          // pele do rosto (sombreada pelo capuz)
-  const SKIN_D= "#7a6848";
-  const BEARD = "#e8f0ff";          // barba branca-azul
-  const BEARD_D= "#a8c0e0";
-  const ICE   = "#a0e0ff";
-  const BONE  = "#e8e0c0";          // crânio do cajado
-  const BONE_D= "#8a8260";
-  const SHADOW= "#0a0418";          // sombra do capuz
-
-  // Sombra
-  offCtx.globalAlpha = 0.4;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 7, cy + 2, 14, 1);
-  offCtx.globalAlpha = 1;
-
-  // ===== MANTO base (sai pelos pés, sem pernas) =====
-  rect(-7, -3, 14, 5, R_D);
-  rect(-7, -3, 14, 1, R_M);
-  rect(-7, 1, 14, 1, R_K);
-  // Bordas inferiores rasgadas (3 abas)
-  rect(-9, 0, 2, 3, R_D);
-  rect(7, 0, 2, 3, R_D);
-  px(-9, 1, R_M);
-  px(8, 1, R_M);
-
-  // ===== TÚNICA superior (corpo) =====
-  rect(-6, -14 + bob, 12, 11, R_M);
-  rect(-6, -14 + bob, 12, 2, R_D);
-  rect(-6, -4 + bob, 12, 1, R_D);
-  // Highlight (luz vinda de cima-esq)
-  rect(-6, -13 + bob, 10, 1, R_W);
-  px(-5, -12 + bob, R_W);
-  // === Bordado vertical central (símbolo gélido) ===
-  rect(-2, -13 + bob, 4, 9, TRIM);
-  rect(-2, -13 + bob, 4, 1, TRIM_W);
-  rect(-2, -5 + bob, 4, 1, R_K);
-  // Símbolo cristal central no bordado
-  px(-1, -10 + bob, TRIM_W);
-  px(0, -10 + bob, ICE);
-  px(0, -8 + bob, ICE);
-  px(-1, -7 + bob, TRIM_W);
-  // Cinta horizontal
-  rect(-6, -8 + bob, 12, 1, R_K);
-  rect(-6, -8 + bob, 12, 1, R_K);
-  // Fivela dourada central
-  px(-1, -8 + bob, "#d4a637");
-  px(0, -8 + bob, "#ffd060");
-
-  // ===== BRAÇOS com mangas (3 camadas) =====
-  rect(-8, -12 + bob, 2, 7, R_D);
-  rect(-8, -12 + bob, 2, 1, R_M);
-  rect(-8, -6 + bob, 2, 1, R_K);
-  rect(6, -12 + bob, 2, 7, R_D);
-  rect(6, -12 + bob, 2, 1, R_M);
-  rect(6, -6 + bob, 2, 1, R_K);
-  // Mãos saindo das mangas
-  px(-8, -5 + bob, SKIN);
-  px(7, -5 + bob, SKIN);
-  px(-8, -4 + bob, SKIN_D);
-  px(7, -4 + bob, SKIN_D);
-
-  // ===== CAPUZ pontudo (4 camadas) =====
-  rect(-5, -22 + bob, 10, 8, R_D);
-  rect(-5, -22 + bob, 10, 1, R_K);
-  // Highlight do capuz (topo iluminado)
-  rect(-4, -22 + bob, 8, 1, R_M);
-  rect(-3, -21 + bob, 6, 1, R_W);
-  // Pico do capuz (3 segmentos)
-  rect(-1, -25 + bob, 2, 3, R_D);
-  rect(-1, -25 + bob, 1, 3, R_M);
-  px(0, -26 + bob, R_D);
-  px(0, -27 + bob, R_K);
-  // Borda do capuz (proteção orelhas)
-  rect(-7, -16 + bob, 2, 4, R_D);
-  rect(-7, -16 + bob, 2, 1, R_M);
-  rect(5, -16 + bob, 2, 4, R_D);
-  rect(5, -16 + bob, 2, 1, R_M);
-
-  // ===== ROSTO em sombra profunda do capuz =====
-  rect(-4, -19 + bob, 8, 4, SHADOW);
-
-  // ===== OLHOS azul brilhante (peeking da sombra) =====
-  const eg = 0.75 + Math.sin(t / 220) * 0.25;
-  offCtx.globalAlpha = eg;
-  rect(-3, -18 + bob, 2, 2, TRIM);
-  rect(1, -18 + bob, 2, 2, TRIM);
-  // Brilho central + halo
-  px(-3, -18 + bob, TRIM_W);
-  px(1, -18 + bob, TRIM_W);
-  offCtx.globalAlpha = 1;
-  // Aura azul ao redor dos olhos (glow constante leve)
-  offCtx.globalAlpha = eg * 0.4;
-  px(-4, -18 + bob, TRIM);
-  px(3, -18 + bob, TRIM);
-  px(-2, -19 + bob, TRIM);
-  px(2, -19 + bob, TRIM);
-  offCtx.globalAlpha = 1;
-
-  // ===== BARBA branca congelada (4 camadas, com cristais) =====
-  rect(-3, -16 + bob, 6, 4, BEARD);
-  rect(-3, -16 + bob, 6, 1, BEARD_D);  // sombra topo
-  rect(-3, -13 + bob, 6, 1, BEARD_D);  // sombra base
-  // Tufos laterais da barba
-  px(-4, -14 + bob, BEARD);
-  px(-4, -13 + bob, BEARD_D);
-  px(3, -14 + bob, BEARD);
-  px(3, -13 + bob, BEARD_D);
-  px(-3, -12 + bob, BEARD);
-  px(2, -12 + bob, BEARD);
-  // Cristais de gelo brilhantes na barba
-  px(-2, -15 + bob, ICE);
-  px(1, -15 + bob, ICE);
-  px(0, -14 + bob, TRIM_W);
-
-  // ===== CAJADO totem (lado oposto facing) =====
-  const stSide = 1;  // 2026-06-12 FIX (audit): era -flip → rect já espelha (flip duplo deixava cajado/topo preso num lado)
-  const stX = 11 * stSide;
-  const sBob = bob + staffLiftX;
-  // Haste (madeira escura, 3 camadas)
-  rect(stX, -15 + sBob, 2, 16, "#3a2010");
-  rect(stX, -15 + sBob, 2, 1, "#7a5028");
-  rect(stX, -1 + sBob, 2, 1, "#1a0808");
-  px(stX + 1, -10 + sBob, "#5a3818");  // sombra lateral
-  // 2 anéis decorativos azuis
-  rect(stX, -10 + sBob, 2, 1, TRIM);
-  rect(stX, -5 + sBob, 2, 1, TRIM);
-  px(stX, -10 + sBob, TRIM_W);
-  px(stX, -5 + sBob, TRIM_W);
-
-  // === CRÂNIO de urso no topo (4 camadas, mais detalhado) ===
-  rect(stX - stSide, -19 + sBob, 4, 4, BONE);
-  rect(stX - stSide, -19 + sBob, 4, 1, BONE_D);  // sombra topo
-  rect(stX - stSide, -16 + sBob, 4, 1, BONE_D);  // sombra base
-  // Olhos vazios (cavidades pretas)
-  px(stX, -18 + sBob, "#000");
-  px(stX + stSide * 2, -18 + sBob, "#000");
-  // Aura azul nos olhos do crânio
-  offCtx.globalAlpha = 0.7 + atkSwingX * 0.3;
-  px(stX, -18 + sBob, TRIM);
-  px(stX + stSide * 2, -18 + sBob, TRIM);
-  offCtx.globalAlpha = 1;
-  // Buraco do nariz triangular
-  px(stX + stSide, -17 + sBob, "#000");
-  // Dentes inferiores (caninos visíveis)
-  px(stX, -16 + sBob, BONE);
-  px(stX + stSide * 2, -16 + sBob, BONE);
-  // Highlight do crânio (topo iluminado)
-  px(stX - stSide, -19 + sBob, "#fff8e0");
-
-  // === Pendurados do cajado (penas + ossos) ===
-  rect(stX - stSide * 2, -14 + sBob, 1, 4, TRIM);
-  px(stX - stSide * 2, -10 + sBob, TRIM_W);
-  // Osso pequeno
-  px(stX + stSide * 2, -12 + sBob, BONE);
-  px(stX + stSide * 2, -10 + sBob, BONE);
-  px(stX + stSide * 3, -11 + sBob, BONE_D);
-
-  // === CRISTAIS extras saem do cajado durante attack ===
-  if (atkSwingX > 0.3 && Math.random() < 0.5) {
-    game.effects.push({
-      type: "spark", color: "#ffffff",
-      x: u.x + stSide * 11, y: u.y - 22 + sBob,
-      vx: stSide * (10 + Math.random() * 15),
-      vy: -10 - Math.random() * 10,
-      lifetime: 500, maxLifetime: 600, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 30*dt/1000; },
-    });
-  }
-
-  // ===== Neblina azul aos pés (mais densa, multi-camadas) =====
-  offCtx.globalAlpha = 0.45 + Math.sin(t / 300) * 0.15;
-  offCtx.fillStyle = TRIM;
-  offCtx.fillRect(cx - 9, cy + 1, 18, 1);
-  offCtx.fillRect(cx - 7, cy + 2, 14, 1);
-  offCtx.globalAlpha = 0.25 + Math.sin(t / 250) * 0.1;
-  offCtx.fillStyle = TRIM_W;
-  offCtx.fillRect(cx - 5, cy + 1, 10, 1);
-  offCtx.globalAlpha = 1;
-
-  // ===== Cristais de gelo flutuantes ocasionais =====
-  if (Math.random() < 0.10) {
-    game.effects.push({
-      type: "spark", color: TRIM,
-      x: u.x + (Math.random() - 0.5) * 14, y: u.y - 14,
-      vx: (Math.random() - 0.5) * 8, vy: -8,
-      lifetime: 400, maxLifetime: 600, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 30*dt/1000; },
-    });
-  }
+  // R21 — era 26×33. Xamã do gelo: touca de pele + cristal azul.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "fur", focus: "crystal", focusCol: "#80c8e8", focusCol2: "#e0f4ff", staffCol: "#4a3020" });
 }
 
 function drawCavaleiroFrio(cx, cy, t, u, c, pose) {
-  // CAVALEIRO FRIO HD v2 (2026-05-04) — armadura 5 tons (era 3), pauldrons
-  // segmentados com 4 espinhos de gelo cada, couraça com gravações de cristal,
-  // elmo great-helm com pluma azul-branca em 4 segmentos, espada longsword
-  // congelada com 6 cristais embutidos. Cabo de capa azul atrás.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = pose.walking ? Math.round(Math.abs(Math.sin(t / 110)) * 1.5) : Math.round(Math.sin(t / 600) * 1);
-  const legSwing = pose.walking ? Math.round(Math.sin(t / 110) * 2.5) : 0;
-  const capeSwing = Math.round(Math.sin(t / 220) * 1);
-  // Armadura 5 tons (era 3)
-  const A_W = "#e8f0fa";        // peak (highlight cristal)
-  const A_L = "#a8c8e0";        // claro
-  const A_M = c.armor || "#5080b0"; // base
-  const A_D = c.armorD || "#204060"; // sombra
-  const A_K = "#0a1828";        // sombra extrema
-  const ICE = c.accent || "#c0e8ff";
-  const ICE_W= "#ffffff";
-  const ICE_D= "#5080a8";
-  const LEATHER = "#3a2010";
-  const LEATHER_L = "#7a5028";
-  const GOLD = "#d4a637";
-
-  // Sombra ampliada
-  offCtx.globalAlpha = 0.45;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 8, cy + 4, 16, 1);
-  offCtx.fillRect(cx - 7, cy + 5, 14, 1);
+  // R21 — redesign compacto (era 27×47 — humano gigante). Cavaleiro ~24px: elmo com
+  // pluma, armadura 3 tons, escudo atrás, ESPADA DE GELO com brilho. Frente +x.
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 340) * 0.6) + (pose.walking ? Math.round(Math.abs(Math.sin(t / 120))) : 0);
+  const leg = pose.walking ? Math.round(Math.sin(t / 120) * 1.5) : 0;
+  const p = pose.attackProg || 0;
+  const swing = p > 0 ? Math.round(Math.sin(p * Math.PI) * 4) : 0;
+  // sombra
+  offCtx.globalAlpha = 0.25; offCtx.fillStyle = "#000";
+  offCtx.fillRect(cx - 5, cy + 1, 11, 2);
   offCtx.globalAlpha = 1;
-
-  // ===== PERNAS em placas segmentadas (4 placas cada) =====
-  rect(-5, -8 + Math.max(0, legSwing), 4, 8 - Math.abs(legSwing), A_D);
-  rect(-5, -8 + Math.max(0, legSwing), 3, 8 - Math.abs(legSwing), A_M);
-  rect(-5, -8 + Math.max(0, legSwing), 4, 1, A_L);
-  rect(-5, -2 + Math.max(0, legSwing), 4, 1, A_K);
-  // Joelheira detalhada
-  rect(-5, -5 + Math.max(0, legSwing), 4, 2, A_M);
-  rect(-5, -5 + Math.max(0, legSwing), 4, 1, A_L);
-  // Direita
-  rect(1, -8 + Math.max(0, -legSwing), 4, 8 - Math.abs(legSwing), A_D);
-  rect(1, -8 + Math.max(0, -legSwing), 3, 8 - Math.abs(legSwing), A_M);
-  rect(1, -8 + Math.max(0, -legSwing), 4, 1, A_L);
-  rect(1, -2 + Math.max(0, -legSwing), 4, 1, A_K);
-  rect(1, -5 + Math.max(0, -legSwing), 4, 2, A_M);
-  rect(1, -5 + Math.max(0, -legSwing), 4, 1, A_L);
-  // Botas metálicas (sabatons)
-  rect(-6, 0, 5, 2, A_K);
-  rect(-6, 0, 5, 1, A_D);
-  rect(-6, 0, 5, 1, A_L);
-  px(-6, 0, A_K);
-  px(-1, 0, A_K);
-  rect(1, 0, 5, 2, A_K);
-  rect(1, 0, 5, 1, A_D);
-  rect(1, 0, 5, 1, A_L);
-  px(1, 0, A_K);
-  px(5, 0, A_K);
-
-  // ===== CAPA azul atrás (balança) =====
-  const capeX = -7 - capeSwing;
-  rect(capeX, -22 + bob, 3, 14, A_K);
-  rect(capeX, -22 + bob, 3, 1, A_D);
-  rect(capeX, -9 + bob, 3, 1, A_M);
-  rect(capeX + 2, -22 + bob, 1, 14, A_D);  // dobra interna
-  px(capeX, -15 + bob, A_M);  // dobra meio
-  px(capeX, -19 + bob, A_M);
-
-  // ===== COURAÇA azul-gelo (5 camadas, gravações de cristal) =====
-  rect(-7, -22 + bob, 14, 14, A_M);
-  rect(-7, -22 + bob, 14, 2, A_D);
-  rect(-7, -9 + bob, 14, 1, A_K);
-  // Highlight superior (luz vinda de cima)
-  rect(-6, -22 + bob, 12, 1, A_L);
-  rect(-5, -21 + bob, 10, 1, A_W);
-  // Linhas de placa horizontais (4 níveis)
-  rect(-7, -18 + bob, 14, 1, A_D);
-  rect(-7, -14 + bob, 14, 1, A_D);
-  rect(-7, -10 + bob, 14, 1, A_D);
-  // Placas laterais sombreadas
-  rect(-7, -20 + bob, 2, 11, A_D);
-  rect(5, -20 + bob, 2, 11, A_D);
-  // Highlight nas placas laterais
-  px(-7, -19 + bob, A_L);
-  px(6, -19 + bob, A_K);  // sombra direita
-  // === EMBLEMA cristal grande no peito (5 camadas) ===
-  rect(-2, -16 + bob, 4, 6, ICE);
-  rect(-2, -16 + bob, 4, 1, ICE_W);
-  rect(-2, -11 + bob, 4, 1, ICE_D);
-  rect(-1, -15 + bob, 2, 4, ICE_W);
-  px(0, -14 + bob, "#a0e0ff");
-  // Cristais decorativos pequenos ao redor
-  px(-3, -17 + bob, ICE);
-  px(2, -17 + bob, ICE);
-  px(-3, -10 + bob, ICE);
-  px(2, -10 + bob, ICE);
-  // Gravações horizontais (linhas de runa)
-  px(-5, -16 + bob, ICE_W);
-  px(4, -16 + bob, ICE_W);
-  px(-5, -13 + bob, ICE_W);
-  px(4, -13 + bob, ICE_W);
-
-  // ===== CINTO com fivela dourada =====
-  rect(-7, -8 + bob, 14, 2, A_K);
-  rect(-7, -8 + bob, 14, 1, "#3a5878");
-  rect(-2, -8 + bob, 4, 2, GOLD);
-  rect(-2, -8 + bob, 4, 1, "#ffd060");
-  px(0, -7 + bob, ICE_W);
-
-  // ===== SAIOTE de armadura (kilt segmentado) =====
-  rect(-7, -6 + bob, 14, 4, A_D);
-  rect(-7, -6 + bob, 14, 1, A_M);
-  // 5 listras verticais
-  for (let i = -5; i <= 5; i += 3) {
-    rect(i, -6 + bob, 1, 4, A_K);
-  }
-  // Cristais embutidos no saiote
-  px(-3, -4 + bob, ICE);
-  px(3, -4 + bob, ICE);
-
-  // ===== OMBREIRAS GIGANTES com 4 espinhos cada =====
-  rect(-9, -22 + bob, 3, 7, A_D);
-  rect(-9, -22 + bob, 3, 1, A_M);
-  rect(-9, -22 + bob, 1, 7, A_L);  // highlight lateral
-  rect(-9, -16 + bob, 3, 1, A_K);
-  // 4 espinhos de gelo (era 3)
-  px(-9, -23 + bob, ICE);
-  px(-8, -25 + bob, ICE_W);
-  px(-7, -23 + bob, ICE);
-  px(-8, -27 + bob, ICE);  // novo central alto
-  // Direita
-  rect(6, -22 + bob, 3, 7, A_D);
-  rect(6, -22 + bob, 3, 1, A_M);
-  rect(8, -22 + bob, 1, 7, A_K);  // sombra lateral
-  rect(6, -16 + bob, 3, 1, A_K);
-  px(6, -23 + bob, ICE);
-  px(7, -25 + bob, ICE_W);
-  px(8, -23 + bob, ICE);
-  px(7, -27 + bob, ICE);
-
-  // ===== BRAÇOS com placas (3 camadas) =====
-  rect(-10, -16 + bob, 2, 8, A_D);
-  rect(-10, -16 + bob, 2, 1, A_M);
-  rect(-10, -10 + bob, 2, 1, A_K);
-  // Junta no cotovelo
-  rect(-10, -13 + bob, 2, 1, A_M);
-  rect(8, -16 + bob, 2, 8, A_D);
-  rect(8, -16 + bob, 2, 1, A_M);
-  rect(8, -10 + bob, 2, 1, A_K);
-  rect(8, -13 + bob, 2, 1, A_M);
-  // Manoplas (luvas metálicas)
-  rect(-11, -8 + bob, 4, 3, A_D);
-  rect(-11, -8 + bob, 4, 1, A_M);
-  px(-11, -7 + bob, A_L);
-  rect(7, -8 + bob, 4, 3, A_D);
-  rect(7, -8 + bob, 4, 1, A_M);
-  px(7, -7 + bob, A_L);
-
-  // ===== ELMO great-helm (silhueta arredondada, 4 camadas) =====
-  rect(-4, -32 + bob, 8, 1, A_D);
-  rect(-5, -31 + bob, 10, 1, A_D);
-  rect(-6, -30 + bob, 12, 1, A_M);
-  rect(-6, -29 + bob, 12, 5, A_M);
-  rect(-5, -24 + bob, 10, 1, A_D);
-  rect(-4, -23 + bob, 8, 1, A_D);
-  // Highlight superior do elmo
-  rect(-5, -30 + bob, 10, 1, A_L);
-  rect(-3, -29 + bob, 6, 1, A_W);
-  // Sombra lateral direita
-  rect(5, -29 + bob, 1, 5, A_K);
-  // Visor em T
-  rect(-1, -27 + bob, 2, 4, "#000");
-  rect(-3, -25 + bob, 6, 1, "#000");
-  // Olhos brilhantes pulsantes
-  const eg = 0.7 + Math.sin(t / 200) * 0.3;
-  offCtx.globalAlpha = eg;
-  px(-1, -25 + bob, ICE);
-  px(1, -25 + bob, ICE);
-  // Brilho central + halo
-  px(-1, -25 + bob, ICE_W);
-  px(1, -25 + bob, ICE_W);
-  offCtx.globalAlpha = 1;
-  // Aura azul ao redor dos olhos
-  offCtx.globalAlpha = eg * 0.3;
-  px(-2, -25 + bob, ICE);
-  px(2, -25 + bob, ICE);
-  offCtx.globalAlpha = 1;
-  // Cristais decorativos no elmo (têmporas)
-  px(-6, -28 + bob, ICE);
-  px(5, -28 + bob, ICE);
-
-  // ===== PLUMA DE GELO no alto do elmo (4 picos detalhados) =====
-  rect(-3, -35 + bob, 6, 3, ICE);
-  rect(-3, -35 + bob, 6, 1, ICE_W);
-  rect(-3, -33 + bob, 6, 1, ICE_D);
-  // Picos da pluma
-  px(-3, -36 + bob, ICE);
-  px(-1, -38 + bob, ICE_W);
-  rect(0, -39 + bob, 1, 4, ICE);
-  rect(0, -39 + bob, 1, 1, ICE_W);
-  px(2, -38 + bob, ICE_W);
-  px(3, -36 + bob, ICE);
-  // Brilho topo plume
-  px(0, -40 + bob, ICE_W);
-
-  // ===== ESPADA LONGSWORD CONGELADA (lado da arma) =====
-  const swSide = 1;  // 2026-06-12 FIX (audit): era flip → rect já espelha (flip duplo deixava a arma presa num lado)
-  const swX = 11 * swSide;
-  const swingP = Math.round((pose.attackProg || 0) * 4);
-  // Cabo (couro com fio dourado)
-  rect(swX, -10 + bob + swingP, 2, 4, LEATHER);
-  rect(swX, -10 + bob + swingP, 2, 1, LEATHER_L);
-  px(swX, -8 + bob + swingP, GOLD);  // anel dourado central
-  // Guarda em cruz
-  rect(swX - swSide, -12 + bob + swingP, 4, 2, A_M);
-  rect(swX - swSide, -12 + bob + swingP, 4, 1, A_W);
-  rect(swX - swSide, -11 + bob + swingP, 4, 1, A_D);
-  px(swX - swSide, -12 + bob + swingP, A_L);
-  px(swX + swSide * 2, -12 + bob + swingP, A_L);
-  // Pomelo no centro da guarda (cristal)
-  px(swX, -11 + bob + swingP, ICE_W);
-  // Lâmina longa congelada (3 camadas)
-  rect(swX, -28 + bob + swingP, 2, 16, ICE);
-  rect(swX, -28 + bob + swingP, 1, 16, ICE_W);  // highlight esq
-  rect(swX + 1, -28 + bob + swingP, 1, 16, ICE_D);  // sombra dir
-  // Detalhes de gelo na lâmina (cristais embutidos)
-  for (let i = 0; i < 4; i++) {
-    px(swX, -25 + bob + swingP + i * 4, ICE_W);
-    px(swX + 1, -27 + bob + swingP + i * 4, ICE);
-  }
-  // Ponta brilhante (3 níveis)
-  px(swX, -29 + bob + swingP, ICE_W);
-  px(swX + 1, -29 + bob + swingP, ICE_W);
-  px(swX, -30 + bob + swingP, ICE_W);
-
-  // ===== Faísca de gelo ocasional na lâmina =====
-  if (Math.random() < 0.12) {
-    game.effects.push({
-      type: "spark", color: "#a0e0ff",
-      x: u.x + (flip === 1 ? 14 : -14), y: u.y - 22 + Math.random() * 12,
-      vx: (Math.random() - 0.5) * 4, vy: -4 - Math.random() * 4,
-      lifetime: 380, maxLifetime: 500, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 30*dt/1000; },
-    });
-  }
-  // Vapor frio do elmo (respiração)
-  if (Math.random() < 0.06) {
-    game.effects.push({
-      type: "spark", color: "#d0f0ff",
-      x: u.x + flip * 4, y: u.y - 24,
-      vx: flip * 6, vy: -2,
-      lifetime: 380, maxLifetime: 500, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vx *= 0.9; },
-    });
-  }
+  // pernas
+  rect(-3, -4 + bob, 2, 4, c.armorD); rect(1, -4 + bob, 2, 4, c.armorD);
+  px(-3, -1 + bob + leg, c.bodyD); px(1, -1 + bob - leg, c.bodyD);
+  // torso blindado (3 tons)
+  rect(-4, -11 + bob, 8, 7, c.armor);
+  rect(-4, -11 + bob, 8, 1, "#e0f4ff");
+  rect(-4, -11 + bob, 2, 7, c.armorD);
+  rect(-4, -5 + bob, 8, 1, c.armorD);
+  px(1, -9 + bob, c.accent); px(1, -7 + bob, c.accent);
+  // ombreiras
+  rect(-5, -11 + bob, 2, 3, c.armorD); rect(3, -11 + bob, 2, 3, c.armorD);
+  // ESCUDO (-x, atrás do corpo)
+  rect(-7, -9 + bob, 2, 5, c.bodyD); px(-7, -7 + bob, c.accent);
+  // elmo + viseira + pluma
+  rect(-2, -15 + bob, 5, 4, c.armor);
+  rect(-2, -15 + bob, 5, 1, "#e0f4ff");
+  rect(0, -14 + bob, 3, 1, "#0a1420");
+  px(-1, -17 + bob, c.accent); px(-1, -16 + bob, c.accent);
+  px(0, -17 + bob, c.accent);
+  // ESPADA DE GELO (+x): braço + lâmina com brilho; corta no ataque
+  rect(3, -9 + bob, 2, 2, c.armorD);
+  const bx = 5 + swing;
+  rect(bx, -14 + bob - swing, 1, 8, "#a0e0ff");
+  px(bx, -15 + bob - swing, "#e0f4ff");
+  px(bx - 1, -7 + bob, "#5a3818"); px(bx + 1, -7 + bob, "#5a3818");
+  if (p > 0.4 && p < 0.7) { px(bx + 2, -12 + bob - swing, "#e0f4ff"); px(bx + 3, -10 + bob - swing, "#a0e0ff"); }
 }
 
 function drawGolemGelo(cx, cy, t, u, c, pose) {
@@ -54368,107 +53830,8 @@ function drawDemonioMenor(cx, cy, t, u, c, pose) {
 }
 
 function drawCultistaFogo(cx, cy, t, u, c, pose) {
-  // CULTISTA FOGO HD (T2 inferno) \u2014 cultista de manto vermelho com cajado
-  // em chamas. Rosto escondido sob capuz pontudo. ~22px alto.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.sin(t / 520) * 0.8);
-  // Anim de ataque: cajado eleva + chama cresce + brasas extras
-  const atkCu = pose.attackProg || 0;
-  const atkSwingCu = atkCu > 0 ? Math.sin(atkCu * Math.PI) : 0;
-  const staffLiftCu = Math.round(atkSwingCu * -3);
-
-  // Sombra
-  offCtx.globalAlpha = 0.35;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 6, cy + 2, 12, 1);
-  offCtx.globalAlpha = 1;
-
-  // Manto longo vermelho (sem pernas)
-  rect(-7, -3, 14, 5, c.bodyD);
-  rect(-7, -3, 14, 1, c.body);
-  rect(-9, 0, 2, 3, c.bodyD);
-  rect(7, 0, 2, 3, c.bodyD);
-
-  // Corpo/manto
-  rect(-6, -14 + bob, 12, 11, c.body);
-  rect(-6, -14 + bob, 12, 2, c.bodyD);
-  rect(-6, -4 + bob, 12, 1, c.bodyD);
-
-  // S\u00edmbolo de fogo no peito (losango ardente)
-  rect(-2, -11 + bob, 4, 4, c.accent);
-  px(0, -12 + bob, c.accent);
-  px(0, -7 + bob, c.accent);
-  px(-3, -9 + bob, c.accent);
-  px(3, -9 + bob, c.accent);
-  // Brilho central
-  px(0, -10 + bob, "#ffc040");
-  px(0, -9 + bob, "#fff");
-
-  // Bra\u00e7os com mangas vermelhas
-  rect(-8, -12 + bob, 2, 7, c.bodyD);
-  rect(6, -12 + bob, 2, 7, c.bodyD);
-
-  // CAPUZ pontudo ardente
-  rect(-5, -22 + bob, 10, 8, c.bodyD);
-  rect(-5, -22 + bob, 10, 1, "#1a0404");
-  // Pico do capuz alto
-  rect(-1, -25 + bob, 2, 3, c.bodyD);
-  px(0, -26 + bob, c.bodyD);
-  // Borda do capuz
-  rect(-7, -16 + bob, 2, 4, c.bodyD);
-  rect(5, -16 + bob, 2, 4, c.bodyD);
-
-  // Abertura em V do capuz \u2014 rosto totalmente escuro
-  rect(-4, -19 + bob, 8, 3, "#000");
-
-  // OLHOS ardentes brilhantes
-  const eg = 0.9 + Math.sin(t / 180) * 0.1;
-  offCtx.globalAlpha = eg;
-  rect(-3, -18 + bob, 2, 2, c.accent);
-  rect(1, -18 + bob, 2, 2, c.accent);
-  // Brilho amarelo central
-  px(-3, -18 + bob, "#ffc040");
-  px(1, -18 + bob, "#ffc040");
-  offCtx.globalAlpha = 1;
-
-  // CAJADO de fogo (lado oposto) — eleva durante attack
-  const stSide = 1;  // 2026-06-12 FIX (audit): era -flip → rect já espelha (flip duplo deixava cajado/topo preso num lado)
-  const stX = 11 * stSide;
-  const sBob = bob + staffLiftCu;
-  rect(stX, -16 + sBob, 2, 16, "#2a0a0a");
-  rect(stX, -16 + sBob, 2, 1, "#5a2018");
-  // An\u00e9is decorativos
-  rect(stX, -10 + sBob, 2, 1, c.accent);
-  rect(stX, -5 + sBob, 2, 1, c.accent);
-
-  // CHAMA no topo do cajado (cresce durante attack)
-  offCtx.globalAlpha = 0.85 + Math.sin(t / 120) * 0.15 + atkSwingCu * 0.15;
-  rect(stX - stSide, -22 + sBob, 4, 3, c.accent);
-  rect(stX, -25 + sBob, 2, 3, "#ffc040");
-  px(stX, -26 + sBob, "#fff");
-  // Chama EXTRA durante attack
-  if (atkSwingCu > 0.3) {
-    rect(stX - stSide * 2, -25 + sBob, 5, 3, c.accent);
-    rect(stX - stSide, -28 + sBob, 4, 2, "#ffc040");
-    px(stX, -29 + sBob, "#fff");
-  }
-  offCtx.globalAlpha = 1;
-  // L\u00e1nguas adicionais
-  px(stX - stSide * 2, -22 + sBob, c.accent);
-  px(stX + stSide * 2, -22 + sBob, c.accent);
-
-  // Brasas pequenas saindo do cajado (intensifica durante attack)
-  const sparkChance = 0.15 + atkSwingCu * 0.4;
-  if (Math.random() < sparkChance) {
-    game.effects.push({
-      type: "spark", color: Math.random() < 0.4 ? "#ffc040" : c.accent,
-      x: u.x + (flip === 1 ? -11 : 11) + (Math.random() - 0.5) * 4,
-      y: u.y - 26 + Math.random() * 4,
-      vx: (Math.random() - 0.5) * 8, vy: -10,
-      lifetime: 350, maxLifetime: 500, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 30*dt/1000; },
-    });
-  }
+  // R21 — era 25×30. Cultista: capuz fechado + chama no cajado.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "hood", focus: "flame", focusCol: "#ff5020", focusCol2: "#ffe890", staffCol: "#2a1410", trim: "#ff5020" });
 }
 
 function drawGargulaMagma(cx, cy, t, u, c, pose) {
@@ -55070,139 +54433,8 @@ function drawSlimeVerde(cx, cy, t, u, c, pose) {
 }
 
 function drawBruxaPantano(cx, cy, t, u, c, pose) {
-  // BRUXA PANTANO HD (T2) \u2014 corcunda com chap\u00e9u pontudo, cajado com olho verde,
-  // cabelo grisalho saindo do chap\u00e9u. ~22px alto.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.sin(t / 500) * 0.8);
-  // Anim de ataque: cajado eleva + olho verde brilha forte + bolha t\u00f3xica sai
-  const atkB = pose.attackProg || 0;
-  const atkSwingB = atkB > 0 ? Math.sin(atkB * Math.PI) : 0;
-  const staffLiftB = Math.round(atkSwingB * -3);
-
-  // Sombra
-  offCtx.globalAlpha = 0.35;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 6, cy + 2, 12, 1);
-  offCtx.globalAlpha = 1;
-
-  // Manto andrajoso (sem pernas vis\u00edveis)
-  rect(-7, -3, 14, 5, c.bodyD);
-  rect(-7, -3, 14, 1, c.body);
-  rect(-9, 0, 2, 3, c.bodyD);
-  rect(7, 0, 2, 3, c.bodyD);
-  // Bordas irregulares
-  px(-9, 3, c.bodyD);
-  px(8, 3, c.bodyD);
-
-  // Corpo torto (corcunda atr\u00e1s)
-  rect(-6, -14 + bob, 12, 11, c.body);
-  rect(-6, -14 + bob, 12, 2, c.bodyD);
-  rect(-6, -4 + bob, 12, 1, c.bodyD);
-  // Corcunda atr\u00e1s
-  rect(-9 * flip, -16 + bob, 4, 4, c.bodyD);
-  rect(-9 * flip, -16 + bob, 4, 1, c.body);
-
-  // Remendos verdes
-  rect(-4, -11 + bob, 3, 3, c.accent);
-  px(-4, -11 + bob, c.bodyD);
-  rect(2, -9 + bob, 2, 2, c.accent);
-  // Detalhe \"X\" de remendo
-  px(-3, -10 + bob, c.bodyD);
-  px(2, -9 + bob, c.bodyD);
-
-  // Bra\u00e7os com mangas largas
-  rect(-8, -12 + bob, 2, 7, c.bodyD);
-  rect(-8, -12 + bob, 2, 1, c.body);
-  rect(6, -12 + bob, 2, 7, c.bodyD);
-  rect(6, -12 + bob, 2, 1, c.body);
-  // M\u00e3os esquel\u00e9ticas
-  rect(-8, -5 + bob, 2, 2, "#a0a0a0");
-  rect(6, -5 + bob, 2, 2, "#a0a0a0");
-
-  // CHAP\u00c9U PONTUDO de bruxa
-  rect(-6, -22 + bob, 12, 4, c.bodyD);
-  // Aba do chap\u00e9u (mais largo)
-  rect(-8, -19 + bob, 16, 1, c.bodyD);
-  px(-9, -19 + bob, c.bodyD);
-  px(8, -19 + bob, c.bodyD);
-  // Pico do chap\u00e9u (inclinado)
-  rect(-2, -25 + bob, 4, 3, c.bodyD);
-  rect(0, -28 + bob, 3, 3, c.bodyD);
-  rect(2, -30 + bob, 3, 2, c.bodyD);
-  px(4, -31 + bob, c.bodyD);
-  // Fivela verde no chap\u00e9u
-  rect(-1, -22 + bob, 2, 2, c.accent);
-  px(0, -21 + bob, "#fff080");
-
-  // Rosto verde
-  rect(-4, -18 + bob, 8, 4, "#6aa040");
-  rect(-4, -18 + bob, 8, 1, "#406020");
-  // Nariz torto/longo
-  rect(0, -16 + bob, 2, 2, "#406020");
-  px(2, -15 + bob, "#406020");
-  // Verruga no nariz
-  px(2, -16 + bob, "#2a4010");
-  // OLHOS amarelos brilhantes
-  const eg = 0.85 + Math.sin(t / 220) * 0.15;
-  offCtx.globalAlpha = eg;
-  rect(-3, -17 + bob, 2, 2, "#ffd060");
-  rect(1, -17 + bob, 2, 2, "#ffd060");
-  // Pupilas
-  px(-3, -16 + bob, "#000");
-  px(2, -16 + bob, "#000");
-  offCtx.globalAlpha = 1;
-  // Boca enrugada
-  rect(-2, -14 + bob, 4, 1, "#1a0808");
-
-  // Cabelo grisalho saindo do chap\u00e9u (lateral)
-  rect(-7, -18 + bob, 1, 4, "#a0a0a0");
-  rect(6, -18 + bob, 1, 4, "#a0a0a0");
-  px(-8, -16 + bob, "#a0a0a0");
-  px(7, -16 + bob, "#a0a0a0");
-  px(-8, -14 + bob, "#a0a0a0");
-  px(7, -14 + bob, "#a0a0a0");
-
-  // CAJADO retorcido com olho verde no topo (eleva durante attack)
-  const stSide = 1;  // 2026-06-12 FIX (audit): era -flip → rect já espelha (flip duplo deixava cajado/topo preso num lado)
-  const stX = 11 * stSide;
-  const sBob = bob + staffLiftB;
-  // Haste torta
-  rect(stX, -16 + sBob, 2, 18, "#4a3218");
-  rect(stX, -16 + sBob, 2, 1, "#7a5028");
-  // Topo do cajado com OLHO verde gigante
-  rect(stX - stSide, -22 + sBob, 4, 5, "#583028");
-  rect(stX - stSide, -22 + sBob, 4, 1, "#7a4838");
-  // Olho verde pulsante (intensifica durante attack)
-  offCtx.globalAlpha = 0.85 + Math.sin(t/160)*0.15 + atkSwingB * 0.3;
-  rect(stX, -21 + sBob, 2, 3, c.accent);
-  px(stX, -20 + sBob, "#a0ff80");
-  // Pupila
-  px(stX, -20 + sBob, "#000");
-  offCtx.globalAlpha = 1;
-  // Galhos retorcidos no topo
-  px(stX - stSide * 2, -23 + sBob, "#4a3218");
-  px(stX + stSide * 2, -22 + sBob, "#4a3218");
-  // BOLHA t\u00f3xica sai do olho durante attack
-  if (atkSwingB > 0.4 && Math.random() < 0.6) {
-    game.effects.push({
-      type: "spark", color: "#a0ff80",
-      x: u.x + stSide * 11, y: u.y - 22 + sBob,
-      vx: stSide * (12 + Math.random() * 12), vy: -8 - Math.random() * 6,
-      lifetime: 500, maxLifetime: 700, size: 1 + Math.floor(Math.random() * 2),
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 50*dt/1000; },
-    });
-  }
-
-  // Fuma\u00e7a \u00e1cida ocasional
-  if (Math.random() < 0.14) {
-    game.effects.push({
-      type: "spark", color: c.accent,
-      x: u.x + (flip === 1 ? -10 : 10), y: u.y - 22,
-      vx: (Math.random() - 0.5) * 8, vy: -10 - Math.random() * 6,
-      lifetime: 500, maxLifetime: 800, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; },
-    });
-  }
+  // R21 — era 25×36. Bruxa: chapéu pontudo torto + orbe de veneno.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "witch", focus: "orb", focusCol: "#80c060", focusCol2: "#c8ff90", staffCol: "#3a2818" });
 }
 
 function drawMortoAfogado(cx, cy, t, u, c, pose) {
@@ -57089,177 +56321,10 @@ function drawCherubim(cx, cy, t, u, c, pose) {
 //   - tendões de sombra escapando do capuz (corrupção visual)
 //   - aura azul-sombra alternada
 function drawAcolitoCorrupto(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 1.05;
-  const { rect, px, flip } = catedralRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 480) * 1);
-  const armSwing = pose.attackProg > 0 ? Math.round(pose.attackProg * 4) : 0;
-  const eyeP = 0.7 + Math.sin(t / 200) * 0.3;
-  const corruptT = (t / 350);
-
-  // ===== AURA azul-sombra (alternada) =====
-  offCtx.globalAlpha = 0.18 + Math.sin(t / 280) * 0.08;
-  offCtx.fillStyle = "#3a3060";
-  fillCircle(cx, cy - 6 + bob, 13);
-  offCtx.globalAlpha = 0.10;
-  offCtx.fillStyle = "#80c0ff";
-  fillCircle(cx, cy - 6 + bob, 16);
-  offCtx.globalAlpha = 1;
-
-  // Sombra
-  offCtx.globalAlpha = 0.45;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 8, cy + 4, 16, 2);
-  offCtx.globalAlpha = 1;
-
-  // ===== MANTO LONGO (até o chão, com babado em arco) =====
-  rect(-8, -2, 16, 7, "#807868");
-  rect(-8, -2, 16, 1, "#a89878");
-  rect(-9, 0, 1, 5, "#5a5048");                    // dobra esq
-  rect(8, 0, 1, 5, "#5a5048");                     // dobra dir
-  rect(-8, 4, 16, 1, "#5a5048");                   // base sombra
-  // Babado triangular (3 pontas embaixo)
-  px(-7, 5, "#807868");
-  px(-3, 5, "#807868");
-  px(0, 5, "#807868");
-  px(3, 5, "#807868");
-  px(7, 5, "#807868");
-  // RUNAS DOURADAS no manto (4 símbolos místicos pulsantes)
-  offCtx.globalAlpha = 0.7 + Math.sin(t / 280) * 0.3;
-  px(-5, 0, "#d4a637");
-  px(-2, 1, "#d4a637");
-  px(2, 0, "#d4a637");
-  px(5, 1, "#d4a637");
-  // Bordado dourado vertical central
-  rect(-1, -2, 2, 7, "#d4a637");
-  rect(-1, -2, 2, 1, "#fff080");
-  px(0, 1, "#7a5018");
-  offCtx.globalAlpha = 1;
-
-  // ===== TORSO/MANTO superior =====
-  rect(-7, -10 + bob, 14, 8, "#a89878");
-  rect(-7, -10 + bob, 14, 2, "#d8d0c0");           // ombro highlight
-  rect(-7, -3 + bob, 14, 1, "#5a5048");            // sombra inferior
-  // Pingente de cruz invertida no peito (caído)
-  rect(-1, -6 + bob, 2, 3, "#fff080");
-  rect(-2, -5 + bob, 4, 1, "#fff080");
-  px(0, -3 + bob, "#7a5018");
-  // Cinto dourado (faixa)
-  rect(-7, -3 + bob, 14, 1, "#d4a637");
-  rect(-7, -3 + bob, 14, 1, "#fff080");
-  // Fivela central
-  rect(-1, -3 + bob, 2, 1, "#7a5018");
-  // Pauldrons sutis (ombros mais escuros)
-  rect(-7, -10 + bob, 2, 3, "#5a5048");
-  rect(5, -10 + bob, 2, 3, "#5a5048");
-
-  // ===== BRAÇOS (mangas amplas com babados) =====
-  rect(-8, -8 + bob - armSwing, 3, 7, "#807868");  // manga esq
-  rect(-8, -8 + bob - armSwing, 3, 1, "#a89878");
-  rect(-8, -2 + bob - armSwing, 3, 1, "#5a5048");  // babado punho
-  rect(5, -8 + bob - armSwing, 3, 7, "#807868");   // manga dir
-  rect(5, -8 + bob - armSwing, 3, 1, "#a89878");
-  rect(5, -2 + bob - armSwing, 3, 1, "#5a5048");
-  // Mãos ósseas magras saindo das mangas
-  rect(-8, -2 + bob - armSwing, 1, 2, "#a09080");  // mão esq
-  rect(7, -2 + bob - armSwing, 1, 2, "#a09080");   // mão dir
-  px(-8, 0 + bob - armSwing, "#5a4838");
-  px(7, 0 + bob - armSwing, "#5a4838");
-
-  // ===== CAPUZ PONTUDO (sombra completa no rosto) =====
-  // Pico afilado (3 segmentos triangulares)
-  rect(-1, -22 + bob, 2, 2, "#5a5048");
-  rect(-2, -20 + bob, 4, 2, "#5a5048");
-  rect(-3, -18 + bob, 6, 2, "#5a5048");
-  // Capuz principal (oval)
-  rect(-5, -16 + bob, 10, 6, "#5a5048");
-  rect(-5, -16 + bob, 10, 1, "#807868");           // highlight topo
-  rect(-5, -11 + bob, 10, 1, "#1a1410");           // borda inferior
-  // Bordas do capuz (sombras laterais)
-  rect(-6, -14 + bob, 1, 4, "#1a1410");
-  rect(5, -14 + bob, 1, 4, "#1a1410");
-  // Trim dourado na borda do capuz
-  rect(-5, -10 + bob, 10, 1, "#d4a637");
-  px(-5, -10 + bob, "#fff080");
-  px(4, -10 + bob, "#fff080");
-  // Interior do capuz (negro absoluto pra contraste com olhos)
-  rect(-3, -14 + bob, 6, 4, "#000000");
-
-  // ===== OLHOS azuis brilhantes (assinatura visual) =====
-  offCtx.globalAlpha = eyeP;
-  offCtx.fillStyle = "#80c0ff";
-  offCtx.fillRect(cx - 2, cy - 13 + bob, 1, 2);
-  offCtx.fillRect(cx + 1, cy - 13 + bob, 1, 2);
-  // Highlight branco central nos olhos
-  offCtx.globalAlpha = eyeP * 1.2;
-  offCtx.fillStyle = "#ffffff";
-  offCtx.fillRect(cx - 2, cy - 13 + bob, 1, 1);
-  offCtx.fillRect(cx + 1, cy - 13 + bob, 1, 1);
-  // Glow ao redor dos olhos
-  offCtx.globalAlpha = 0.35 * eyeP;
-  offCtx.fillStyle = "#80c0ff";
-  fillCircle(cx, cy - 12 + bob, 4);
-  offCtx.globalAlpha = 1;
-
-  // ===== TENDÕES DE SOMBRA escapando do capuz (corrupção animada) =====
-  for (let i = 0; i < 3; i++) {
-    const tenY = -8 + Math.sin(corruptT + i * 1.2) * 1.5;
-    const tenX = (i - 1) * 3;
-    offCtx.globalAlpha = 0.55;
-    offCtx.fillStyle = "#3a2058";
-    offCtx.fillRect(cx + tenX, cy + tenY + bob, 1, 2);
-    offCtx.globalAlpha = 1;
-  }
-
-  // ===== CAJADO dourado com cristal RAIO =====
-  const stX = 7 * flip;
-  // Cabo
-  rect(stX, -18 + bob, 1, 16, "#7a5018");
-  rect(stX, -18 + bob, 1, 1, "#d4a637");
-  rect(stX, -2 + bob, 1, 1, "#3a2010");            // ponta inferior
-  // Empunhadura (3 anéis dourados)
-  rect(stX, -14 + bob, 1, 1, "#d4a637");
-  rect(stX, -10 + bob, 1, 1, "#d4a637");
-  rect(stX, -6 + bob, 1, 1, "#d4a637");
-  // Topo: garra metálica segurando cristal
-  rect(stX - flip, -19 + bob, 3, 1, "#a89058");
-  rect(stX - flip, -20 + bob, 3, 1, "#7a5018");
-  // CRISTAL TRIANGULAR azul (3 pixels em pirâmide)
-  rect(stX - flip, -22 + bob, 3, 2, "#3a78c8");
-  rect(stX - flip, -22 + bob, 3, 1, "#80c0ff");    // highlight
-  px(stX, -23 + bob, "#80c0ff");
-  px(stX, -23 + bob, "#ffffff");
-  // RAIO ELÉTRICO interior do cristal (alternando)
-  if (Math.sin(t / 130) > 0) {
-    px(stX, -22 + bob, "#ffffff");
-  }
-  // Glow forte do cristal
-  offCtx.globalAlpha = 0.5 * eyeP;
-  offCtx.fillStyle = "#80c0ff";
-  fillCircle(cx + stX, cy - 21 + bob, 4);
-  offCtx.globalAlpha = 0.30 * eyeP;
-  fillCircle(cx + stX, cy - 21 + bob, 6);
-  offCtx.globalAlpha = 1;
-
-  // Faíscas elétricas saindo do cristal (ranged caster signal)
-  if (Math.random() < 0.10) {
-    const a = Math.random() * Math.PI * 2;
-    game.effects.push({
-      type: "spark", color: "#80c0ff",
-      x: u.x + stX * sc, y: u.y - 21 * sc,
-      vx: Math.cos(a) * 12, vy: Math.sin(a) * 12 - 10,
-      lifetime: 350, maxLifetime: 350, size: 1,
-      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; },
-    });
-  }
+  // R21 — era 35×40. Sacerdote caído: mitra + cruz corrompida.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "mitre", focus: "cross", focusCol: "#ffd060", focusCol2: "#fff080", staffCol: "#5a5048", skin: "#d8c0a8" });
 }
 
-// CAVALEIRO DA LUZ (T3) HD — tank dourado com:
-//   - capacete templário com pluma vermelha mais alta
-//   - peitoral com CRUZ + sunburst dourada
-//   - espada flamejante (chama animada na lâmina)
-//   - escudo torre com brasão (cruz + 4 sols)
-//   - chainmail visível nas juntas
-//   - aura sagrada dourada
 function drawCavaleiroLuz(cx, cy, t, u, c, pose) {
   const sc = u.scale || 1.20;
   const { rect, px, flip } = catedralRectFactory(cx, cy, u.facing, sc);
@@ -57687,229 +56752,10 @@ function drawPaladinoCaido(cx, cy, t, u, c, pose) {
 //   - cajado com cristal grande pulsante
 //   - aura azul-dourada
 function drawArquimago(cx, cy, t, u, c, pose) {
-  const sc = u.scale || 1.25;
-  const { rect, px, flip } = catedralRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 380) * 1);
-  const float = Math.round(Math.sin(t / 280) * 0.7);
-  const auraP = 0.5 + Math.sin(t / 220) * 0.5;
-  const eyeP = 0.7 + Math.sin(t / 180) * 0.3;
-
-  // ===== AURA DUPLA (azul + dourado) =====
-  offCtx.globalAlpha = 0.18 * auraP;
-  offCtx.fillStyle = "#80c0ff";
-  fillCircle(cx, cy - 6 + float, 16);
-  offCtx.globalAlpha = 0.10 * auraP;
-  offCtx.fillStyle = "#fff080";
-  fillCircle(cx, cy - 6 + float, 20);
-  offCtx.globalAlpha = 1;
-
-  // ===== 3 ORBS FLUTUANTES ORBITANDO (signal de multiShot=3) =====
-  for (let i = 0; i < 3; i++) {
-    const orbAng = (t / 700) + (i * Math.PI * 2 / 3);
-    const orbRx = Math.cos(orbAng) * 12;
-    const orbRy = Math.sin(orbAng * 1.3) * 4 - 8;
-    // Cor alternada por orb
-    const orbColor = i === 0 ? "#80c0ff" : (i === 1 ? "#fff080" : "#a0e0ff");
-    const orbColorD = i === 0 ? "#3a78c8" : (i === 1 ? "#d4a637" : "#5090c0");
-    // Glow externo
-    offCtx.globalAlpha = 0.45 * auraP;
-    offCtx.fillStyle = orbColor;
-    fillCircle(cx + orbRx, cy + orbRy + float, 3);
-    offCtx.globalAlpha = 1;
-    // Orb body
-    offCtx.fillStyle = orbColorD;
-    offCtx.fillRect(cx + orbRx - 1, cy + orbRy + float - 1, 2, 2);
-    offCtx.fillStyle = orbColor;
-    offCtx.fillRect(cx + orbRx, cy + orbRy + float - 1, 1, 1);
-    // Highlight branco central
-    offCtx.fillStyle = "#ffffff";
-    offCtx.fillRect(cx + orbRx, cy + orbRy + float - 1, 1, 1);
-  }
-
-  // Sombra
-  offCtx.globalAlpha = 0.40;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 8, cy + 4 - float, 16, 2);
-  offCtx.globalAlpha = 1;
-
-  // ===== MANTO LONGO (até o chão) =====
-  rect(-8, -3 + float, 16, 8, "#5a5078");                  // base escura
-  rect(-8, -3 + float, 16, 1, "#7878a0");                  // highlight topo
-  rect(-9, 0 + float, 1, 5, "#3a3058");                    // dobra esq
-  rect(8, 0 + float, 1, 5, "#3a3058");                     // dobra dir
-  rect(-8, 4 + float, 16, 1, "#3a3058");                   // base sombra
-  // Babado em onda (5 ondulações)
-  px(-7, 5 + float, "#5a5078");
-  px(-3, 5 + float, "#5a5078");
-  px(0, 5 + float, "#5a5078");
-  px(3, 5 + float, "#5a5078");
-  px(7, 5 + float, "#5a5078");
-  // Bordado dourado horizontal
-  rect(-8, 1 + float, 16, 1, "#d4a637");
-  rect(-8, 1 + float, 16, 1, "#fff080");
-  // Símbolos arcanos no manto (4 sigilos)
-  offCtx.globalAlpha = 0.7 + auraP * 0.3;
-  px(-5, 3 + float, "#80c0ff");
-  px(-2, 2 + float, "#80c0ff");
-  px(2, 2 + float, "#80c0ff");
-  px(5, 3 + float, "#80c0ff");
-  offCtx.globalAlpha = 1;
-  // Bordado central vertical
-  rect(-1, -3 + float, 2, 5, "#d4a637");
-  rect(-1, -3 + float, 2, 1, "#fff080");
-
-  // ===== TORSO/MANTO superior (mais claro) =====
-  rect(-7, -12 + bob + float, 14, 9, "#7878a0");
-  rect(-7, -12 + bob + float, 14, 2, "#a8a0c8");           // ombro highlight
-  rect(-7, -4 + bob + float, 14, 1, "#3a3058");            // sombra
-  // ESTRELAS no manto (8 estrelas espalhadas, alternando cor)
-  px(-5, -10 + bob + float, "#fff080");
-  px(-2, -8 + bob + float, "#fff080");
-  px(3, -11 + bob + float, "#80c0ff");
-  px(5, -7 + bob + float, "#fff080");
-  px(-4, -6 + bob + float, "#80c0ff");
-  px(1, -10 + bob + float, "#80c0ff");
-  px(-1, -7 + bob + float, "#fff080");
-  px(4, -9 + bob + float, "#fff080");
-  // Cinto cordão dourado torcido (3 segmentos)
-  rect(-7, -4 + bob + float, 14, 1, "#d4a637");
-  px(-7, -4 + bob + float, "#fff080");
-  px(0, -4 + bob + float, "#fff080");
-  px(6, -4 + bob + float, "#fff080");
-  // Pingente (cristal pequeno no peito)
-  px(0, -3 + bob + float, "#80c0ff");
-
-  // ===== BRAÇOS (mangas amplas com babados azuis) =====
-  // Braço esquerdo (mais baixo)
-  rect(-9, -8 + bob + float, 3, 6, "#5a5078");
-  rect(-9, -8 + bob + float, 3, 1, "#7878a0");
-  rect(-9, -3 + bob + float, 3, 1, "#3a3058");             // babado punho
-  // Mão saindo da manga
-  rect(-9, -2 + bob + float, 1, 2, "#a89878");
-  // Braço direito (mais alto, segurando cajado)
-  rect(6, -11 + bob + float, 3, 7, "#5a5078");
-  rect(6, -11 + bob + float, 3, 1, "#7878a0");
-  rect(6, -5 + bob + float, 3, 1, "#3a3058");
-  // Mão saindo da manga
-  rect(8, -5 + bob + float, 1, 2, "#a89878");
-
-  // ===== LIVRO MÁGICO flutuante na lateral esq (livro de feitiços) =====
-  const bookFloat = Math.round(Math.sin(t / 350) * 1);
-  rect(-12, -6 + bob + float + bookFloat, 3, 4, "#7a5018");
-  rect(-12, -6 + bob + float + bookFloat, 3, 1, "#d4a637");
-  rect(-12, -2 + bob + float + bookFloat, 3, 1, "#5a3818");
-  // Páginas (linhas brancas)
-  rect(-12, -5 + bob + float + bookFloat, 3, 1, "#f0e8d0");
-  rect(-12, -3 + bob + float + bookFloat, 3, 1, "#f0e8d0");
-  // Sigilo dourado central
-  offCtx.globalAlpha = auraP;
-  px(-11, -4 + bob + float + bookFloat, "#fff080");
-  offCtx.globalAlpha = 1;
-
-  // ===== CAPUZ ALTO PONTUDO =====
-  // Pico afilado (estrela na ponta)
-  px(0, -28 + bob + float, "#fff080");                     // estrela topo
-  px(-1, -27 + bob + float, "#d4a637");
-  px(1, -27 + bob + float, "#d4a637");
-  rect(-1, -26 + bob + float, 2, 2, "#5a5078");
-  rect(-2, -24 + bob + float, 4, 2, "#5a5078");
-  rect(-3, -22 + bob + float, 6, 2, "#5a5078");
-  rect(-4, -20 + bob + float, 8, 2, "#7878a0");
-  rect(-4, -20 + bob + float, 8, 1, "#a8a0c8");
-  // Capuz principal
-  rect(-5, -18 + bob + float, 11, 6, "#5a5078");
-  rect(-5, -18 + bob + float, 11, 1, "#7878a0");
-  // Trim dourado na borda do capuz
-  rect(-5, -12 + bob + float, 11, 1, "#d4a637");
-  px(-5, -12 + bob + float, "#fff080");
-  px(5, -12 + bob + float, "#fff080");
-  // ESTRELAS pequenas no capuz
-  px(-2, -16 + bob + float, "#fff080");
-  px(2, -17 + bob + float, "#fff080");
-  px(-3, -14 + bob + float, "#80c0ff");
-  px(3, -15 + bob + float, "#80c0ff");
-
-  // ===== ROSTO (sombra do capuz + barba branca longa) =====
-  rect(-3, -14 + bob + float, 7, 4, "#3a2848");            // sombra do capuz
-  // BARBA branca longa (3 segmentos descendo)
-  rect(-2, -10 + bob + float, 5, 1, "#e8e8f0");
-  rect(-2, -10 + bob + float, 5, 1, "#ffffff");            // highlight
-  rect(-1, -9 + bob + float, 3, 1, "#e8e8f0");
-  rect(-1, -8 + bob + float, 3, 1, "#a8a0c8");
-  px(0, -7 + bob + float, "#a8a0c8");                      // pontinha da barba
-  // Olhos azuis brilhantes
-  offCtx.globalAlpha = eyeP;
-  offCtx.fillStyle = "#80c0ff";
-  offCtx.fillRect(cx - 2, cy - 13 + bob + float, 1, 1);
-  offCtx.fillRect(cx + 1, cy - 13 + bob + float, 1, 1);
-  offCtx.globalAlpha = eyeP * 1.4;
-  offCtx.fillStyle = "#ffffff";
-  offCtx.fillRect(cx - 2, cy - 13 + bob + float, 1, 1);
-  offCtx.fillRect(cx + 1, cy - 13 + bob + float, 1, 1);
-  offCtx.globalAlpha = 1;
-  // Glow azul ao redor dos olhos
-  offCtx.globalAlpha = 0.30 * eyeP;
-  offCtx.fillStyle = "#80c0ff";
-  fillCircle(cx, cy - 12 + bob + float, 4);
-  offCtx.globalAlpha = 1;
-  // Sobrancelhas brancas (acima dos olhos)
-  px(-3, -14 + bob + float, "#e8e8f0");
-  px(-2, -14 + bob + float, "#e8e8f0");
-  px(1, -14 + bob + float, "#e8e8f0");
-  px(2, -14 + bob + float, "#e8e8f0");
-
-  // ===== CAJADO GRANDE com cristal triplo + raios elétricos =====
-  const stX = 9 * flip;
-  // Cabo (longo, pintado)
-  rect(stX, -18 + bob + float, 1, 18, "#5a3818");
-  rect(stX, -18 + bob + float, 1, 1, "#7a5018");
-  // Anéis dourados decorativos
-  rect(stX, -14 + bob + float, 1, 1, "#d4a637");
-  rect(stX, -10 + bob + float, 1, 1, "#d4a637");
-  rect(stX, -6 + bob + float, 1, 1, "#d4a637");
-  rect(stX, 0 + bob + float, 1, 1, "#d4a637");
-  // Garra metálica no topo segurando cristal
-  rect(stX - flip, -19 + bob + float, 3, 1, "#a89058");
-  rect(stX - flip, -20 + bob + float, 3, 1, "#7a5018");
-  // CRISTAL GRANDE central (3×3 dourado)
-  rect(stX - flip, -23 + bob + float, 3, 3, "#d4a637");
-  rect(stX - flip, -23 + bob + float, 3, 1, "#fff080");
-  rect(stX, -22 + bob + float, 1, 1, "#ffffff");           // brilho central
-  // 2 cristais menores azuis nas laterais (em leque, signal multishot)
-  rect(stX - flip * 2, -22 + bob + float, 1, 2, "#3a78c8");
-  rect(stX + flip * 2, -22 + bob + float, 1, 2, "#3a78c8");
-  px(stX - flip * 2, -22 + bob + float, "#80c0ff");
-  px(stX + flip * 2, -22 + bob + float, "#80c0ff");
-  // Glow do cristal central
-  offCtx.globalAlpha = 0.45 * auraP;
-  offCtx.fillStyle = "#fff080";
-  fillCircle(cx + stX, cy - 22 + bob + float, 5);
-  offCtx.globalAlpha = 0.25 * auraP;
-  fillCircle(cx + stX, cy - 22 + bob + float, 8);
-  offCtx.globalAlpha = 1;
-  // Raio elétrico interior (animado)
-  if (Math.sin(t / 100) > 0.3) {
-    offCtx.fillStyle = "#ffffff";
-    offCtx.fillRect(cx + stX, cy - 22 + bob + float, 1, 1);
-  }
-
-  // Particles arcanas drifting (signal de caster)
-  if (Math.random() < 0.10) {
-    const a = Math.random() * Math.PI * 2;
-    const dist = 8 + Math.random() * 4;
-    game.effects.push({
-      type: "spark", color: Math.random() < 0.5 ? "#80c0ff" : "#fff080",
-      x: u.x + Math.cos(a) * dist, y: u.y - 10 + Math.sin(a) * dist * 0.5,
-      vx: 0, vy: -10 - Math.random() * 6,
-      lifetime: 600, maxLifetime: 600, size: 1,
-      update(dt) { this.y += this.vy * dt / 1000; this.vy *= 0.94; },
-    });
-  }
+  // R21 — era 43×51 (a MAIOR unidade do jogo, um humano). Arquimago: chapéu de mago
+  // alto + orbe dourado. T4 = poder, não tamanho.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "wizard", focus: "orb", focusCol: "#ffd060", focusCol2: "#80c0ff", staffCol: "#3a3048", trim: "#80c0ff" });
 }
-
-// Fase 15: drawers para unidades do bioma cogumelo.
-// Cogumelos ambulantes têm corpo claro (haste) + chapéu vermelho/rosa/roxo
-// com pintas brancas. Estilo Mario. Sempre com puff roxo de esporos discreto.
 
 function mushroomRectFactory(cx, cy, facing, sc) {
   const flip = facing === "left" ? -1 : 1;
@@ -58248,180 +57094,10 @@ function drawMushroomBrute(cx, cy, t, u, c, pose) {
 
 // Mestre dos Esporos (T4 ranged) — feiticeiro fúngico
 function drawMushroomMage(cx, cy, t, u, c, pose) {
-  // MUSHROOM MAGE HD (2026-04-25) \u2014 Mestre dos Esporos T4 em screen-pixel
-  // space. Mesma identidade (manto roxo, chap\u00e9u bic\u00f4nico vermelho com pintas,
-  // cajado de esporos, aura roxa) com ~3x mais detalhe.
-  const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
-  const bob = Math.round(Math.sin(t / 380) * 1.5);
-  const robeSway = Math.round(Math.sin(t / 400) * 1);
-  // Anim de ataque: cajado eleva + orbe pulsa intenso + nuvem de esporos sai
-  const atkMM = pose.attackProg || 0;
-  const atkSwingMM = atkMM > 0 ? Math.sin(atkMM * Math.PI) : 0;
-  const staffLift = Math.round(atkSwingMM * -3);  // cajado sobe
-
-  // Sombra
-  offCtx.globalAlpha = 0.4;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 7, cy + 4, 14, 1);
-  offCtx.globalAlpha = 1;
-
-  // ===== VESTE longa roxa (cauda do manto) =====
-  rect(-7, -3, 14, 7, "#38104c");
-  rect(-7, -2, 14, 1, "#5a1878");
-  // Pontas onduladas do manto
-  rect(-9 + robeSway, 0, 3, 4, "#38104c");
-  rect(7 - robeSway, 0, 3, 4, "#38104c");
-  px(-9 + robeSway, 3, "#1a0428");
-  px(9 - robeSway, 3, "#1a0428");
-
-  // ===== TORSO (manto roxo brilhante) =====
-  rect(-6, -14 + bob, 12, 11, "#5a1878");
-  rect(-6, -14 + bob, 12, 2, "#38104c");
-  rect(-6, -4 + bob, 12, 1, "#1a0428");
-  // Gola alta
-  rect(-5, -14 + bob, 10, 1, "#9030c8");
-  // Decora\u00e7\u00f5es verticais (motivo de mago)
-  rect(-1, -12 + bob, 2, 9, "#1a0428");
-  rect(0, -12 + bob, 1, 9, "#9030c8");
-  // Cinta com fivela
-  rect(-6, -8 + bob, 12, 2, "#2a0838");
-  rect(-6, -8 + bob, 12, 1, "#9030c8");
-  rect(-2, -8 + bob, 4, 2, "#d4a637");
-  px(0, -7 + bob, "#fff080");
-
-  // ===== Bra\u00e7os com mangas largas =====
-  rect(-8, -12 + bob, 2, 6, "#38104c");
-  rect(-8, -12 + bob, 2, 1, "#5a1878");
-  rect(6, -12 + bob, 2, 6, "#38104c");
-  rect(6, -12 + bob, 2, 1, "#5a1878");
-  // M\u00e3os esquel\u00e9ticas/p\u00e1lidas
-  rect(-9, -7 + bob, 3, 3, "#d8c8e0");
-  rect(6, -7 + bob, 3, 3, "#d8c8e0");
-
-  // ===== ROSTO (sob o chap\u00e9u) =====
-  rect(-3, -19 + bob, 6, 4, "#5a1878");
-  rect(-3, -19 + bob, 6, 1, "#1a0428");
-  // OLHOS rosa brilhante (3 olhos pequenos)
-  const eg = 0.85 + Math.sin(t / 200) * 0.15;
-  offCtx.globalAlpha = eg;
-  rect(-2, -18 + bob, 1, 1, "#ff60ff");
-  rect(1, -18 + bob, 1, 1, "#ff60ff");
-  px(0, -17 + bob, "#ff60ff");
-  // Brilho
-  px(-2, -18 + bob, "#fff0ff");
-  px(1, -18 + bob, "#fff0ff");
-  offCtx.globalAlpha = 1;
-  // Boca pequena
-  rect(-1, -16 + bob, 2, 1, "#1a0428");
-
-  // ===== CHAP\u00c9U BIC\u00d4NICO GIGANTE (cogumelo wizard) =====
-  // Camadas da base ao topo
-  rect(-10, -23 + bob, 20, 3, "#3a0204");  // base mais escura
-  rect(-9, -25 + bob, 18, 3, "#5a0404");
-  rect(-8, -28 + bob, 16, 3, "#a01818");
-  rect(-7, -31 + bob, 14, 3, "#d82828");
-  rect(-6, -34 + bob, 12, 3, "#ff3030");
-  rect(-4, -37 + bob, 8, 3, "#ff5050");
-  rect(-3, -40 + bob, 6, 3, "#ff7070");
-  rect(-2, -42 + bob, 4, 2, "#ffa0a0");
-  // Pico final
-  px(-1, -43 + bob, "#ffd0d0");
-  px(0, -43 + bob, "#ffd0d0");
-  px(0, -44 + bob, "#fff0f0");
-
-  // Linha dourada na base do chap\u00e9u (faixa cerimonial)
-  rect(-10, -20 + bob, 20, 1, "#d4a637");
-  rect(-10, -19 + bob, 20, 1, "#7a5018");
-  // Pequenas gemas
-  for (let i = -8; i <= 8; i += 4) {
-    px(i, -20 + bob, "#fff080");
-  }
-
-  // PINTAS BRANCAS gigantes (motivo amanita)
-  rect(-6, -29 + bob, 4, 3, "#ffffff");
-  rect(2, -27 + bob, 4, 3, "#ffffff");
-  rect(-3, -33 + bob, 3, 3, "#ffffff");
-  rect(4, -31 + bob, 2, 3, "#ffffff");
-  rect(-7, -23 + bob, 3, 2, "#ffffff");
-  rect(5, -23 + bob, 3, 2, "#ffffff");
-  // Pintas pequenas
-  px(0, -36 + bob, "#ffffff");
-  px(2, -38 + bob, "#ffffff");
-
-  // ===== CAJADO de esporos (lado oposto do facing) =====
-  const stSide = 1;  // 2026-06-12 FIX (audit): era -flip → rect já espelha (flip duplo deixava cajado/topo preso num lado)
-  const stX = 10 * stSide;
-  const sY = -28 + bob + staffLift;
-  // Haste escura retorcida
-  rect(stX, sY, 2, 26, "#2a0838");
-  rect(stX, sY, 2, 1, "#5a1878");
-  rect(stX, sY + 25, 2, 1, "#1a0428");
-  // An\u00e9is decorativos (motivo m\u00e1gico)
-  rect(stX, sY + 8, 2, 1, "#9040d0");
-  rect(stX, sY + 16, 2, 1, "#9040d0");
-  // Cabe\u00e7a do cajado (gem cluster gigante)
-  rect(stX - stSide, sY - 6, 4, 6, "#9040d0");
-  rect(stX - stSide, sY - 6, 4, 1, "#d860ff");
-  rect(stX - stSide, sY - 1, 4, 1, "#5a1878");
-  // Esfera roxa central (pulse + intensifica durante attack)
-  const orbBoost = atkSwingMM > 0 ? atkSwingMM * 0.4 : 0;
-  const orbGlow = 0.85 + Math.sin(t / 160) * 0.15 + orbBoost;
-  offCtx.globalAlpha = Math.min(1, orbGlow);
-  rect(stX - stSide * 2, sY - 8, 5, 4, "#ff80ff");
-  rect(stX - stSide * 2, sY - 8, 5, 1, "#ffd0ff");
-  px(stX - stSide, sY - 7, "#ffffff");
-  offCtx.globalAlpha = 1;
-  // Halo do cajado (cresce durante attack)
-  offCtx.globalAlpha = 0.5 + (atkSwingMM > 0 ? atkSwingMM * 0.3 : 0);
-  const haloW = 9 + Math.round(atkSwingMM * 6);
-  const haloH = 8 + Math.round(atkSwingMM * 4);
-  rect(stX - stSide * 4, sY - 10, haloW, haloH, "#d860ff");
-  offCtx.globalAlpha = 1;
-  // Espinhos no topo do cajado (3 picos)
-  px(stX - stSide * 2, sY - 9, "#ff80ff");
-  px(stX, sY - 9, "#fff0ff");
-  px(stX + stSide * 2, sY - 9, "#ff80ff");
-  // NUVEM DE ESPOROS sai do cajado durante attack
-  if (atkSwingMM > 0.3 && Math.random() < 0.7) {
-    for (let s = 0; s < 2; s++) {
-      game.effects.push({
-        type: "spark", color: Math.random() < 0.5 ? "#d860ff" : "#ff80ff",
-        x: u.x + (flip === 1 ? -10 : 10) + (Math.random() - 0.5) * 6,
-        y: u.y - 36 + bob + staffLift + (Math.random() - 0.5) * 4,
-        vx: (Math.random() - 0.5) * 30,
-        vy: -15 - Math.random() * 20,
-        lifetime: 600 + Math.random() * 300, maxLifetime: 900,
-        size: 1 + Math.floor(Math.random() * 2),
-        update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vx *= 0.95; this.vy += 10*dt/1000; },
-      });
-    }
-  }
-
-  // ===== AURA de esporos rotacionando =====
-  for (let i = 0; i < 6; i++) {
-    const ang = t / 400 + i * 1.05;
-    const rad = 12 + Math.sin(t / 350 + i) * 2;
-    const ox = Math.round(Math.cos(ang) * rad);
-    const oy = Math.round(Math.sin(ang) * rad / 2 - 12 + bob);
-    offCtx.fillStyle = i & 1 ? "#c060f0" : "#9040d0";
-    offCtx.fillRect(cx + ox, cy + oy, 2, 2);
-  }
-
-  // Esporos emit ocasional
-  if (Math.random() < 0.20) {
-    game.effects.push({
-      type: "spark", color: "#d880ff",
-      x: u.x + (Math.random() - 0.5) * 20,
-      y: u.y - 22 + Math.random() * 10,
-      vx: (Math.random() - 0.5) * 8,
-      vy: -8 - Math.random() * 12,
-      lifetime: 500 + Math.random() * 300, maxLifetime: 800, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 20*dt/1000; },
-    });
-  }
+  // R21 — era 29×50. Feiticeiro fúngico: chapéu-cogumelo + mini cogumelo no cajado.
+  drawCasterHD(cx, cy, t, u, c, pose, { hat: "shroom", focus: "shroom", focusCol: "#c868e0", focusCol2: "#ff80ff", staffCol: "#4a3828" });
 }
 
-// Rainha dos Esporos (BOSS cogumelo) — imensa, 3-olhos, coroa-chapéu
 function drawMushroomQueenBoss(cx, cy, t, u, pose) {
   // 2026-04-28 COMBO 28 polish — HD aura/orbs/spore ambient (rosa)
   drawBossAuraOrbs(cx, cy, t, u, {
@@ -60493,17 +59169,12 @@ function drawWarrior(cx, cy, facing, c, pose) {
   const cls = resolveClass(pose.unitClass || "soldado");
   const clsData = CLASSES[cls];
   const archetype = _archetypeFor(cls, clsData);
-  // sizeMul agora usa TIER da classe (n\u00e3o scale individual) pra garantir que
-  // TODOS os T1 dos diferentes biomas tenham o mesmo tamanho visual.
-  // Calibrado com goblinGelo (T1 dos biomas) que mede ~14px de altura.
-  // T1 \u2192 ~14-16px (= biome T1 como imp/goblin/sapo)
-  // T2 \u2192 ~18-20px (= biome T2 como m\u00famia/urso)
-  // T3 \u2192 ~23-25px (= biome T3 como cleric/cavaleiroFrio)
-  // T4 \u2192 ~32-36px (= biome T4 como ogro/balrog/colosso)
-  // Rei = ~28px de altura.
-  const tier = (clsData && clsData.tier) || 1;
-  const TIER_MUL = { 1: 1.05, 2: 1.35, 3: 1.7, 4: 2.4 };
-  const sizeMul = TIER_MUL[tier] || 1.05;
+  // R21 (dono): o TAMANHO é definido pelo QUE a unidade É — não pelo tier (tier é só
+  // nível de poder). Humano é tamanho de humano em qualquer tier; ogro é grande
+  // porque é um OGRO. (Era TIER_MUL {1:1.05, 2:1.35, 3:1.7, 4:2.4} — capitão T3
+  // saía com 34px, maior que um urso; humano T4 saía 2.4×.)
+  const ARCH_MUL = { ogro: 2.2, ceifeiro: 1.3, capitao: 1.25, lancer: 1.15 };
+  const sizeMul = ARCH_MUL[archetype] || 1.1;
 
   // Dispatch por archetype (cada um implementa sua silhueta HD)
   let _res;
