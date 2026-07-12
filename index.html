@@ -3043,9 +3043,10 @@
     padding: 32px 32px 64px;
   }
   .menu-overlay.show { display: flex; }
-  /* Quando conteúdo cabe verticalmente, centraliza. */
+  /* Quando conteúdo cabe verticalmente, centraliza. R20: "safe center" — o center
+     puro tornava o TOPO de menus altos (loja!) inacessível em telas ≥900px. */
   @media (min-height: 900px) {
-    .menu-overlay { align-items: center; }
+    .menu-overlay { align-items: safe center; }
   }
   /* Scroll bar tema dourado/escuro pro overlay */
   .menu-overlay::-webkit-scrollbar { width: 10px; }
@@ -9900,7 +9901,7 @@ const UPGRADES = [
     apply: lvl => ({ sporeDurBonus: lvl * 0.6 }),
     requires: "spores" },
   // 2026-06-16 — EXPLOSIVE SKULLS (carta de loja): desbloqueio + escala de quantidade de mísseis
-  { id: "explosiveSkulls", name: "Explosive Skulls", desc: "Caveiras teleguiadas que explodem em pequena AoE · 28 mana", max: 1,
+  { id: "explosiveSkulls", name: "Caveiras Explosivas", desc: "Caveiras teleguiadas que explodem em pequena AoE · 28 mana", max: 1,
     category: "habilidade", icon: "explosiveSkull",
     cost: () => 560,
     apply: lvl => ({ spell_explosiveSkulls: lvl > 0 }) },
@@ -29163,7 +29164,7 @@ const SPELL_DATA = [
     // 2026-06-16 — EXPLOSIVE SKULLS: carta de LOJA. Mini-caveiras teleguiadas nos inimigos mais
     // próximos, cada uma explode em AoE pequena. Quantidade escala por upgrade (3 base → 9).
     id: "explosiveSkulls",
-    name: "Explosive Skulls",
+    name: "Caveiras Explosivas",   // R20: base é PT (EN/ES via CARD_I18N/UPGRADE_I18N)
     icon: "💀",
     key: "",
     get cost() { return 28 + Math.min(6, upgradeLvl("explosiveSkullsCount")) * 2; },
@@ -48933,7 +48934,7 @@ function drawBodyWithOutline(sx, sy, drawBodyFn, opts) {
 // fica, em ×2 INTEIRO (era invisível com 6px de altura; escala inteira = pixels
 // chunky nítidos, sem borrão).
 const _UNIT_DRAW_SCALE = {
-  escorpiao: 2,
+  // R20: escorpiao saiu (era 2× — dono: "muito grandes"); arte redesenhada nativa.
 };
 function _drawBiomeUnitScaled(drawFn, cx, cy, t, u, colors, cpose) {
   const f = _UNIT_DRAW_SCALE[u.unitClass];
@@ -51834,112 +51835,60 @@ function unitRectFactoryHD(cx, cy, facing) {
 
 // Escorpião (inseto com 8 pernas + cauda de ferrão)
 function drawEscorpiao(cx, cy, t, u, c, pose) {
-  // Rework: carapaça segmentada com brilho, pinças maiores com garras,
-  // cauda em 4 segmentos curvados pra cima e ferrão venenoso cintilante.
-  const sc = u.scale || 0.85;
-  const { rect, px, flip } = unitRectFactory(cx, cy, u.facing, sc);
-  const bob = Math.round(Math.sin(t / 300) * 0.4);
-  const legPhase = Math.sin(t / 90);
-  const clawOpen = pose.attackProg > 0.4 ? 1 : 0;
-  // Sombra (corpo baixo, então só um oval pequeno)
-  offCtx.globalAlpha = 0.22;
-  offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - Math.round(5 * sc), cy + Math.round(1 * sc), Math.round(10 * sc), Math.round(1 * sc));
+  // R20 — REDESIGN NATIVO (dono: "muito grandes e andando de costas"): o antigo
+  // desenhava a CABEÇA em -x (invertido vs u.facing → andava de ré) e dependia do
+  // ×2 do _UNIT_DRAW_SCALE (pixels gordos). Agora: arte nativa ~20×13, frente em +x
+  // (convenção da casa), cauda arqueada por cima com ferrão, garras frontais que
+  // abrem no ataque. 100% determinista → cacheável (ganha o contorno de graça).
+  const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
+  const bob = Math.round(Math.sin(t / 320) * 0.5);
+  const p = pose.attackProg || 0;
+  // Sombra baixa
+  offCtx.globalAlpha = 0.22; offCtx.fillStyle = "#000";
+  offCtx.fillRect(cx - 7, cy + 1, 15, 2);
   offCtx.globalAlpha = 1;
-  // ==== CORPO (3 segmentos conectados: cefalotórax + abdome + final) ====
-  // Cefalotórax (frente, maior)
-  rect(-5, -3 + bob, 3, 3, c.bodyD);
-  rect(-5, -3 + bob, 3, 1, c.body);
-  px(-4, -2 + bob, c.accent);
-  // Segmento central
-  rect(-2, -3 + bob, 3, 2, c.bodyD);
-  rect(-2, -3 + bob, 3, 1, c.body);
-  // Segmento traseiro (menor)
-  rect(1, -3 + bob, 2, 2, c.bodyD);
-  px(1, -3 + bob, c.body);
-  // ==== OLHOS (2 pares, frontal + lateral) ====
-  px(-5, -3 + bob, c.accent);
-  px(-4, -3 + bob, "#fff");
-  px(-3, -3 + bob, c.accent);
-  // ==== PATAS (4 por lado, estilo artrópode curvado) ====
-  for (let i = 0; i < 4; i++) {
-    const lx = -4 + i;
-    const phase = Math.sin(t / 90 + i * 0.9) * 0.8;
-    const legDown = pose.walking ? Math.round(phase) : 0;
-    // Parte superior da perna (ângulo para fora)
+  // ===== PATAS (3 por lado, andar dessincronizado)
+  for (let i = 0; i < 3; i++) {
+    const lx = -4 + i * 3;
+    const ph = pose.walking ? Math.round(Math.sin(t / 110 + i * 1.7)) : 0;
     px(lx, -1 + bob, c.bodyD);
-    px(lx - 1, -1 + bob + legDown, c.bodyD);
-    // Pata inferior (toca o chão)
-    px(lx - 1, 0 + bob + legDown, c.body);
-    // Sombra da perna (outro lado)
-    px(lx, -1 + bob, c.bodyD);
-    px(lx + 1, -1 + bob - legDown, c.bodyD);
+    px(lx - 1, 0 + ph, c.bodyD);
+    px(lx + 1, 0 - ph, c.bodyD);
   }
-  // ==== PINÇAS NA FRENTE (grandes, com garras abertas no ataque) ====
-  const clawX = -6;
-  // Braço da pinça (articulação)
-  rect(clawX, -4 + bob, 2, 1, c.bodyD);
-  rect(clawX + 1, -3 + bob, 1, 1, c.body);
-  // Garra superior (móvel)
-  const clawYTop = -5 + bob - clawOpen;
-  rect(clawX - 1, clawYTop, 2, 1, c.bodyD);
-  px(clawX - 1, clawYTop, c.body);
-  // Garra inferior
-  const clawYBot = -3 + bob + clawOpen;
-  rect(clawX - 1, clawYBot, 2, 1, c.bodyD);
-  px(clawX - 1, clawYBot, c.body);
-  // Highlight na pinça
-  px(clawX, clawYTop, c.accent);
-  // ==== CAUDA (4 segmentos curvando pra cima + ferrão) ====
-  const tailSway = Math.sin(t / 260) * 0.6;
-  const tailStrike = pose.attackProg > 0.5 ? 1 : 0;
-  const tailOff = Math.round(tailSway) - tailStrike;
-  // Segmento 1 (sobe)
-  rect(3, -4 + bob + tailOff, 1, 2, c.bodyD);
-  // Segmento 2
-  rect(4, -5 + bob + tailOff, 1, 2, c.bodyD);
-  px(4, -5 + bob + tailOff, c.body);
-  // Segmento 3 (pré-ferrão)
-  rect(5, -6 + bob + tailOff, 1, 2, c.bodyD);
-  // Ferrão com veneno gotejante
-  const venomGlow = 0.7 + Math.sin(t / 180) * 0.3;
-  offCtx.globalAlpha = venomGlow;
-  px(6, -7 + bob + tailOff, c.weaponColor || "#70d088");
-  px(6, -6 + bob + tailOff, c.accent);
-  offCtx.globalAlpha = 1;
-  // === BRILHO CARAPAÇA (highlight pulsante no cefalotórax — combo 2026-05-04) ===
-  // Adiciona pixel branco que pulsa simulando reflexo de luz na quitina
-  const carapacePulse = 0.4 + Math.sin(t / 280) * 0.4;
-  offCtx.globalAlpha = carapacePulse * 0.7;
-  px(-4, -3 + bob, "#ffffff");
-  px(-1, -3 + bob, "#ffe080");
-  px(2, -3 + bob, "#fff");
-  offCtx.globalAlpha = 1;
-  // Gota de veneno ocasional
-  if (Math.random() < 0.02) {
-    game.effects.push({
-      type: "spark", color: c.weaponColor || "#70d088",
-      x: u.x + 6 * (u.facing === "left" ? -1 : 1), y: u.y - 6,
-      vx: 0, vy: 18,
-      lifetime: 240, maxLifetime: 420, size: 1,
-      update(dt){ this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vy += 50*dt/1000; },
-    });
-  }
-  // === Vapor verde tóxico saindo do ferrão (combo 2026-05-04) ===
-  if (Math.random() < 0.08) {
-    const stingerSide = u.facing === "left" ? -1 : 1;
-    game.effects.push({
-      type: "spark", color: Math.random() < 0.5 ? "#70d088" : "#a8ff90",
-      x: u.x + 6 * stingerSide + (Math.random() - 0.5) * 4,
-      y: u.y - 8,
-      vx: (Math.random() - 0.5) * 4, vy: -8 - Math.random() * 4,
-      lifetime: 500, maxLifetime: 500, size: 1,
-      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.9; },
-    });
-  }
+  // ===== CORPO segmentado (abdome em -x, afinando pra frente)
+  rect(-7, -5 + bob, 4, 4, c.bodyD);
+  rect(-7, -5 + bob, 4, 1, c.body);
+  rect(-4, -6 + bob, 5, 5, c.body);
+  rect(-4, -6 + bob, 5, 1, c.accent);
+  rect(-4, -2 + bob, 5, 1, c.bodyD);
+  px(-2, -4 + bob, c.bodyD); px(0, -5 + bob, c.bodyD);
+  // ===== CABEÇA (+x) com olho
+  rect(1, -6 + bob, 4, 5, c.body);
+  rect(1, -6 + bob, 4, 1, c.accent);
+  px(4, -5 + bob, "#fff"); px(4, -4 + bob, "#180a04");
+  px(3, -6 + bob, c.bodyD);
+  // ===== GARRAS frontais (+x): braço superior com pinça MÓVEL + braço inferior
+  const open = p > 0 && p <= 0.5 ? Math.round(Math.sin(Math.min(p / 0.5, 1) * Math.PI / 2) * 2) : 0;
+  px(5, -5 + bob, c.body); px(6, -6 + bob, c.body);
+  rect(7, -7 + bob - open, 3, 2, c.body); px(9, -8 + bob - open, c.bodyD);
+  px(7, -5 + bob, c.bodyD);
+  px(5, -2 + bob, c.body); px(6, -2 + bob, c.body);
+  rect(7, -2 + bob, 3, 2, c.body); px(9, -1 + bob, c.bodyD);
+  px(8, -3 + bob, c.bodyD);
+  if (p > 0.5 && p < 0.75) { px(10, -4 + bob, "#fff"); px(11, -5 + bob, c.accent); }
+  // ===== CAUDA arqueada por cima (assinatura) — sobe de -x, ferrão aponta pra frente
+  const sway = Math.round(Math.sin(t / 260));
+  px(-8, -6 + bob, c.body);
+  px(-8, -8 + bob, c.body); px(-9, -7 + bob, c.bodyD);
+  px(-7, -10 + bob + sway, c.body); px(-8, -9 + bob, c.bodyD);
+  px(-5, -11 + bob + sway, c.body); px(-6, -10 + bob + sway, c.bodyD);
+  rect(-3, -12 + bob + sway, 3, 2, c.body);
+  px(0, -11 + bob + sway, c.bodyD);
+  px(1, -10 + bob + sway, c.bodyD);
+  // brilho do veneno no bulbo (quantizado pelos buckets do cache)
+  if (Math.sin(t / 300) > 0.1) px(-2, -12 + bob + sway, "#a8ff80");
 }
 
-// Nômade Arqueiro (humanoide de turbante + manto do deserto)
 function drawNomadeArqueiro(cx, cy, t, u, c, pose) {
   // NOMADE ARQUEIRO HD (T1) \u2014 archer do deserto com turbante e arco. ~16px alto.
   const { rect, px, flip } = unitRectFactoryHD(cx, cy, u.facing);
@@ -67188,7 +67137,7 @@ const CARD_NAMES = {
   // 2026-05-01 COMBO 45 — nomes épicos
   summonGolem: "GUARDIÃO", summonScarabs: "PRAGA",
   summonSpider: "VIÚVA", summonAngel: "SERAFIM",
-  explosiveSkulls: "EXPLOSIVE SKULLS",
+  explosiveSkulls: "CAVEIRAS EXPLOSIVAS",   // R20: base PT (EN/ES via CARD_I18N)
   carnage: "CARNIFICINA", ossuary: "OSSÁRIO",
 };
 
@@ -78301,6 +78250,21 @@ try {
       Object.assign(LANG_DATA[lang], UI_I18N[lang]);
     }
   }
+} catch (e) {}
+
+// R20 — explosiveSkulls: a base era "Explosive Skulls" ATÉ EM PT (screenshot do
+// dono); base virou PT e o EN/ES entra pelas tabelas (não existiam pra essa carta).
+try {
+  Object.assign(CARD_I18N.en, { explosiveSkulls: { name: "EXPLOSIVE SKULLS", desc: "Homing skulls that explode in a small AoE · 28 mana" } });
+  Object.assign(CARD_I18N.es, { explosiveSkulls: { name: "CRÁNEOS EXPLOSIVOS", desc: "Cráneos teledirigidos que explotan en una pequeña AoE · 28 maná" } });
+  Object.assign(UPGRADE_I18N.en, {
+    explosiveSkulls: { name: "Explosive Skulls", desc: "Homing skulls that explode in a small AoE · 28 mana" },
+    explosiveSkullsCount: { name: "Explosive Ossuary", desc: "+1 skull per cast (3 base, 9 max) · +2 mana per level" },
+  });
+  Object.assign(UPGRADE_I18N.es, {
+    explosiveSkulls: { name: "Cráneos Explosivos", desc: "Cráneos teledirigidos que explotan en una pequeña AoE · 28 maná" },
+    explosiveSkullsCount: { name: "Osario Explosivo", desc: "+1 cráneo por lanzamiento (3 base, 9 máx) · +2 maná por nivel" },
+  });
 } catch (e) {}
 
 function applyI18nToDOM() {
