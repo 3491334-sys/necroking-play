@@ -13718,7 +13718,148 @@ const CAMPAIGN_LEVEL_MODS = [
 
 // 2026-06-15 — CENÁRIO do CORREDOR da campanha: decora ao longo do eixo X (não o disco do
 // mundo). Decos pequenas densas nas faixas laterais + landmarks grandes alternando os lados.
+// R25 — TERRENO POR BIOMA nos corredores da campanha (candidato futuro da Frente 3).
+// Reusa o sistema do mundo aberto: game.terrainZones (efeito no movimento via
+// terrainEffectAt) + game.mapFeatures (visual via drawMapFeatureFloor) + hazards.
+// gelo: lagos escorregadios (slide) · deserto: areia movediça · pântano: água de
+// mangue · inferno: TRAVESSIAS de lava com vão de passagem · cogumelo: vagens de
+// esporo que estouram · catedral: chão consagrado que CURA inimigos · aquático:
+// correntezas que empurram. Tudo seeded por bioma+nível (determinista por save).
+function spawnCorridorTerrain() {
+  game.terrainZones = [];
+  game.mapFeatures = [];
+  game.hazards = (game.hazards || []).filter(h => !h._terrain);
+  if (!game.campaignLinear) return;
+  const bio = game.campaignBiomeId || "neutro";
+  const level = game.campaignLevel || 1;
+  let bh = 0;
+  for (let i = 0; i < bio.length; i++) bh = ((bh * 31 + bio.charCodeAt(i)) >>> 0);
+  const rng = mulberry32(((bh ^ (level * 2654435761)) >>> 0) || 1);
+  const L = CAMPAIGN_LEVEL_LENGTH;
+  const feats = (typeof _corridorFeatures !== "undefined" && _corridorFeatures) || [];
+  const placed = [];
+  function freeX(x, pad) {
+    if (x < 600 || x > L - 700) return false;
+    for (const f of feats) {
+      // R25-verify (MAJOR): f.x é o CENTRO da feature e a influência de corridorHalfAt
+      // vai até f.x±f.w — a janela antiga deixava o flanco esquerdo desprotegido.
+      if (Math.abs(x - f.x) < f.w + (pad || 90)) return false;
+    }
+    return true;
+  }
+  function farFromPlaced(x, y, minD) {
+    for (const p of placed) if ((p.x - x) ** 2 + (p.y - y) ** 2 < minD * minD) return false;
+    return true;
+  }
+  function laneY(x, margin) {
+    const cc = corridorCenterY(x);
+    const hh = Math.max(8, corridorHalfAt(x) - (margin || 26));
+    return Math.round(cc + (rng() * 2 - 1) * hh);
+  }
+  function placeOvals(count, mkRx, ratio, margin, build) {
+    let tries = 0, done = 0;
+    while (done < count && tries++ < 70) {
+      const x = 600 + rng() * (L - 1300);
+      if (!freeX(x, 100)) continue;
+      const rx = mkRx();
+      const ry = Math.round(rx * ratio);
+      const y = laneY(x, ry + (margin || 8));
+      if (!farFromPlaced(x, y, 160)) continue;
+      build(Math.round(x), y, rx, ry);
+      placed.push({ x, y });
+      done++;
+    }
+  }
+  if (bio === "gelo") {
+    // Lagos congelados NO caminho: deslize (inércia) — atravessar é arriscado
+    placeOvals(3, () => 42 + Math.floor(rng() * 22), 0.62, 8, (x, y, rx, ry) => {
+      game.mapFeatures.push({ type: "bigIceLake", x, y, r: rx, rx, ry, seed: Math.floor(rng() * 9999) });
+      game.terrainZones.push({ type: "iceLake", x, y, rx: rx - 2, ry: ry - 2, effect: { speedMult: 1.1, slide: 0.08 } });
+    });
+  } else if (bio === "deserto") {
+    placeOvals(3, () => 32 + Math.floor(rng() * 16), 0.62, 8, (x, y, rx, ry) => {
+      game.mapFeatures.push({ type: "quicksand", x, y, r: rx, rx, ry, seed: Math.floor(rng() * 9999) });
+      game.terrainZones.push({ type: "quicksand", x, y, rx, ry, effect: { speedMult: 0.5 } });
+    });
+  } else if (bio === "pantano") {
+    placeOvals(2, () => 46 + Math.floor(rng() * 20), 0.62, 8, (x, y, rx, ry) => {
+      game.mapFeatures.push({ type: "mangroveWater", x, y, r: rx, rx, ry, seed: Math.floor(rng() * 9999) });
+      game.terrainZones.push({ type: "mangroveWater", x, y, rx, ry, effect: { speedMult: 0.5 } });
+    });
+  } else if (bio === "inferno") {
+    // Travessias de lava cruzando o corredor, com VÃO de passagem sorteado
+    let tries = 0, done = 0;
+    while (done < 2 && tries++ < 50) {
+      const x = 800 + rng() * (L - 1700);
+      if (!freeX(x, 150)) continue;
+      const cc = corridorCenterY(x);
+      const hh = corridorHalfAt(x);
+      if (!farFromPlaced(x, cc, 420)) continue;
+      const gapY = cc + (rng() * 2 - 1) * Math.max(10, hh - 46);
+      const gapHalf = 34 + rng() * 10;
+      const nodes = [];
+      for (let y = cc - hh + 10; y <= cc + hh - 10; y += 14) {
+        if (Math.abs(y - gapY) < gapHalf) continue;
+        nodes.push({ x: Math.round(x + (rng() - 0.5) * 10), y: Math.round(y), r: 13 + Math.floor(rng() * 4) });
+      }
+      if (nodes.length < 4) continue;
+      game.mapFeatures.push({ type: "lavaFlow", x, y: cc, r: hh, nodes });
+      for (const nd of nodes) {
+        game.hazards.push({
+          type: "lavaFlow", x: nd.x, y: nd.y, radius: nd.r,
+          tickTimer: 200 + rng() * 150, age: 0, totalLife: Infinity,
+          puffTimer: rng() * 300, puffs: [], _terrain: true,
+        });
+      }
+      placed.push({ x, y: cc });
+      done++;
+    }
+  } else if (bio === "cogumelo") {
+    // Vagens de esporo: estouram numa baforada de veneno ao serem pisadas
+    let tries = 0, done = 0;
+    while (done < 5 && tries++ < 80) {
+      const x = 600 + rng() * (L - 1300);
+      if (!freeX(x, 70)) continue;
+      const y = laneY(x, 16);
+      if (!farFromPlaced(x, y, 110)) continue;
+      game.hazards.push({ type: "sporePod", x: Math.round(x), y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 0, _terrain: true, _pulse: rng() * Math.PI * 2 });
+      placed.push({ x, y });
+      done++;
+    }
+  } else if (bio === "catedral") {
+    // Chão consagrado: CURA inimigos dentro da luz — tire-os dela!
+    let tries = 0, done = 0;
+    while (done < 2 && tries++ < 50) {
+      const x = 800 + rng() * (L - 1700);
+      if (!freeX(x, 120)) continue;
+      const rx = 46 + Math.floor(rng() * 18);
+      const ry = Math.round(rx * 0.62);
+      const y = laneY(x, ry + 6);
+      if (!farFromPlaced(x, y, 380)) continue;
+      game.hazards.push({ type: "holyGround", x: Math.round(x), y, rx, ry, age: 0, totalLife: Infinity, tickTimer: 0, _terrain: true });
+      placed.push({ x, y });
+      done++;
+    }
+  } else if (bio === "aquatico") {
+    // Correntezas: faixas largas que empurram todo mundo na direção do fluxo
+    let tries = 0, done = 0;
+    while (done < 2 && tries++ < 50) {
+      const x = 800 + rng() * (L - 1700);
+      if (!freeX(x, 160)) continue;
+      const cc = corridorCenterY(x);
+      if (!farFromPlaced(x, cc, 500)) continue;
+      const rx = 90 + Math.floor(rng() * 40);
+      const ry = Math.max(24, corridorHalfAt(x) - 18);
+      const dir = rng() < 0.5 ? 1 : -1;
+      game.mapFeatures.push({ type: "waterCurrent", x: Math.round(x), y: Math.round(cc), rx, ry, r: rx, dir });
+      game.terrainZones.push({ type: "waterCurrent", x: Math.round(x), y: Math.round(cc), rx, ry, effect: { pushX: dir * 30, speedMult: 0.92 } });
+      placed.push({ x, y: cc });
+      done++;
+    }
+  }
+}
 function spawnCorridorScenery() {
+  spawnCorridorTerrain();   // R25 — terreno por bioma (zonas + hazards + visuais)
   if (!game.campaignLinear) return;
   const biomeId = game.campaignBiomeId || "neutro";
   const src = biomeDecoWeights(biomeId);
@@ -13744,11 +13885,13 @@ function spawnCorridorScenery() {
       let pick = rng() * total, chosen = entries[0][0];
       for (const [type, w] of entries) { pick -= w; if (pick <= 0) { chosen = type; break; } }
       game.decorations.push({ x, y, type: chosen, variant: Math.floor(rng() * 3), biome: biomeId });
-      if (chosen === "frozenLake") game.hazards.push({ type: "lakeFreeze", x, y, radius: 14, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 150 });
-      else if (chosen === "swampPool") game.hazards.push({ type: "lakePoison", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 250 + rng() * 150 });
-      else if (chosen === "lavaPool") game.hazards.push({ type: "lakeLava", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 150 });
-      else if (chosen === "oasis") game.hazards.push({ type: "lakeOasis", x, y, radius: 10, age: 0, totalLife: Infinity, tickTimer: 600 + rng() * 200 });
-      else if (chosen === "whirlpool") game.hazards.push({ type: "lakeWhirl", x, y, radius: 13, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 120 });
+      // R25-verify: _terrain — sem a flag, a troca de fase de boss matava o hazard
+      // e deixava a DECO do lago desenhada sem efeito (desync visual/efeito).
+      if (chosen === "frozenLake") game.hazards.push({ type: "lakeFreeze", x, y, radius: 14, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 150, _terrain: true });
+      else if (chosen === "swampPool") game.hazards.push({ type: "lakePoison", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 250 + rng() * 150, _terrain: true });
+      else if (chosen === "lavaPool") game.hazards.push({ type: "lakeLava", x, y, radius: 12, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 150, _terrain: true });
+      else if (chosen === "oasis") game.hazards.push({ type: "lakeOasis", x, y, radius: 10, age: 0, totalLife: Infinity, tickTimer: 600 + rng() * 200, _terrain: true });
+      else if (chosen === "whirlpool") game.hazards.push({ type: "lakeWhirl", x, y, radius: 13, age: 0, totalLife: Infinity, tickTimer: 200 + rng() * 120, _terrain: true });
     }
   }
   // 2) LANDMARKS grandes (set-pieces) — FEEDBACK 2026-07-02 (R4): KIT de 2-3 tipos
@@ -13787,11 +13930,23 @@ function spawnCorridorScenery() {
       });
     }
   }
+  // R25-verify — helper: posição bloqueada por terreno (zona OU nó de lava)?
+  function _terrainBlocked(bx, by) {
+    if (typeof terrainEffectAt === "function" && terrainEffectAt(bx, by)) return true;
+    for (const hz of game.hazards) {
+      if (hz._terrain && hz.type === "lavaFlow" && (hz.x - bx) ** 2 + (hz.y - by) ** 2 < (hz.radius + 16) ** 2) return true;
+    }
+    return false;
+  }
   // ROTA DO TESOURO: +2 baús de moedas em qualquer bioma
   if (_mod.id === "rich" && typeof spawnRarityChest === "function") {
     for (let i = 0; i < 2; i++) {
-      const cx = 700 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1500);
-      const cy = corridorCenterY(cx) + (rng() < 0.5 ? -1 : 1) * (40 + rng() * Math.max(8, corridorHalfAt(cx) - 60));
+      let cx = 0, cy = 0, okPos = false;
+      for (let t2 = 0; t2 < 10 && !okPos; t2++) {
+        cx = 700 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1500);
+        cy = corridorCenterY(cx) + (rng() < 0.5 ? -1 : 1) * (40 + rng() * Math.max(8, corridorHalfAt(cx) - 60));
+        okPos = !_terrainBlocked(cx, cy);
+      }
       spawnRarityChest(cx, cy, rng() < 0.3 ? "rare" : "common", { forcedCoin: 100 + Math.floor(rng() * 120) });
     }
   }
@@ -13801,9 +13956,13 @@ function spawnCorridorScenery() {
   if (biomeId === "aquatico" && Array.isArray(game.pickups) && typeof spawnRarityChest === "function") {
     const nChests = 1 + (rng() < 0.5 ? 1 : 0);   // 1–2 por nível
     for (let i = 0; i < nChests; i++) {
-      const cx = 600 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1400);
-      const side = rng() < 0.5 ? -1 : 1;
-      const cy = corridorCenterY(cx) + side * (50 + rng() * Math.max(8, corridorHalfAt(cx) - 64));
+      let cx = 0, cy = 0, okPos = false;
+      for (let t2 = 0; t2 < 10 && !okPos; t2++) {
+        cx = 600 + rng() * (CAMPAIGN_LEVEL_LENGTH - 1400);
+        const side = rng() < 0.5 ? -1 : 1;
+        cy = corridorCenterY(cx) + side * (50 + rng() * Math.max(8, corridorHalfAt(cx) - 64));
+        okPos = !_terrainBlocked(cx, cy);   // R25-verify: baú fora de correnteza/terreno
+      }
       const reward = 120 + Math.floor(rng() * 120);   // 120–240 moedas
       spawnRarityChest(cx, cy, rng() < 0.25 ? "rare" : "common", { forcedCoin: reward });
     }
@@ -13865,12 +14024,15 @@ function spawnDecorations() {
     });
     // ETAPA H — LAGOS DECORATIVOS agora têm HAZARDS associados
     // Atinge QUALQUER unidade (incluindo o Rei) que entra no raio.
+    // R25-verify: _terrain em todos — a troca de fase / morte de boss encurtava
+    // estes hazards permanentes e a deco ficava desenhada sem efeito.
     if (chosen === "frozenLake") {
       game.hazards.push({
         type: "lakeFreeze",
         x, y, radius: 14,
         age: 0, totalLife: Infinity,
         tickTimer: 200 + Math.random() * 150,
+        _terrain: true,
       });
     } else if (chosen === "swampPool") {
       game.hazards.push({
@@ -13878,6 +14040,7 @@ function spawnDecorations() {
         x, y, radius: 12,
         age: 0, totalLife: Infinity,
         tickTimer: 250 + Math.random() * 150,
+        _terrain: true,
       });
     } else if (chosen === "lavaPool") {
       game.hazards.push({
@@ -13885,6 +14048,7 @@ function spawnDecorations() {
         x, y, radius: 12,
         age: 0, totalLife: Infinity,
         tickTimer: 200 + Math.random() * 150,
+        _terrain: true,
       });
     } else if (chosen === "oasis") {
       game.hazards.push({
@@ -13892,6 +14056,7 @@ function spawnDecorations() {
         x, y, radius: 10,
         age: 0, totalLife: Infinity,
         tickTimer: 600 + Math.random() * 200,
+        _terrain: true,
       });
     } else if (chosen === "whirlpool") {
       game.hazards.push({
@@ -13899,6 +14064,7 @@ function spawnDecorations() {
         x, y, radius: 13,
         age: 0, totalLife: Infinity,
         tickTimer: 200 + Math.random() * 120,
+        _terrain: true,
       });
     }
     placed++;
@@ -13932,11 +14098,11 @@ function spawnDecorations() {
    ============================================================ */
 
 function spawnMapFeatures() {
+  // R25: na campanha o corredor JÁ populou mapFeatures/terrainZones (spawnCorridorTerrain
+  // roda antes, dentro do scenery) — zerar aqui apagava o terreno do nível 1.
+  if (game.campaignLinear) { game.obstacles = []; return; }
   game.mapFeatures = [];
   game.obstacles = [];
-  // 2026-06-15 — CAMPANHA LINEAR: sem features macro do mundo (bosques/lagos/mangues);
-  // o corredor tem o próprio cenário (spawnCorridorScenery). Evita árvores no aquático.
-  if (game.campaignLinear) return;
   const rng = mulberry32((WORLD_SEED ^ 73) >>> 0);   // REWORK 2026-07: features macro mudam com o mundo
   const WR = WORLD_RADIUS;
 
@@ -14172,6 +14338,7 @@ function spawnMapFeatures() {
         totalLife: Infinity,
         puffTimer: Math.random() * 300,
         puffs: [],
+        _terrain: true,   // R25: sobrevive às limpezas de fase/morte de boss
       });
     }
     flowsPlaced++;
@@ -18077,6 +18244,7 @@ function triggerBossPhaseTransition(u, newPhase) {
   // Player hazards (poison cone) também são afetados — colateral aceitável.
   if (game.hazards && game.hazards.length > 0) {
     for (const h of game.hazards) {
+      if (h._terrain) continue;   // R25: terreno permanente (lava/esporos/luz) fica
       if (h.totalLife > h.age + 600) h.totalLife = h.age + 600;
     }
   }
@@ -23991,6 +24159,7 @@ function update(dt) {
   // === Projectiles ===
   updateProjectiles(dt);
   updateHazards(dt);
+  applyTerrainPush(dt);   // R25 — correnteza empurra TODAS as unidades (paradas incl.)
   // COMBO 9 B1 + B2 — clima ambiente + ciclo dia/noite
   updateWeather(dt);
   updateDayNight(dt);
@@ -24540,19 +24709,42 @@ function updateKingControl(dt) {
     if (input.keys["a"] || input.keys["arrowleft"]) dx -= 1;
     if (input.keys["d"] || input.keys["arrowright"]) dx += 1;
   }
+  // R25 — o Rei agora sente o TERRENO (antes só tropas via moveTowardPoint):
+  // gelo = deslize com inércia, areia/mangue = atolamento, correnteza = empurrão.
+  const kTerr = (typeof terrainEffectAt === "function") ? terrainEffectAt(k.x, k.y) : null;
+  const kMult = (kTerr && kTerr.speedMult) || 1;
   if (dx !== 0 || dy !== 0) {
     const l = Math.hypot(dx, dy);
     dx /= l; dy /= l;
-    const spd = k.moveSpeed * dt / 1000;
-    k.x += dx * spd;
-    k.y += dy * spd;
-    k.vx = dx * k.moveSpeed;
-    k.vy = dy * k.moveSpeed;
+    if (kTerr && kTerr.slide) {
+      // deslize: vira devagar, derrapa (fator ~2× o das tropas — Rei semi-controlável)
+      const f = Math.min(1, kTerr.slide * 2.2);
+      k.vx = (k.vx || 0) * (1 - f) + dx * k.moveSpeed * kMult * f;
+      k.vy = (k.vy || 0) * (1 - f) + dy * k.moveSpeed * kMult * f;
+      k.x += k.vx * dt / 1000;
+      k.y += k.vy * dt / 1000;
+    } else {
+      const spd = k.moveSpeed * kMult * dt / 1000;
+      k.x += dx * spd;
+      k.y += dy * spd;
+      k.vx = dx * k.moveSpeed * kMult;
+      k.vy = dy * k.moveSpeed * kMult;
+    }
     // 2026-04-30 COMBO 40 — footstep REMOVIDO (user feedback: "muito chato")
   } else {
-    k.vx *= 0.7;
-    k.vy *= 0.7;
+    if (kTerr && kTerr.slide) {
+      // parado no gelo: continua derrapando com a inércia acumulada
+      k.x += (k.vx || 0) * dt / 1000;
+      k.y += (k.vy || 0) * dt / 1000;
+      k.vx *= 0.985;
+      k.vy *= 0.985;
+    } else {
+      k.vx *= 0.7;
+      k.vy *= 0.7;
+    }
   }
+  if (kTerr && kTerr.pushX) k.x += kTerr.pushX * dt / 1000;
+  if (kTerr && kTerr.pushY) k.y += kTerr.pushY * dt / 1000;
   // 2026-06-14 — CAMPANHA LINEAR: Rei preso ao corredor [0..LENGTH] × [-HALF..HALF].
   if (game.campaignLinear) {
     if (k.x < 0) k.x = 0; else if (k.x > CAMPAIGN_LEVEL_LENGTH) k.x = CAMPAIGN_LEVEL_LENGTH;
@@ -24678,8 +24870,31 @@ function moveTowardPoint(u, tx, ty, dt) {
   }
   u.x += u.vx * dt / 1000;
   u.y += u.vy * dt / 1000;
+  // (R25-verify: o empurrão da correnteza saiu daqui — applyTerrainPush cobre TODAS
+  // as unidades por frame, inclusive as paradas atacando; aqui dobraria o efeito.)
   // Colisão com obstáculos macro (Fase 13 — montanhas)
   resolveObstacles(u);
+}
+
+// R25-verify — empurrão de terreno (correnteza) aplicado a TODAS as unidades por
+// frame (o Rei tem o próprio no updateKingControl). Antes só quem chamava
+// moveTowardPoint era empurrado — arqueiro parado ficava ancorado no fluxo.
+function applyTerrainPush(dt) {
+  const zones = game.terrainZones;
+  if (!zones || !zones.length) return;
+  let hasPush = false;
+  for (let i = 0; i < zones.length; i++) {
+    if (zones[i].effect && (zones[i].effect.pushX || zones[i].effect.pushY)) { hasPush = true; break; }
+  }
+  if (!hasPush) return;
+  for (const u of game.units) {
+    if (!isAlive(u) || u.type === "king" || u.isBoss) continue;
+    const t = terrainEffectAt(u.x, u.y);
+    if (t && (t.pushX || t.pushY)) {
+      u.x += (t.pushX || 0) * dt / 1000;
+      u.y += (t.pushY || 0) * dt / 1000;
+    }
+  }
 }
 
 // Efeito de terreno na posição (x, y). Retorna { speedMult, slide } ou null.
@@ -25633,6 +25848,7 @@ function killUnit(u, attacker) {
     //   4) Cancela qualquer cast pendente
     if (game.hazards && game.hazards.length > 0) {
       for (const h of game.hazards) {
+        if (h._terrain) continue;   // R25: terreno permanente não é hazard de boss
         // Cobre tanto h.owner quanto h.ownerRef (variantes usadas em diferentes
         // tipos de hazard — coinStorm/midasRain/poisonCloud usam owner; cross
         // bars do infernoCross usam ownerRef)
@@ -34108,6 +34324,71 @@ function updateHazards(dt) {
       }
       continue;
     }
+    // R25 — VAGEM DE ESPORO (cogumelo): estoura numa baforada de veneno ao pisar
+    if (h.type === "sporePod") {
+      if (!h._burst) {
+        for (const u of game.units) {
+          if (!isAlive(u) || u.isBoss || u.isWagon) continue;
+          // R25-verify: só ALIADO/Rei detona (inimigo patrulhando gastava a armadilha
+          // fora da tela); a explosão ainda atinge qualquer facção no raio.
+          if (u.faction !== "ally") continue;
+          if ((u.x - h.x) ** 2 + (u.y - h.y) ** 2 < (h.radius + (u.radius || 5)) ** 2) {
+            h._burst = true;
+            h._burstAge = 0;
+            break;
+          }
+        }
+        if (h._burst) {
+          for (const u of game.units) {
+            if (!isAlive(u) || u.isBoss) continue;
+            if (Math.hypot(u.x - h.x, u.y - h.y) <= 34) {
+              u.poisoned = Math.max(u.poisoned || 0, 2600);
+              if ((u.poisonDmgTimer || 0) <= 0) u.poisonDmgTimer = 500;
+              applyDamage(null, u, 5, { type: "poison", noHitStop: true, noFlash: true });
+            }
+          }
+          for (let i = 0; i < 10; i++) {
+            game.effects.push({
+              type: "spark", color: i % 2 ? "#d987f0" : "#9fd06a",
+              x: h.x, y: h.y - 3,
+              vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 30,
+              lifetime: 500, maxLifetime: 500, size: 2,
+              update(dt2) { this.x += this.vx * dt2 / 1000; this.y += this.vy * dt2 / 1000; this.vy += 40 * dt2 / 1000; },
+            });
+          }
+          try { if (typeof Sfx !== "undefined" && Sfx.poisonCast) Sfx.poisonCast(); } catch (e) {}
+        }
+      } else {
+        h._burstAge = (h._burstAge || 0) + dt;
+        if (h._burstAge > 700) h.totalLife = 0;   // some após o splat
+      }
+      continue;
+    }
+    // R25 — CHÃO CONSAGRADO (catedral): cura INIMIGOS dentro da luz (tire-os dela!)
+    if (h.type === "holyGround") {
+      h.tickTimer -= dt;
+      if (h.tickTimer <= 0) {
+        h.tickTimer = 500;
+        for (const u of game.units) {
+          if (!isAlive(u) || u.faction !== "enemy" || u.isBoss || u.isWagon) continue;
+          const hdx = (u.x - h.x) / h.rx, hdy = (u.y - h.y) / h.ry;
+          if (hdx * hdx + hdy * hdy < 1) {
+            const mh = u.maxHp || u.hp || 0;
+            if ((u.hp || 0) < mh) {
+              u.hp = Math.min(mh, (u.hp || 0) + 4);
+              if (Math.random() < 0.4) {
+                game.effects.push({
+                  type: "healCross", x: u.x + (Math.random() - 0.5) * 6, y: u.y - 8,
+                  vx: 0, vy: -18, lifetime: 500, maxLifetime: 500, size: 1,
+                  update(dt2) { this.y += this.vy * dt2 / 1000; },
+                });
+              }
+            }
+          }
+        }
+      }
+      continue;
+    }
     if (h.type === "lavaFlow") {
       // Lava permanente do mapa — queima QUALQUER unidade (allies, enemies, king).
       // Sem acúmulo forte de burn — é passagem dolorosa, não sentença de morte.
@@ -34121,6 +34402,14 @@ function updateHazards(dt) {
             applyDamage(null, u, 4, { type: "fire", noHitStop: true, noFlash: true });
             u.burning = Math.max(u.burning || 0, 900);
             if ((u.burnDmgTimer || 0) <= 0) u.burnDmgTimer = 350;
+            // R25-verify: a lava REPELE devagar (6px/tick ≈ 21px/s) — aliado com slot
+            // de formação em cima de um nó deriva pra fora em vez de fritar parado;
+            // atravessar andando (60-90px/s) continua possível e dolorido.
+            if (!u.isBoss) {
+              const _ldx = (u.x - h.x) / (d || 1), _ldy = (u.y - h.y) / (d || 1);
+              u.x += _ldx * 6;
+              u.y += _ldy * 6;
+            }
           }
         }
       }
@@ -35131,6 +35420,64 @@ function renderHazards(camX, camY) {
       offCtx.fillRect(sx - 4, sy - 4, 8, 8);
       offCtx.fillStyle = "#fff080";
       offCtx.fillRect(sx - 2, sy - 2, 4, 4);
+      offCtx.globalAlpha = 1;
+      continue;
+    }
+    // R25 — vagem de esporo: bolsa roxa pulsante; estourada = splat desbotando
+    if (h.type === "sporePod") {
+      const sx = Math.round(h.x - camX + BASE_W / 2);
+      const sy = Math.round(h.y - camY + BASE_H / 2);
+      if (sx < -20 || sx > BASE_W + 20 || sy < -20 || sy > BASE_H + 20) continue;
+      if (h._burst) {
+        const bf = Math.max(0, 1 - (h._burstAge || 0) / 700);
+        offCtx.globalAlpha = 0.5 * bf;
+        offCtx.fillStyle = "#5a3a6a";
+        offCtx.beginPath(); offCtx.ellipse(sx, sy, 10, 5, 0, 0, Math.PI * 2); offCtx.fill();
+        offCtx.globalAlpha = 0.7 * bf;
+        offCtx.fillStyle = "#9fd06a";
+        offCtx.fillRect(sx - 4, sy - 2, 3, 2); offCtx.fillRect(sx + 2, sy - 1, 3, 2);
+        offCtx.globalAlpha = 1;
+        continue;
+      }
+      const pp = 0.75 + Math.sin((game.time || 0) / 260 + (h._pulse || 0)) * 0.25;
+      offCtx.globalAlpha = 0.35;
+      offCtx.fillStyle = "#1a0a20";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy + 2, 9, 4, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.globalAlpha = 1;
+      offCtx.fillStyle = "#7a4a9a";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy - 2, 6, 5 * pp + 2, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.fillStyle = "#a86ac8";
+      offCtx.beginPath(); offCtx.ellipse(sx - 1, sy - 3, 3, 2.4, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.fillStyle = "#d987f0";
+      offCtx.fillRect(sx - 2, sy - 5, 1, 1); offCtx.fillRect(sx + 1, sy - 3, 1, 1);
+      offCtx.fillStyle = "#4a2a5a";
+      offCtx.fillRect(sx - 1, sy + 1, 3, 1);
+      continue;
+    }
+    // R25 — chão consagrado: disco de luz dourada com raios e motas subindo
+    if (h.type === "holyGround") {
+      const sx = Math.round(h.x - camX + BASE_W / 2);
+      const sy = Math.round(h.y - camY + BASE_H / 2);
+      if (sx < -h.rx - 30 || sx > BASE_W + h.rx + 30 || sy < -h.ry - 30 || sy > BASE_H + h.ry + 30) continue;
+      const gp = 0.5 + Math.sin((game.time || 0) / 420) * 0.2;
+      offCtx.globalAlpha = 0.16 * gp + 0.10;
+      offCtx.fillStyle = "#fff2c0";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy, h.rx, h.ry, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.globalAlpha = 0.22;
+      offCtx.fillStyle = "#ffe9a8";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy, h.rx * 0.62, h.ry * 0.62, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.globalAlpha = 0.5 * gp;
+      offCtx.fillStyle = "#fff6d8";
+      for (let i = 0; i < 5; i++) {
+        const ra = (i / 5) * Math.PI * 2 + (game.time || 0) / 2400;
+        const rx2 = sx + Math.cos(ra) * h.rx * 0.8;
+        const ry2 = sy + Math.sin(ra) * h.ry * 0.8;
+        offCtx.fillRect(Math.round(rx2), Math.round(ry2), 1, 1);
+      }
+      // feixe vertical sutil
+      offCtx.globalAlpha = 0.10 * gp;
+      offCtx.fillStyle = "#fff6d8";
+      offCtx.fillRect(sx - Math.round(h.rx * 0.3), sy - 34, Math.round(h.rx * 0.6), 34);
       offCtx.globalAlpha = 1;
       continue;
     }
@@ -39255,6 +39602,29 @@ function drawMapFeatureFloor(camX, camY) {
       const sy = Math.round(f.y - camY + BASE_H / 2);
       if (sx < -f.r - 20 || sx > BASE_W + f.r + 20 || sy < -f.r - 20 || sy > BASE_H + f.r + 20) continue;
       drawQuicksand(sx, sy, f);
+    } else if (f.type === "waterCurrent") {
+      // R25 — correnteza: faixas de fluxo animadas correndo na direção do empurrão
+      const sx = Math.round(f.x - camX + BASE_W / 2);
+      const sy = Math.round(f.y - camY + BASE_H / 2);
+      if (sx < -f.rx - 30 || sx > BASE_W + f.rx + 30 || sy < -f.ry - 30 || sy > BASE_H + f.ry + 30) continue;
+      offCtx.globalAlpha = 0.14;
+      offCtx.fillStyle = "#5aa8d8";
+      offCtx.beginPath(); offCtx.ellipse(sx, sy, f.rx, f.ry, 0, 0, Math.PI * 2); offCtx.fill();
+      offCtx.globalAlpha = 0.34;
+      offCtx.fillStyle = "#bfe9ff";
+      const spanW = f.rx * 2;
+      for (let i = 0; i < 8; i++) {
+        const laneH = (f.ry * 2) / 8;
+        const yy = sy - f.ry + Math.round((i + 0.5) * laneH);
+        const halfAtY = f.rx * Math.sqrt(Math.max(0, 1 - ((yy - sy) / f.ry) ** 2));
+        const phase = ((((game.time || 0) / 1000) * f.dir * 46 + i * 37) % spanW + spanW) % spanW;
+        const lx = sx - f.rx + phase;
+        if (Math.abs(lx - sx) < halfAtY - 8) {
+          offCtx.fillRect(Math.round(lx) - 7, yy, 14, 1);
+          offCtx.fillRect(Math.round(lx) + (f.dir > 0 ? 7 : -9), yy, 2, 1);
+        }
+      }
+      offCtx.globalAlpha = 1;
     } else if (f.type === "mountain") {
       // Sombra/base na grama (o pico vem Y-sorted)
       const sx = Math.round(f.x - camX + BASE_W / 2);
@@ -65405,13 +65775,33 @@ function drawMinimap() {
     // — FIDELIDADE AO MAPA GERADO (R4): poças de perigo + landmarks + cadáveres antigos —
     if (game.hazards) {
       for (const h of game.hazards) {
-        if (!h.type || String(h.type).indexOf("lake") !== 0) continue;
+        const _ht = String(h.type || "");
+        const _isLake = _ht.indexOf("lake") === 0;
+        // R25-verify: o terreno novo (travessia de lava, vagens, chão consagrado)
+        // também aparece — a muralha de lava com vão é mecânica central do nível.
+        const _isTerr = h._terrain && (_ht === "lavaFlow" || _ht === "sporePod" || _ht === "holyGround");
+        if (!_isLake && !_isTerr) continue;
         const hx = Math.round(toX(h.x)), hy = Math.round(toY(h.y));
-        ctx.fillStyle = h.type === "lakeLava" ? "#ff7028"
-          : h.type === "lakeFreeze" ? "#9fd8f0"
-          : h.type === "lakeOasis" ? "#58c8e8"
-          : h.type === "lakeWhirl" ? "#68c8e8" : "#6fae4a";
+        ctx.fillStyle = (_ht === "lakeLava" || _ht === "lavaFlow") ? "#ff7028"
+          : _ht === "lakeFreeze" ? "#9fd8f0"
+          : _ht === "lakeOasis" ? "#58c8e8"
+          : _ht === "lakeWhirl" ? "#68c8e8"
+          : _ht === "sporePod" ? "#d987f0"
+          : _ht === "holyGround" ? "#ffe9a8" : "#6fae4a";
         ctx.fillRect(hx - 1, hy - 1, 2, 2);
+      }
+    }
+    // R25 — zonas de terreno (lagos de gelo/areia movediça/mangue/correnteza)
+    if (game.terrainZones) {
+      for (const z of game.terrainZones) {
+        const zx = Math.round(toX(z.x)), zy = Math.round(toY(z.y));
+        const zw = Math.max(3, Math.round(toX(z.x + (z.rx || 20)) - toX(z.x - (z.rx || 20))));
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = z.type === "iceLake" ? "#9fd8f0"
+          : z.type === "quicksand" ? "#d9a85c"
+          : z.type === "waterCurrent" ? "#68c8e8" : "#6fae4a";
+        ctx.fillRect(zx - (zw >> 1), zy - 1, zw, 2);
+        ctx.globalAlpha = 1;
       }
     }
     if (game.decorations) {
