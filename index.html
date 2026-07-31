@@ -59763,7 +59763,12 @@ function _drawSkeletonOverlay(cx, cy, facing, c, pose, mul) {
   px(-1, hy + 2, "#000");
   px(1, hy + 2, "#000");
   // Brilho fantasma sutil nas órbitas
-  if (Math.sin(game.time / 300 + cx * 0.1) > 0.6) {
+  // R28 — era game.time (CONGELAVA no bake do sprite cache: cada bucket sorteava
+  // glow ligado/desligado pra sempre). Agora segue pose.breathe — quantizado
+  // corretamente pelos buckets: o exército inteiro PULSA em metade do ciclo de idle.
+  // (nota R28: este overlay é código MORTO hoje — u.skeleton despacha pro
+  // drawSkeletonHD antes de chegar aqui; threshold ajustado por consistência)
+  if ((pose.breathe || 0) > 0) {
     px(-1, hy + 2, PAL.MAGIC_L || "#c89cff");
     px(1, hy + 2, PAL.MAGIC_L || "#c89cff");
   }
@@ -59954,7 +59959,10 @@ function drawSkeletonHD(cx, cy, facing, c, pose, tier) {
   rect(-1, hy + 3, 2, 1, BONE_D);       // mandíbula
   px(-1, hy + 3, BONE); px(0, hy + 3, BONE_DD); px(1, hy + 3, BONE);  // dentes
   px(0, hy + 2, GAP);                        // nariz
-  const glow = Math.sin(game.time / 200 + cx * 0.05) > -0.5;  // pisca, mas brilha a maior parte do tempo
+  // R28 — era game.time (CONGELAVA no bake do cache: estado fixo por bucket, o
+  // exército nunca pulsava). breathe é quantizado pelos buckets → os olhos do
+  // exército inteiro PULSAM no ciclo de idle (e cintilam na marcha), de graça.
+  const glow = (pose.breathe || 0) > 0;
   px(-1, hy + 1, EYE_DIM); px(1, hy + 1, EYE_DIM);            // órbitas com brilho fantasma constante
   if (glow) { px(-1, hy + 1, EYE); px(1, hy + 1, EYE); }      // flare brilhante
 
@@ -62178,6 +62186,14 @@ function drawKing(cx, cy, t, u) {
   offCtx.fillStyle = kingPal("BLOOD");
   offCtx.fillRect(cx + golaRow.off - 2, cy + golaRow.dy, 1, 1);
   offCtx.fillRect(cx + golaRow.off + 2, cy + golaRow.dy, 1, 1);
+  // R28 — IDLE VIVO: gemas da gola cintilam alternadas (fase oposta)
+  const _gw = Math.sin(t / 800);
+  if (_gw > 0.6 || _gw < -0.6) {
+    offCtx.globalAlpha = 0.85;
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(cx + golaRow.off + (_gw > 0 ? -2 : 2), cy + golaRow.dy, 1, 1);
+    offCtx.globalAlpha = 1;
+  }
 
   // --- borda dourada inferior (franjas) ---
   const fringeRow = rowData[rowData.length - 1];
@@ -62200,6 +62216,20 @@ function drawKing(cx, cy, t, u) {
   offCtx.fillStyle = kingPal("BLOOD");
   offCtx.fillRect(brX, brY + 1, 1, 2);
   offCtx.fillRect(brX - 1, brY + 2, 2, 1);
+  // R28 — IDLE VIVO: flash em cruz no broche a cada ~2.4s (suave; draw direto do Rei)
+  const _brT = ((t % 2400) + 2400) % 2400;
+  if (_brT > 2140) {
+    const _gi = Math.sin((_brT - 2140) / 260 * Math.PI);
+    offCtx.globalAlpha = _gi * 0.9;
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(brX, brY + 1, 1, 1);
+    offCtx.globalAlpha = _gi * 0.55;
+    offCtx.fillRect(brX - 1, brY + 1, 1, 1);
+    offCtx.fillRect(brX + 1, brY + 1, 1, 1);
+    offCtx.fillRect(brX, brY, 1, 1);
+    offCtx.fillRect(brX, brY + 2, 1, 1);
+    offCtx.globalAlpha = 1;
+  }
 
   // ETAPA H FIX: Legs e botas agora seguem o bob junto com o corpo —
   // antes pernas ficavam fixas no chão enquanto tronco/cabeça subiam,
