@@ -29201,6 +29201,22 @@ function tryNecromance(wx, wy, rangeOverride) {
 
 // GUARDIÃO DE GRANITO — pedras/poeira caindo do céu + impacto sísmico
 function fxGolemCast(wx, wy) {
+  // R29 — ASSINATURA: fissuras radiais escuras rachando o chão (persistem ~1.4s)
+  for (let f = 0; f < 5; f++) {
+    const fa = (f / 5) * Math.PI * 2 + Math.random() * 0.5;
+    const flen = 26 + Math.random() * 18;
+    for (let seg = 2; seg < flen; seg += 3) {
+      const jitter = (Math.random() - 0.5) * 4;
+      game.effects.push({
+        type: "spark", color: seg % 2 ? "#2a2018" : "#171008",
+        x: wx + Math.cos(fa) * seg + jitter, y: wy + Math.sin(fa) * seg * 0.6,
+        vx: 0, vy: 0,
+        lifetime: 1400 - seg * 12, maxLifetime: 1400, size: seg < flen * 0.5 ? 2 : 1,
+        update() {},
+      });
+    }
+  }
+  doShake && doShake(4, 260);
   // Onda de choque circular
   game.effects.push({
     type: "shockwave", x: wx, y: wy,
@@ -29249,6 +29265,24 @@ function fxGolemCast(wx, wy) {
 
 // PRAGA DAS PIRÂMIDES — areia turbilhona + escaravelhos materializam-se em vortex
 function fxScarabsCast(wx, wy) {
+  // R29 — ASSINATURA: 8 trilhas de ESCAVAÇÃO na areia correndo das bordas pro centro
+  for (let tr = 0; tr < 8; tr++) {
+    const ta = (tr / 8) * Math.PI * 2 + Math.random() * 0.3;
+    const r0 = 60 + Math.random() * 20;
+    for (let k = 0; k < 5; k++) {
+      game.effects.push({
+        type: "spark", color: k % 2 ? "#806020" : "#a88830",
+        x: wx + Math.cos(ta) * r0, y: wy + Math.sin(ta) * r0 * 0.6,
+        vx: -Math.cos(ta) * (90 + k * 14), vy: -Math.sin(ta) * (90 + k * 14) * 0.6,
+        lifetime: 460 + k * 60, maxLifetime: 800, size: 2,
+        _delay: k * 70,
+        update(dt) {
+          if (this._delay > 0) { this._delay -= dt; return; }
+          this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000;
+        },
+      });
+    }
+  }
   // Vortex dourado (4 anéis concêntricos pulsando)
   for (let ring = 0; ring < 3; ring++) {
     game.effects.push({
@@ -29304,6 +29338,19 @@ function fxScarabsCast(wx, wy) {
 
 // VIÚVA DAS ALMAS — portal violeta + crânios fantasmas + teias místicas
 function fxSpiderCast(wx, wy) {
+  // R29 — ASSINATURA: 4 fios de teia esticados do alto até o ponto (as aranhas "descem")
+  for (let w = 0; w < 4; w++) {
+    const wxOff = (w - 1.5) * 9 + (Math.random() - 0.5) * 4;
+    for (let seg = 0; seg < 11; seg++) {
+      game.effects.push({
+        type: "spark", color: seg % 3 === 0 ? "#e8e0f0" : "#b8b0c8",
+        x: wx + wxOff * (seg / 11), y: wy - 64 + seg * 6,
+        vx: 0, vy: 0,
+        lifetime: 700 - seg * 20, maxLifetime: 700, size: 1,
+        update() {},
+      });
+    }
+  }
   // Portal violeta pulsante (2 ondas)
   game.effects.push({
     type: "shockwave", x: wx, y: wy,
@@ -29354,6 +29401,20 @@ function fxSpiderCast(wx, wy) {
 
 // SERAFIM VINGADOR — pilar de luz dourada + 2 anéis angelicais + plumas brancas
 function fxAngelCast(wx, wy) {
+  // R29 — ASSINATURA: cortina de luz DESCENDO do céu (o Serafim chega de cima)
+  for (let i = 0; i < 16; i++) {
+    const lx = wx + (Math.random() - 0.5) * 26;
+    game.effects.push({
+      type: "spark", color: i % 3 === 0 ? "#ffffff" : "#fff0a0",
+      x: lx, y: wy - 100 - Math.random() * 30,
+      vx: 0, vy: 240 + Math.random() * 80,
+      lifetime: 420 + Math.random() * 160, maxLifetime: 580, size: i % 4 === 0 ? 2 : 1,
+      update(dt) {
+        this.y += this.vy * dt / 1000;
+        if (this.y > wy) { this.y = wy; this.vy = 0; }
+      },
+    });
+  }
   // Pilar de luz (4 ondas verticais empilhadas)
   for (let ring = 0; ring < 4; ring++) {
     game.effects.push({
@@ -30014,6 +30075,32 @@ const SPELL_DATA = [
         radius: radius, lifetime: 700, maxLifetime: 700,
         update(dt){ this.lifetime -= dt; },
       });
+      // R29 — GOD RAYS: 8 raios radiais varrendo pra fora (linhas de sparks em fuga)
+      for (let ray = 0; ray < 8; ray++) {
+        const ra = (ray / 8) * Math.PI * 2 + Math.PI / 8;
+        for (let seg = 0; seg < 6; seg++) {
+          game.effects.push({
+            type: "spark", color: seg < 2 ? "#ffffff" : "#fff0a0",
+            x: wx + Math.cos(ra) * (10 + seg * 5), y: wy + Math.sin(ra) * (10 + seg * 5) * 0.6,
+            vx: Math.cos(ra) * (130 + seg * 20), vy: Math.sin(ra) * (130 + seg * 20) * 0.6,
+            lifetime: 340 + seg * 30, maxLifetime: 520, size: seg < 3 ? 2 : 1,
+            update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.94; this.vy *= 0.94; },
+          });
+        }
+      }
+      // R29 — CHÃO CONSAGRADO breve: anel dourado que persiste ~1.2s com cruzinhas
+      game.effects.push({
+        type: "ring", x: wx, y: wy, radius: radius * 0.55, lifetime: 1200, maxLifetime: 1200,
+        color: "#f7d96f", update(dt) { this.radius += dt * 0.004; },
+      });
+      for (let cz = 0; cz < 6; cz++) {
+        const ca = (cz / 6) * Math.PI * 2;
+        game.effects.push({
+          type: "healCross", x: wx + Math.cos(ca) * radius * 0.5, y: wy + Math.sin(ca) * radius * 0.3,
+          vx: 0, vy: -14, lifetime: 900, maxLifetime: 900, size: 1,
+          update(dt) { this.y += this.vy * dt / 1000; },
+        });
+      }
       if (typeof flashScreen === "function") flashScreen(0.20, 220, "#fffad8");
       doShake && doShake(3, 220);
       // Dano em alvos
@@ -31489,7 +31576,10 @@ function spawnSpellCastTrail(fromX, fromY, toX, toY, spellId) {
     // 2026-05-01 COMBO 45 — trails únicos pras cartas de invocação
     "summonGolem":   ["#7a6850", "#bab098"],   // marrom/cinza pedra
     "summonScarabs": ["#d4a637", "#ffe890"],   // dourado areia
-    "summonSpider":  ["#a040d0", "#d880ff"],   // violeta necro    "summonAngel":   ["#fff080", "#ffffff"],   // dourado divino
+    "summonSpider":  ["#a040d0", "#d880ff"],   // violeta necro
+    // R29 FIX: entrada colada no comentário acima — o trail do Serafim caía no
+    // fallback lilás genérico em vez do dourado divino.
+    "summonAngel":   ["#fff080", "#ffffff"],   // dourado divino
   };
   const colors = colorMap[spellId] || ["#c0c0ff", "#ffffff"];
   const dx = toX - fromX, dy = toY - fromY;
@@ -35274,17 +35364,39 @@ function renderHazards(camX, camY) {
     }
     // 2026-06-15 — BÊNÇÃO DIVINA: aura dourada de cura no chão
     if (h.type === "blessingField") {
+      // R29 — mais presença: era quase invisível (0.16) pra um campo de 6s.
       const remaining = h.totalLife - h.age;
       const fade = Math.min(1, remaining / 900) * Math.min(1, h.age / 200);
       const sx = Math.round(h.x - camX + BASE_W / 2);
       const sy = Math.round(h.y - camY + BASE_H / 2);
       const pulse = 0.7 + 0.3 * Math.sin(h.age / 240);
-      offCtx.globalAlpha = 0.16 * fade * pulse; offCtx.fillStyle = "#f7d96f";
+      offCtx.globalAlpha = 0.22 * fade * pulse; offCtx.fillStyle = "#f7d96f";
       offCtx.beginPath(); offCtx.ellipse(sx, sy, h.radius, h.radius * 0.6, 0, 0, Math.PI * 2); offCtx.fill();
-      offCtx.globalAlpha = 0.12 * fade; offCtx.fillStyle = "#fffad8";
+      offCtx.globalAlpha = 0.16 * fade; offCtx.fillStyle = "#fffad8";
       offCtx.beginPath(); offCtx.ellipse(sx, sy, h.radius * 0.6, h.radius * 0.36, 0, 0, Math.PI * 2); offCtx.fill();
-      offCtx.globalAlpha = 0.42 * fade * pulse; offCtx.strokeStyle = "#fff0a8"; offCtx.lineWidth = 1;
+      offCtx.globalAlpha = 0.55 * fade * pulse; offCtx.strokeStyle = "#fff0a8"; offCtx.lineWidth = 1;
       offCtx.beginPath(); offCtx.ellipse(sx, sy, h.radius * 0.86, h.radius * 0.5, 0, 0, Math.PI * 2); offCtx.stroke();
+      // R29 — 5 CRUZES douradas orbitando a borda do campo (determinístico por h.age)
+      offCtx.globalAlpha = 0.85 * fade;
+      for (let ci = 0; ci < 5; ci++) {
+        const ca = (ci / 5) * Math.PI * 2 + h.age / 1400;
+        const cxx = Math.round(sx + Math.cos(ca) * h.radius * 0.86);
+        const cyy = Math.round(sy + Math.sin(ca) * h.radius * 0.5) - 3;
+        offCtx.fillStyle = "#ffd870";
+        offCtx.fillRect(cxx, cyy - 2, 1, 5);
+        offCtx.fillRect(cxx - 1, cyy - 1, 3, 1);
+        offCtx.fillStyle = "#fff6d0";
+        offCtx.fillRect(cxx, cyy - 1, 1, 1);
+      }
+      // feixes verticais sutis subindo dentro do campo (3, defasados)
+      offCtx.globalAlpha = 0.14 * fade * pulse;
+      offCtx.fillStyle = "#fff6d0";
+      for (let bi = 0; bi < 3; bi++) {
+        const ba = (bi / 3) * Math.PI * 2 + h.age / 2100;
+        const bx = Math.round(sx + Math.cos(ba) * h.radius * 0.4);
+        const bh2 = 18 + Math.round(Math.sin(h.age / 300 + bi * 2) * 5);
+        offCtx.fillRect(bx - 1, sy - bh2 - Math.round(h.radius * 0.15), 3, bh2);
+      }
       offCtx.globalAlpha = 1;
       continue;
     }
@@ -62572,24 +62684,51 @@ function drawKing(cx, cy, t, u) {
   offCtx.globalAlpha = 1;
 
   // COMBO 3 K — Aura do ESCUDO SAGRADO (ativo enquanto sacredShieldTimer > 0)
+  // R29 — CÚPULA de verdade: era sutil demais (alpha 0.18) pra uma invulnerabilidade.
+  // Agora: bolha mais presente + 6 FACETAS hexagonais na borda + cruz no ápice +
+  // PISCA nos últimos 700ms (aviso claro de que o escudo vai acabar).
   if (u && u.sacredShieldTimer && u.sacredShieldTimer > 0) {
-    const ssPulse = 0.6 + Math.sin(t / 120) * 0.4;
-    // Bolha esférica branco-dourada
-    offCtx.globalAlpha = 0.18 * ssPulse;
+    const ssRem = u.sacredShieldTimer;
+    const ending = ssRem < 700;
+    const blink = ending ? (Math.sin(t / 60) > 0 ? 1 : 0.35) : 1;
+    const ssPulse = (0.7 + Math.sin(t / 120) * 0.3) * blink;
+    // Bolha esférica branco-dourada (mais visível)
+    offCtx.globalAlpha = 0.26 * ssPulse;
     offCtx.fillStyle = "#fffad8";
-    fillCircle(cx, cy - 6, 22);
-    offCtx.globalAlpha = 0.28 * ssPulse;
+    fillCircle(cx, cy - 6, 23);
+    offCtx.globalAlpha = 0.34 * ssPulse;
     offCtx.fillStyle = "#f7d96f";
     fillCircle(cx, cy - 6, 18);
-    // Anel exterior — pixels rotativos pra parecer rotação
+    // 6 FACETAS hexagonais na borda (arcos curtos girando devagar)
     const ringT = t / 80;
-    offCtx.globalAlpha = 0.8 * ssPulse;
+    offCtx.globalAlpha = 0.9 * ssPulse;
+    offCtx.strokeStyle = "#fff6d0";
+    offCtx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a0 = (i / 6) * Math.PI * 2 + ringT * 0.03;
+      offCtx.beginPath();
+      offCtx.arc(cx, cy - 6, 21, a0, a0 + 0.72);
+      offCtx.stroke();
+    }
+    // pixels rotativos entre as facetas
     offCtx.fillStyle = "#ffffff";
-    for (let i = 0; i < 12; i++) {
-      const ang = (i / 12) * Math.PI * 2 + ringT * 0.04;
-      const rx = Math.round(cx + Math.cos(ang) * 20);
-      const ry = Math.round(cy - 6 + Math.sin(ang) * 20);
-      offCtx.fillRect(rx, ry, 1, 1);
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2 + ringT * 0.03 + 0.88;
+      offCtx.fillRect(Math.round(cx + Math.cos(ang) * 21), Math.round(cy - 6 + Math.sin(ang) * 21), 1, 1);
+    }
+    // CRUZ dourada no ápice da cúpula
+    offCtx.globalAlpha = ssPulse;
+    offCtx.fillStyle = "#ffd060";
+    offCtx.fillRect(cx, cy - 32, 1, 4);
+    offCtx.fillRect(cx - 1, cy - 31, 3, 1);
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(cx, cy - 31, 1, 1);
+    // shimmer: 1 fagulha ocasional escorrendo pela bolha
+    if (Math.sin(t / 210) > 0.82) {
+      const sa = (t / 300) % (Math.PI * 2);
+      offCtx.globalAlpha = 0.9 * blink;
+      offCtx.fillStyle = "#ffffff";
+      offCtx.fillRect(Math.round(cx + Math.cos(sa) * 19), Math.round(cy - 6 + Math.sin(sa) * 19), 2, 1);
     }
     offCtx.globalAlpha = 1;
   }
@@ -66525,7 +66664,10 @@ const CARD_CLASSES = {
   // como identificador visual de "INVOCADOR" (CSS [class*="card-summoner"]::before).
   summonGolem:   "card-summoner-stone",   // Guardião de Granito — verde-pedra/musgo
   summonScarabs: "card-summoner-gold",    // Praga das Pirâmides — dourado areia
-  summonSpider:  "card-summoner-violet",  // Viúva das Almas — violeta necro  summonAngel:   "card-summoner-light",   // Serafim Vingador — branco celestial
+  summonSpider:  "card-summoner-violet",  // Viúva das Almas — violeta necro
+  // R29 FIX: esta entrada estava COLADA no comentário da linha acima — o Serafim
+  // renderizava com moldura GENÉRICA no HUD ("as cartas de summon parecem iguais").
+  summonAngel:   "card-summoner-light",   // Serafim Vingador — branco celestial
 };
 // Quantas cargas cada carta dá quando coletada em um baú.
 // Boss cards NÃO caem de baús — só vêm do desbloqueio permanente, então não
