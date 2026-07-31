@@ -36,7 +36,9 @@
         } catch (e) {}
       },
       gameplayStart() {
-        try { if (window.PokiSDK && this._ready) { PokiSDK.gameplayStart(); this._gameplayActive = true; } } catch (e) {}
+        // R30: dedup no start também (antes só o stop dedupava — starts consecutivos
+        // sem stop vazavam pro SDK e quebravam o pareamento validado pela Poki)
+        try { if (window.PokiSDK && this._ready && !this._gameplayActive) { PokiSDK.gameplayStart(); this._gameplayActive = true; } } catch (e) {}
       },
       gameplayStop() {
         // 2026-06-12 FIX: só para se um start estiver ativo → pareamento correto + dedup
@@ -72737,6 +72739,12 @@ function openCampaignIntermission(opts) {
   document.querySelectorAll("#ciTabs .shop-tab").forEach(el => el.classList.toggle("active", el.dataset.ciTab === "upgrades"));
   renderCampaignIntermission();
   showMenu("campaignIntermission");
+  // R30 (Poki QA) — intermission é a quebra natural do loop principal (morte /
+  // nível completo / região). Delay pro jogador ler a tela; _adInProgress dedupa
+  // e o SDK da Poki decide a frequência real.
+  if (window.PokiHelpers) {
+    setTimeout(() => { try { PokiHelpers.commercialBreak(); } catch (e) {} }, 1200);
+  }
 }
 
 function setCampaignIntermissionTab(tab) {
@@ -75053,11 +75061,17 @@ function renderHowtoMenu() {
 // Mantidos os IDs antigos pra compatibilidade caso showMenu("oldId") seja chamado
 // em algum lugar legacy (será redirecionado pro codex tab equivalente).
 const MENU_IDS = ["mainMenu", "startMenu", "settingsMenu", "pauseMenu", "cardPickMenu", "codexMenu", "achievementsMenu", "dailyMenu", "modesMenu", "modeSelectMenu", "regionMapMenu", "campaignIntermission", "creditsMenu"];
-function hideAllMenus() {
+function hideAllMenus(_suppressPoki) {
   for (const id of MENU_IDS) document.getElementById(id).classList.remove("show");
   game.paused = false;
   // Fix 2026-05-04: remove flag de body pra mostrar HUD novamente
   try { document.body.classList.remove("menu-active"); } catch(e) {}
+  // R30 (Poki QA) — fechar menus com run ativa = gameplay RETOMOU. O wrapper tem
+  // dedup (_gameplayActive), então re-chamar é seguro. showMenu passa true aqui
+  // (vai abrir outro menu em seguida — sem churn start/stop espúrio).
+  if (!_suppressPoki && game.runActive && !game.gameOver && window.PokiHelpers) {
+    PokiHelpers.gameplayStart();
+  }
 }
 function showMenu(id) {
   // R22 (dono): voltar do ENDLESS nunca abre a tela de saves da campanha — o
@@ -75067,7 +75081,7 @@ function showMenu(id) {
     id = "mainMenu";
   }
 
-  hideAllMenus();
+  hideAllMenus(true);   // R30: interno — outro menu abre já já (sem churn Poki)
   // MODO TESTE (sessão): voltar pro MENU INICIAL sempre desliga o modo teste — garante que
   // nenhum modo iniciado direto (boss rush/survival/daily, que não passam pelo openCardPickFlow)
   // herde a flag por engano. O fluxo de teste liga a flag DEPOIS, ao clicar "MODO TESTE".
@@ -75076,6 +75090,11 @@ function showMenu(id) {
     try { document.body.classList.remove("test-mode-on"); } catch(e) {}
   }
   document.getElementById(id).classList.add("show");
+  // R30 (Poki QA) — abrir QUALQUER menu durante a run pausa o gameplay tracking
+  // (ESC, auto-pausa por blur/visibilitychange do R22, intermissions da campanha).
+  if (game.runActive && !game.gameOver && window.PokiHelpers) {
+    PokiHelpers.gameplayStop();
+  }
   // FEEDBACK 2026-07-02 (R5 QoL) — "REINICIAR NÍVEL" só na campanha
   if (id === "pauseMenu") {
     const rb = document.getElementById("pauseRestartBtn");
@@ -78119,6 +78138,22 @@ window.addEventListener("focus", () => {
 // Detectamos se estamos rodando dentro da Poki (window.PokiSDK existe) e pulamos.
 // Pra build standalone (Electron/PWA proprio), continua funcionando normal.
 const _isPokiEnv = !!(window.PokiSDK || (window.location && window.location.hostname && window.location.hostname.includes("poki")));
+// R30 (Poki QA) — guidelines: dentro da Poki não pode haver botão de SAIR
+// (window.close não funciona no iframe) nem LINKS EXTERNOS clicáveis (o crédito
+// CC-BY vira texto puro — a atribuição textual continua cumprindo a licença).
+if (_isPokiEnv) {
+  try {
+    const _exitBtn = document.querySelector('[data-menu-action="exit"]');
+    if (_exitBtn) _exitBtn.style.display = "none";
+  } catch (e) {}
+  try {
+    const _mc = document.getElementById("musicCredit");
+    if (_mc) {
+      const _a = _mc.querySelector("a");
+      if (_a) { const _sp = document.createElement("span"); _sp.textContent = _a.textContent; _a.replaceWith(_sp); }
+    }
+  } catch (e) {}
+}
 if (!_isPokiEnv && "serviceWorker" in navigator && (location.protocol === "http:" || location.protocol === "https:")) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").then((reg) => {
