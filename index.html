@@ -7065,7 +7065,8 @@ function worldDangerBand(x, y) {
   // Boss Rush e Survival são arenas de dificuldade TEMPORAL com leaderboard —
   // gradiente espacial mudaria o score silenciosamente (verificação 2026-07-02).
   if (game.campaignLinear || game.bossRushMode || game.survivalMode) return 0;
-  const d = Math.sqrt(x * x + y * y);
+  // R27 — Mundo Hostil (NG+8): as bandas "puxam" 400px pra perto do centro
+  const d = Math.sqrt(x * x + y * y) + ((typeof ngAsc === "function") ? ngAsc("bandShift") : 0);
   if (d < WORLD_BAND_RADII[0]) return 0;
   if (d < WORLD_BAND_RADII[1]) return 1;
   if (d < WORLD_BAND_RADII[2]) return 2;
@@ -9798,7 +9799,8 @@ function highestAvailableTier() {
   // 2026-06-23 \u2014 CAMPANHA: dificuldade por N\u00cdVEL (fixa), n\u00e3o por tempo decorrido.
   // Endless/cl\u00e1ssico continuam escalando pelo runTime via TIER_UNLOCK.
   if (game.campaignMode && typeof campaignDifficultyTier === "function") return campaignDifficultyTier();
-  const t = game.runTime;
+  // R27 — Maré Acelerada (NG+6): o relógio de dificuldade corre 20% mais rápido
+  const t = game.runTime * ((typeof ngAsc === "function") ? ngAsc("tierTimeMult") : 1);
   // Agora vai at\u00e9 5 (Fase pos-relics)
   for (let i = 5; i >= 1; i--) if (t >= TIER_UNLOCK[i]) return i;
   return 1;
@@ -10200,6 +10202,74 @@ const DEFAULT_PROGRESS = {
 // NG+3: enemy 1.55×/1.45×, boss 2.05×/1.60×
 // NG+5: enemy 1.85×/1.65×, boss 2.55×/1.85×
 // NG+10: enemy 2.30×/1.95×, boss 3.30×/2.20×
+// R27 — ESCADA DA ASCENSÃO (fecha a Fase 14 "NG+ tree"): cada nível de NG+
+// ADICIONA um modificador NOMEADO (cumulativo — NG+6 tem os mods de 1..6) e a
+// escada tem recompensas meta: Lágrima (NG+1, existia), skin Void King (NG+5,
+// existia), título ASCENDIDO (NG+9) e a BÊNÇÃO (+3% de almas por NG+ limpo).
+const NGPLUS_TIERS = [
+  { lvl: 1, name: "Sangue Novo",     desc: "Inimigos +HP/dano (escala por nível)" },
+  { lvl: 2, name: "Hordas Famintas", desc: "Spawns 12% mais rápidos" },
+  { lvl: 3, name: "Elite Dominante", desc: "Chance de elite ×1.75" },
+  { lvl: 4, name: "Mana Avarenta",   desc: "Necromancia custa +25% de mana" },
+  { lvl: 5, name: "Reis Vorazes",    desc: "Bosses +12% HP e dano extras" },
+  { lvl: 6, name: "Maré Acelerada",  desc: "Tiers de dificuldade chegam 20% mais cedo" },
+  { lvl: 7, name: "Coroa Pesada",    desc: "Rei −15% HP máximo" },
+  { lvl: 8, name: "Mundo Hostil",    desc: "Zonas de perigo 400px mais próximas" },
+  { lvl: 9, name: "Apoteose",        desc: "Inimigos +10% de velocidade" },
+];
+const NGPLUS_I18N = {
+  en: {
+    1: ["New Blood", "Enemies +HP/damage (scales per level)"],
+    2: ["Ravenous Hordes", "Spawns 12% faster"],
+    3: ["Elite Dominion", "Elite chance ×1.75"],
+    4: ["Miserly Mana", "Necromancy costs +25% mana"],
+    5: ["Voracious Kings", "Bosses +12% extra HP and damage"],
+    6: ["Hastened Tide", "Difficulty tiers arrive 20% sooner"],
+    7: ["Heavy Crown", "King −15% max HP"],
+    8: ["Hostile World", "Danger zones 400px closer"],
+    9: ["Apotheosis", "Enemies +10% speed"],
+  },
+  es: {
+    1: ["Sangre Nueva", "Enemigos +VIDA/daño (escala por nivel)"],
+    2: ["Hordas Hambrientas", "Apariciones 12% más rápidas"],
+    3: ["Élite Dominante", "Probabilidad de élite ×1.75"],
+    4: ["Maná Avaro", "La nigromancia cuesta +25% de maná"],
+    5: ["Reyes Voraces", "Jefes +12% de vida y daño extra"],
+    6: ["Marea Acelerada", "Los niveles de dificultad llegan 20% antes"],
+    7: ["Corona Pesada", "Rey −15% de vida máxima"],
+    8: ["Mundo Hostil", "Zonas de peligro 400px más cerca"],
+    9: ["Apoteosis", "Enemigos +10% de velocidad"],
+  },
+};
+function getNgTierName(lvl) {
+  try { const L = _i18nLang(); if (L !== "pt" && NGPLUS_I18N[L] && NGPLUS_I18N[L][lvl]) return NGPLUS_I18N[L][lvl][0]; } catch (e) {}
+  return (NGPLUS_TIERS[lvl - 1] && NGPLUS_TIERS[lvl - 1].name) || ("NG+" + lvl);
+}
+function getNgTierDesc(lvl) {
+  try { const L = _i18nLang(); if (L !== "pt" && NGPLUS_I18N[L] && NGPLUS_I18N[L][lvl]) return NGPLUS_I18N[L][lvl][1]; } catch (e) {}
+  return (NGPLUS_TIERS[lvl - 1] && NGPLUS_TIERS[lvl - 1].desc) || "";
+}
+// Modificadores CUMULATIVOS da escada (lidos nos hooks pelo nível da run atual)
+function ngAsc(key) {
+  const n = game.ngPlusLevel || 0;
+  if (n <= 0) return key === "bandShift" ? 0 : 1;
+  switch (key) {
+    case "spawnMult":      return n >= 2 ? 0.88 : 1;
+    case "eliteMult":      return n >= 3 ? 1.75 : 1;
+    case "necroCostMult":  return n >= 4 ? 1.25 : 1;
+    case "bossStatMult":   return n >= 5 ? 1.12 : 1;
+    case "tierTimeMult":   return n >= 6 ? 1.20 : 1;
+    case "kingHpMult":     return n >= 7 ? 0.85 : 1;
+    case "bandShift":      return n >= 8 ? 400 : 0;
+    case "enemySpeedMult": return n >= 9 ? 1.10 : 1;
+  }
+  return 1;
+}
+// BÊNÇÃO DA ASCENSÃO: +3% de almas ganhas por nível de NG+ já LIMPO (meta, cap +27%)
+function ngSoulBlessMult() {
+  const best = Math.min(9, (typeof progress !== "undefined" && progress && progress.ngPlusBestCleared) || 0);
+  return 1 + 0.03 * best;
+}
 function ngPlusEnemyHpMult(level) {
   if (!level || level < 1) return 1;
   // Curva log: começa rápido, desacelera. Cap implícito ~2.5× em NG+10
@@ -10673,18 +10743,37 @@ function showEndlessNgPicker() {
     ov.className = "menu-overlay";
     document.body.appendChild(ov);
   }
-  const maxNg = Math.min(9, (progress.ngPlusBestCleared || 0) + 1);
-  let html = '<div class="menu-wrap" style="text-align:center;">' +
+  // R27 — ESCADA DA ASCENSÃO: os 9 degraus sempre visíveis (✓ limpo / clicável /
+  // 🔒 bloqueado), com o modificador NOMEADO de cada um e as recompensas da escada.
+  const best = (progress.ngPlusBestCleared || 0);
+  const maxNg = Math.min(9, best + 1);
+  const blessPct = Math.round(((typeof ngSoulBlessMult === "function") ? ngSoulBlessMult() : 1) * 100 - 100);
+  let html = '<div class="menu-wrap" style="text-align:center;max-width:440px;">' +
     '<h2 class="menu-h2">♾ ENDLESS</h2>' +
-    '<div style="font-size:9px;color:#b8b0c8;margin:4px 0 14px;line-height:1.5;">Escolha a intensidade da run</div>' +
-    '<div class="menu-buttons">' +
+    '<div style="font-size:9px;color:#b8b0c8;margin:4px 0 10px;line-height:1.5;">' +
+    TR("ESCADA DA ASCENSÃO — cada degrau ADICIONA um modificador", "ASCENSION LADDER — each step ADDS a modifier", "ESCALERA DE LA ASCENSIÓN — cada peldaño AÑADE un modificador") +
+    '</div>' +
+    '<div class="menu-buttons" style="max-height:50vh;overflow-y:auto;padding-right:4px;">' +
     '<button class="menu-btn" data-ng="0">NORMAL</button>';
-  for (let n = 1; n <= maxNg; n++) {
-    html += '<button class="menu-btn" data-ng="' + n + '">⚡ NEW GAME+ ' + n +
-      ' <span style="font-size:8px;opacity:0.75;">(inimigos +' + Math.round((ngPlusEnemyHpMult(n) - 1) * 100) + '% HP)</span></button>';
+  for (let nn = 1; nn <= 9; nn++) {
+    const cleared = nn <= best;
+    const unlocked = nn <= maxNg;
+    const mark = cleared ? '<span style="color:#ffd060;">✓ </span>' : (unlocked ? '' : '🔒 ');
+    const reward = nn === 1 ? ' 💧' : (nn === 5 ? ' 🌑' : (nn === 9 ? ' 👑' : ''));
+    const inner = mark + '⚡ NG+' + nn + ' · ' + getNgTierName(nn) + reward +
+      '<span style="display:block;font-size:8px;opacity:0.75;margin-top:2px;">' + getNgTierDesc(nn) + '</span>';
+    if (unlocked) {
+      html += '<button class="menu-btn" data-ng="' + nn + '" style="text-align:left;line-height:1.35;">' + inner + '</button>';
+    } else {
+      html += '<div class="menu-btn" style="text-align:left;line-height:1.35;opacity:0.40;cursor:default;">' + inner + '</div>';
+    }
   }
-  html += '<button class="menu-btn secondary" data-ng="-1">VOLTAR</button></div></div>';
-  ov.innerHTML = html;
+  html += '</div>' +
+    '<div style="font-size:8px;color:#9ad0a0;margin-top:8px;line-height:1.5;">' +
+    TR("☩ BÊNÇÃO DA ASCENSÃO: +3% de almas por NG+ limpo (atual: +", "☩ ASCENSION BLESSING: +3% souls per cleared NG+ (current: +", "☩ BENDICIÓN DE LA ASCENSIÓN: +3% de almas por NG+ superado (actual: +") + blessPct + '%)</div>' +
+    '<div class="menu-buttons" style="margin-top:8px;">' +
+    '<button class="menu-btn secondary" data-ng="-1">' + TR("VOLTAR", "BACK", "VOLVER") + '</button></div></div>';
+  ov.innerHTML = html;  ov.innerHTML = html;
   ov.style.display = "flex";
   ov.querySelectorAll("button[data-ng]").forEach(b => {
     b.addEventListener("click", () => {
@@ -13531,7 +13620,8 @@ function startNewRun(preselectedSpellIds, opts) {
   game.king = makeUnit({
     type: "king", faction: "ally",
     x: 0, y: 0,
-    hp: 500 + b.kingMaxHp, atk: 0,
+    // R27 — Coroa Pesada (NG+7): Rei −15% HP máximo
+    hp: Math.round((500 + b.kingMaxHp) * ((typeof ngAsc === "function") ? ngAsc("kingHpMult") : 1)), atk: 0,
     moveSpeed: 90 * (1 + b.kingSpeedMult),
     radius: 10,
     mana: 100 + b.kingMaxMana, maxMana: 100 + b.kingMaxMana,
@@ -15347,7 +15437,9 @@ function currentSpawnInterval() {
     floorMs = 800 - 250 * chaosRamp;
   }
   const _dmSpawn = (typeof currentDiffMode === "function") ? currentDiffMode().spawnInt : 1;
-  return Math.max(floorMs, base * armyRelief * tierPush * chaosMul * 1000) * _dmSpawn;
+  // R27 — Hordas Famintas (NG+2): spawns 12% mais rápidos
+  const _ngSpawn = (typeof ngAsc === "function") ? ngAsc("spawnMult") : 1;
+  return Math.max(floorMs, base * armyRelief * tierPush * chaosMul * 1000) * _dmSpawn * _ngSpawn;
 }
 
 function squadSize() {
@@ -22687,8 +22779,10 @@ function spawnEnemyAt(x, y, classId) {
   let ngHp = 1, ngAtk = 1;
   if (ngLvl > 0 && cls.special !== "wagon") {
     if (cls.isBoss) {
-      ngHp = ngPlusBossHpMult(ngLvl);
-      ngAtk = ngPlusBossAtkMult(ngLvl);
+      // R27 — Reis Vorazes (NG+5): +12% em cima da curva de boss
+      const _vor = (typeof ngAsc === "function") ? ngAsc("bossStatMult") : 1;
+      ngHp = ngPlusBossHpMult(ngLvl) * _vor;
+      ngAtk = ngPlusBossAtkMult(ngLvl) * _vor;
     } else {
       ngHp = ngPlusEnemyHpMult(ngLvl);
       ngAtk = ngPlusEnemyAtkMult(ngLvl);
@@ -22707,6 +22801,8 @@ function spawnEnemyAt(x, y, classId) {
   if (typeof hasRelic === "function" && hasRelic("prophet_eye") && eliteEligible) {
     eliteChance = Math.min(0.20, eliteChance * (ngLvl > 0 ? 4 : 2));
   }
+  // R27 — Elite Dominante (NG+3): chance ×1.75, cap 15%
+  if (eliteEligible && typeof ngAsc === "function") eliteChance = Math.min(0.15, eliteChance * ngAsc("eliteMult"));
   const isElite = Math.random() < eliteChance;
   const eliteHp = isElite ? 2.0 : 1.0;
   const eliteAtk = isElite ? 1.5 : 1.0;
@@ -22738,7 +22834,8 @@ function spawnEnemyAt(x, y, classId) {
     atk: Math.max(1, Math.round((cls.atk || 0) * atkMult)),
     attackRange: cls.range,
     attackCooldownMax: Math.round(cls.atkCd * atkCdMult),
-    moveSpeed: cls.speed * eliteSpeed * dailySpdM,
+    // R27 — Apoteose (NG+9): inimigos não-boss +10% de velocidade
+    moveSpeed: cls.speed * eliteSpeed * dailySpdM * ((cls.isBoss || cls.special === "wagon") ? 1 : ((typeof ngAsc === "function") ? ngAsc("enemySpeedMult") : 1)),
     radius: cls.radius * (isElite ? 1.10 : 1.0),
     scale: cls.scale * (isElite ? 1.12 : 1.0),
     coinValue: Math.round(cls.coin * (isElite ? 3 : 1)),
@@ -26995,6 +27092,9 @@ function onBossDefeated(u) {
     if (justCleared === 0) {
       // 1ª vitória — anuncia NG+ desbloqueado
       try { setTimeout(() => showToast(TR("⚡ NEW GAME+ DESBLOQUEADO! Inimigos +25% mais fortes.","⚡ NEW GAME+ UNLOCKED! Enemies +25% stronger.","⚡ ¡NEW GAME+ DESBLOQUEADO! Enemigos +25% más fuertes."), 6000, "magic"), 2400); } catch(e) {}
+    } else if (justCleared >= 9) {
+      // R27 — topo da escada: título ASCENDIDO
+      try { setTimeout(() => showToast(TR("👑 APOTEOSE COMPLETA — VOCÊ ASCENDEU! Bênção máxima: +27% de almas.","👑 APOTHEOSIS COMPLETE — YOU HAVE ASCENDED! Max blessing: +27% souls.","👑 APOTEOSIS COMPLETA — ¡HAS ASCENDIDO! Bendición máxima: +27% de almas."), 7000, "magic"), 2400); } catch(e) {}
     } else {
       try { setTimeout(() => showToast("⚡ NG+" + justCleared + TR(" COMPLETO! NG+"," COMPLETE! NG+"," ¡COMPLETO! NG+") + (justCleared+1) + TR(" disponível."," available."," disponible."), 6000, "magic"), 2400); } catch(e) {}
     }
@@ -27016,7 +27116,9 @@ function onBossDefeated(u) {
   // 200-1011 (companion lvl10 = 1011 ✦ ≈ 337 bosses; revive = 200 ✦ ≈ 67 bosses).
   // Agora bosses pagam 15 + 5·bossTier (18-30) e NecroKing 60 — maxar um companion
   // vira ~8-10 campanhas, revive ~8 bosses. Escala com o desafio, não com o grind.
-  const soulsDrop = (u.unitClass === "bossNecroKing") ? 60 : (15 + (u.bossTier || 1) * 5);
+  // R27 — Bênção da Ascensão: +3% por NG+ limpo (meta, vale em todos os modos)
+  const _bless = (typeof ngSoulBlessMult === "function") ? ngSoulBlessMult() : 1;
+  const soulsDrop = Math.round(((u.unitClass === "bossNecroKing") ? 60 : (15 + (u.bossTier || 1) * 5)) * _bless);
   progress.souls = (progress.souls || 0) + soulsDrop;
   saveProgress();
   showToast("+" + soulsDrop + TR(" ALMAS  ✦  TOTAL: "," SOULS  ✦  TOTAL: "," ALMAS  ✦  TOTAL: ") + progress.souls, 3200, "magic");
@@ -28873,7 +28975,9 @@ function spawnCoinFloat(sx, sy, value) {
 function necromanceCostForTier(tier) {
   const raw = Math.max(1, Math.min(4, tier || 1));
   const disc = (game.bonuses && game.bonuses.necroCostReduction) || 0;
-  return Math.max(1, raw - disc);
+  // R27 — Mana Avarenta (NG+4): +25% de custo (antes do desconto)
+  const mult = (typeof ngAsc === "function") ? ngAsc("necroCostMult") : 1;
+  return Math.max(1, Math.round(raw * mult) - disc);
 }
 
 // 2026-06-16 — REWORK V3 TAREFA 5: VFX refinados (necromancia, impacto, recompensa). Replica
@@ -28972,7 +29076,7 @@ function tryNecromance(wx, wy, rangeOverride) {
         showToast("LIMITE DE SUPER-ALIADOS (3)", 1400, "danger");
         continue;
       }
-      cost = BOSS_CORPSE_NECRO_COST;
+      cost = Math.round(BOSS_CORPSE_NECRO_COST * ((typeof ngAsc === "function") ? ngAsc("necroCostMult") : 1));
       isBossRevive = true;
     } else {
       cost = necromanceCostForTier(c.tier);
@@ -67185,6 +67289,7 @@ function collectQuestRewards() {
       }
     }
   }
+  if (souls > 0) souls = Math.round(souls * ((typeof ngSoulBlessMult === "function") ? ngSoulBlessMult() : 1));   // R27 — Bênção
   if (souls > 0) progress.souls = (progress.souls || 0) + souls;
   if (coins > 0) progress.coins = (progress.coins || 0) + coins;
   if (done > 0) {
