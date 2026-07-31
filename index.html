@@ -9074,7 +9074,9 @@ const CLASSES = {
     scale: 1.25, radius: 7, coin: 14,
     armorBlock: 10,
     desc: "Colhedor sombrio. Dano devastador em foice larga.",
-    body: "#1a0820", bodyD: "#080010", armor: "#4a2858", armorD: "#20102a", accent: "#c848b8",
+    // R26: manto #1a0820 era preto-sobre-preto (o Ceifeiro era invisível, só a foice
+    // aparecia). Violeta-sombrio legível, mantém o tom fúnebre.
+    body: "#50305c", bodyD: "#281440", armor: "#7a5490", armorD: "#3c2448", accent: "#d060c8",
     weapon: "scythe",
   },
   // ===== TIER 4 =====
@@ -9296,7 +9298,8 @@ const CLASSES = {
     hp: 84, atk: 12, range: 16, atkCd: 1300, speed: 38,
     scale: 1.1, radius: 6, coin: 6, armorBlock: 20,
     desc: "Cadáver encharcado — puxa aliados para o lodo (slow).",
-    body: "#2a3828", bodyD: "#0c1410", armor: "#3a5038", armorD: "#142018", accent: "#6a8070",
+    // R26: #2a3828 sumia no pântano — carne afogada PÁLIDA esverdeada (zumbi lê de longe).
+    body: "#6a9070", bodyD: "#35503a", armor: "#87a88c", armorD: "#43584a", accent: "#9adca8",
     weapon: "club",
     onHit: "slowOnHit",
   },
@@ -56644,14 +56647,17 @@ function drawCherubim(cx, cy, t, u, c, pose) {
 
   // ===== ASAS COMPACTAS (estilo imp mas brancas + detalhe dourado) =====
   // Asa ESQUERDA — 3px largura, 4 alto
+  // R26: 3ª pena externa + pontas CLARAS — as asas liam como 2 tracinhos.
+  rect(-5, -8 + float - flapL, 1, 4, "#e8dcc0");        // pena externa
   rect(-4, -7 + float - flapL, 1, 4, "#f0e8d0");        // primeira pena
-  rect(-3, -7 + float - flapL, 1, 4, "#ffffff");        // pena central (clara)
-  px(-5, -6 + float - flapL, "#a89878");                // ponta da asa (sombra)
+  rect(-3, -7 + float - flapL, 1, 5, "#ffffff");        // pena central (clara)
+  px(-6, -7 + float - flapL, "#ffffff");                // ponta da asa (clara contra o escuro)
   px(-4, -3 + float - flapL, "#a89878");                // base da asa (sombra)
   // Asa DIREITA (espelhada)
+  rect(4, -8 + float - flapR, 1, 4, "#e8dcc0");
   rect(2, -7 + float - flapR, 1, 4, "#f0e8d0");
-  rect(3, -7 + float - flapR, 1, 4, "#ffffff");
-  px(4, -6 + float - flapR, "#a89878");
+  rect(3, -7 + float - flapR, 1, 5, "#ffffff");
+  px(5, -7 + float - flapR, "#ffffff");
   px(3, -3 + float - flapR, "#a89878");
 
   // ===== CORPO bebê (chubby compacto) =====
@@ -56714,12 +56720,14 @@ function drawCherubim(cx, cy, t, u, c, pose) {
   const haloP = 0.75 + Math.sin(t / 240) * 0.25;
   offCtx.globalAlpha = haloP;
   // Anel ovalado (estilo imp tem chifres simples — aqui uso halo simples)
-  rect(-2, -9 + float, 5, 1, "#fff080");                // top anel
-  px(-3, -9 + float, "#d4a637");                        // ponta esq
-  px(3, -9 + float, "#d4a637");                         // ponta dir
+  // R26: halo 2px ACIMA da cabeça (grudado no cabelo virava borrão dourado —
+  // o vão embaixo é o que faz ler como auréola de anjo).
+  rect(-2, -11 + float, 5, 1, "#fff080");               // top anel
+  px(-3, -11 + float, "#d4a637");                       // ponta esq
+  px(3, -11 + float, "#d4a637");                        // ponta dir
   // Brilho central pulsante
   if (haloP > 0.9) {
-    px(0, -9 + float, "#ffffff");
+    px(0, -11 + float, "#ffffff");
   }
   offCtx.globalAlpha = 1;
 
@@ -57479,14 +57487,16 @@ function drawMushroomBrute(cx, cy, t, u, c, pose) {
   px(2, -7 + bob, "#fff");
 
   // CHAPEU gigantesco vermelho-escuro
-  rect(-10, -22 + bob, 20, 4, "#8a0808");
+  // R26: o sub-chapéu (#8a0808→#3a0404) tinha a luminância do chão — o topo
+  // vermelho parecia FLUTUAR desconectado do corpo. Tons elevados.
+  rect(-10, -22 + bob, 20, 4, "#a82020");
   rect(-9, -25 + bob, 18, 3, "#c01818");
   rect(-7, -28 + bob, 14, 3, "#ff2828");
   rect(-5, -31 + bob, 10, 3, "#ff4848");
   rect(-3, -33 + bob, 6, 2, "#ff7070");
-  // Base escura
-  rect(-10, -19 + bob, 20, 1, "#5a0404");
-  rect(-10, -18 + bob, 20, 1, "#3a0404");
+  // Base escura (R26: elevada — era invisível no chão)
+  rect(-10, -19 + bob, 20, 1, "#7a1a14");
+  rect(-10, -18 + bob, 20, 1, "#581410");
   // Pintas brancas grandes (motivo amanita)
   rect(-6, -25 + bob, 3, 3, "#ffffff");
   rect(2, -28 + bob, 3, 3, "#ffffff");
