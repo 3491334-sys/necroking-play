@@ -9246,7 +9246,8 @@ const CLASSES = {
     hp: 130, atk: 22, range: 20, atkCd: 1300, speed: 60,
     scale: 1.25, radius: 7, coin: 14, armorBlock: 30,
     desc: "Estátua fundida — pancada derrete pele (burn alto).",
-    body: "#401818", bodyD: "#180808", armor: "#8a4020", armorD: "#401810", accent: "#ff8030",
+    // R24: obsidiana #401818 sumia no chão do inferno — cinza-pedra quente com rachas vivas.
+    body: "#6a4038", bodyD: "#2a1410", armor: "#9a5028", armorD: "#482014", accent: "#ff9040",
     weapon: "club",
     onHit: "burnStack",
   },
@@ -9266,7 +9267,8 @@ const CLASSES = {
     hp: 24, atk: 5, range: 11, atkCd: 800, speed: 58,
     scale: 0.78, radius: 4, coin: 2, armorBlock: 0,
     desc: "Pele tóxica — cada mordida envenena.",
-    body: "#40682a", bodyD: "#182810", armor: "#285018", armorD: "#0c2008", accent: "#a0e0a0",
+    // R24: verde-musgo sumia no pântano — dart frog tóxico vivo.
+    body: "#58a832", bodyD: "#245814", armor: "#3a7a20", armorD: "#143408", accent: "#e8ff70",
     weapon: "dagger",
     weaponColor: "#70d088", weaponDark: "#306028",
     onHit: "poisonStack",
@@ -9521,7 +9523,8 @@ const CLASSES = {
     hp: 200, atk: 26, range: 20, atkCd: 1100, speed: 56,
     scale: 1.3, radius: 8, coin: 15, armorBlock: 35,
     desc: "Abominação tentacular do abismo. Muito venenosa.",
-    body: "#10243a", bodyD: "#060e1a", armor: "#2a5070", armorD: "#101e30", accent: "#60c0e0",
+    // R24: era #10243a ≈ cor da água — invisível. Verde-abissal de Deep One clássico.
+    body: "#2a6858", bodyD: "#123428", armor: "#4a9878", armorD: "#1e4838", accent: "#90f0c8",
     weapon: "club", weaponColor: "#3a7090", weaponDark: "#101e30",
     onHit: "poisonStack",
   },
@@ -53455,11 +53458,13 @@ function drawCaoInferno(cx, cy, t, u, c, pose) {
   const tailWag = Math.round(Math.sin(t / 240) * 1.5);
   const flameRipple = Math.sin(t / 130);
   // Cores pelagem (5 tons, preto-carmesim)
-  const FUR_K  = "#080404";       // sombra extrema (preto puro)
-  const FUR_D  = "#1a0808";       // base escura
-  const FUR_M  = "#3a1410";       // marrom-vermelho
-  const FUR_R  = "#5a1810";       // carmesim
-  const FUR_L  = "#8a2818";       // highlight quente (peito iluminado pelo fogo)
+  // R24: a pelagem preta pura (#080404-#5a1810) sumia no chão escuro — o cão lia
+  // como brasas soltas. Paleta elevada 2 tons (silhueta visível, ainda sombrio).
+  const FUR_K  = "#361a10";       // sombra extrema
+  const FUR_D  = "#54281a";       // base escura
+  const FUR_M  = "#7a3c22";       // marrom-brasa (o chão do inferno é #5c1a18 — precisa subir DISSO)
+  const FUR_R  = "#9c4e2a";       // carmesim quente
+  const FUR_L  = "#c86838";       // highlight (peito iluminado pelo fogo)
   // Cores fogo (4 tons da juba/cauda)
   const F_D   = "#a01810";        // brasa profunda
   const F_M   = "#ff4020";        // fogo médio (laranja-vermelho)
@@ -55185,66 +55190,81 @@ function drawHomemPeixe(cx, cy, t, u, c, pose) {
   if (p > 0.4 && p < 0.65) px(6 + thrust, -10 + bob, "#fff");
 }
 function drawCaranguejoGigante(cx, cy, t, u, c, pose) {
-  // R16 — REDESIGN (dono: "muito mal feito"): silhueta clássica de caranguejo — casco
-  // oval, 3 patas articuladas pra CADA lado (o antigo tinha patas só embaixo e lia
-  // como pedra), garrona frontal articulada, garra menor atrás, olhos em haste no topo.
-  // Cacheável: 100% determinista (t/pose), zero random/effects. Span x∈[-19..+28].
+  // R24 v3 (dono: "não tem nada a ver") — o v2 lia como laje: 47 largo × 12 alto,
+  // garra desgarrada do corpo, olhos invisíveis. v3 = caranguejo CLÁSSICO (~33×22):
+  // casco em DOMO, DUAS garras erguidas pra frente-cima (pose 🦀), olhos em haste
+  // no topo, 3 patas articuladas por lado. Cacheável (100% determinista).
   const { rect, px } = unitRectFactoryHD(cx, cy, u.facing);
   const bob = Math.round(Math.abs(Math.sin(t / 150)) * (pose.walking ? 1 : 0)) + Math.round(Math.sin(t / 340) * 0.5);
   const p = pose.attackProg || 0;
-  // Sombra dupla larga
+  // Sombra
   offCtx.globalAlpha = 0.24; offCtx.fillStyle = "#000";
-  offCtx.fillRect(cx - 13, cy + 2, 27, 2);
-  offCtx.fillRect(cx - 9, cy + 4, 19, 1);
+  offCtx.fillRect(cx - 10, cy + 2, 21, 2);
+  offCtx.fillRect(cx - 7, cy + 4, 15, 1);
   offCtx.globalAlpha = 1;
-  // ===== PATAS: 3 de cada lado, saindo do casco pra FORA (caranguejo anda de lado)
+  // ===== PATAS: 3 por lado — segmentos de 2px (a classe tem scale 1.15: pixel
+  // isolado some no arredondamento fracionário; rect 2px sobrevive e lê melhor)
   for (let i = 0; i < 3; i++) {
     const ph = pose.walking ? Math.round(Math.sin(t / 140 + i * 2.1) * 1.5) : 0;
-    const ly = -5 + i * 3 + bob;
-    // esquerda (-x): coxa + canela dobrando pra baixo
-    rect(-14, ly, 3, 2, c.armor);
-    px(-16, ly + 1, c.armor); px(-17, ly + 2 + ph, c.armorD); px(-17, ly + 3 + ph, c.armorD);
+    const ox = i * 3;               // leque com 1px de vão entre pernas
+    // esquerda (-x): coxa (colada no casco) → canela → pé
+    rect(-8 - ox, -7 + bob, 2, 2, c.armor);
+    rect(-9 - ox, -5 + bob, 2, 2, c.armorD);
+    rect(-10 - ox, -3 + bob + ph, 2, 2, c.armorD);
     // direita (+x)
-    rect(11, ly, 3, 2, c.armor);
-    px(15, ly + 1, c.armor); px(16, ly + 2 - ph, c.armorD); px(16, ly + 3 - ph, c.armorD);
+    rect(6 + ox, -7 + bob, 2, 2, c.armor);
+    rect(7 + ox, -5 + bob, 2, 2, c.armorD);
+    rect(8 + ox, -3 + bob - ph, 2, 2, c.armorD);
   }
-  // ===== CASCO oval largo (3 tons: rim claro em cima, sombra embaixo)
-  rect(-11, -13 + bob, 22, 2, c.body);
-  rect(-13, -11 + bob, 26, 5, c.body);
-  rect(-12, -6 + bob, 24, 3, c.bodyD);
-  rect(-10, -3 + bob, 20, 2, c.bodyD);
-  rect(-9, -13 + bob, 14, 1, c.accent);
-  rect(-7, -12 + bob, 10, 1, "#ffd8b0");
+  // ===== CASCO EM DOMO (16 largo × 10 alto, 3 tons + rim)
+  rect(-6, -16 + bob, 11, 1, c.body);
+  rect(-8, -15 + bob, 15, 1, c.body);
+  rect(-9, -14 + bob, 17, 4, c.body);
+  rect(-9, -10 + bob, 17, 1, c.bodyD);
+  rect(-8, -9 + bob, 15, 1, c.bodyD);
+  rect(-6, -8 + bob, 11, 1, c.bodyD);
+  rect(-4, -7 + bob, 7, 1, c.bodyD);
+  // rim de luz no topo + highlight
+  rect(-4, -16 + bob, 7, 1, c.accent);
+  rect(-2, -15 + bob, 4, 1, "#ffd8b0");
   // pontas laterais do casco
-  px(-14, -9 + bob, c.body); px(-14, -8 + bob, c.bodyD);
-  px(13, -9 + bob, c.body); px(13, -8 + bob, c.bodyD);
-  // pintas da carapaça
-  px(-6, -8 + bob, c.armorD); px(0, -10 + bob, c.armorD); px(5, -7 + bob, c.armorD);
-  px(-3, -6 + bob, c.accent); px(3, -9 + bob, c.accent);
-  // ===== OLHOS em haste no topo-frente (oscilam dessincronizados)
+  px(-10, -13 + bob, c.body); px(-10, -12 + bob, c.bodyD);
+  px(8, -13 + bob, c.body); px(8, -12 + bob, c.bodyD);
+  // pintas
+  px(-4, -12 + bob, c.armorD); px(1, -13 + bob, c.armorD); px(4, -11 + bob, c.armorD);
+  px(-1, -11 + bob, c.accent);
+  // ===== OLHOS EM HASTE no topo (dessincronizados, bem acima do casco)
   const eb = Math.round(Math.sin(t / 300));
-  rect(3, -16 + bob + eb, 1, 3, c.bodyD);
-  px(3, -18 + bob + eb, "#fff"); px(3, -17 + bob + eb, "#1a0808");
-  rect(7, -17 + bob - eb, 1, 4, c.bodyD);
-  px(7, -19 + bob - eb, "#fff"); px(7, -18 + bob - eb, "#1a0808");
-  // mandíbulas mastigando
-  px(10, -4 + bob + (Math.sin(t / 130) > 0 ? 1 : 0), c.armorD);
-  px(11, -4 + bob, c.armorD);
-  // ===== GARRONA frontal (+x): braço → palma → pinça superior MÓVEL
+  rect(-3, -19 + bob + eb, 1, 3, c.bodyD);
+  px(-3, -21 + bob + eb, "#fff"); px(-3, -20 + bob + eb, "#1a0808");
+  rect(2, -20 + bob - eb, 1, 4, c.bodyD);
+  px(2, -22 + bob - eb, "#fff"); px(2, -21 + bob - eb, "#1a0808");
+  // ===== MANDÍBULAS mastigando (baixo-centro)
+  px(0, -6 + bob + (Math.sin(t / 130) > 0 ? 1 : 0), c.armorD);
+  px(1, -6 + bob, c.armorD);
+  // ===== GARRA GRANDE (+x, frente): braço subindo do casco → palma → pinça ABRE PRA CIMA
   const open = p > 0 && p <= 0.55 ? Math.round(Math.sin(Math.min(p / 0.55, 1) * Math.PI / 2) * 3) : 0;
-  rect(12, -9 + bob, 4, 4, c.body); px(13, -6 + bob, c.bodyD);
-  rect(16, -11 + bob, 6, 7, c.body);
-  rect(16, -11 + bob, 6, 1, c.accent);
-  rect(16, -5 + bob, 6, 1, c.bodyD);
-  rect(21, -13 + bob - open, 6, 2, c.body); px(26, -12 + bob - open, c.bodyD);
-  rect(21, -5 + bob, 5, 2, c.bodyD); px(26, -4 + bob, c.armorD);
-  px(22, -8 + bob, c.accent); px(24, -8 + bob, c.accent);
+  // braço 2px de espessura subindo do casco até a palma (contíguo)
+  rect(7, -15 + bob, 2, 3, c.body);
+  rect(9, -17 + bob, 2, 3, c.body);
+  px(8, -14 + bob, c.bodyD);
+  rect(10, -20 + bob, 5, 5, c.body);            // palma
+  rect(10, -20 + bob, 5, 1, c.accent);
+  rect(10, -16 + bob, 5, 1, c.bodyD);
+  rect(12, -15 + bob, 5, 2, c.body);            // queixo fixo da pinça (aponta frente)
+  px(16, -14 + bob, c.bodyD);
+  rect(12, -22 + bob - open, 4, 2, c.body);     // pinça superior MÓVEL
+  px(16, -21 + bob - open, c.body); px(15, -22 + bob - open, c.accent);
   // flash do golpe quando a pinça fecha
-  if (p > 0.55 && p < 0.78) { px(27, -8 + bob, "#fff"); px(28, -9 + bob, "#fff"); px(27, -10 + bob, c.accent); }
-  // ===== Garra menor (-x), dobrada junto ao corpo
-  rect(-17, -6 + bob, 4, 3, c.body);
-  px(-19, -7 + bob, c.body); px(-19, -4 + bob, c.bodyD);
-  px(-18, -6 + bob, c.accent);
+  if (p > 0.55 && p < 0.78) { px(17, -18 + bob, "#fff"); px(18, -19 + bob, "#fff"); px(17, -20 + bob, c.accent); }
+  // ===== GARRA MENOR (-x), também erguida (pose simétrica de caranguejo)
+  rect(-10, -15 + bob, 2, 3, c.body);
+  rect(-12, -17 + bob, 2, 3, c.body);
+  rect(-14, -18 + bob, 4, 4, c.body);           // palma
+  rect(-14, -18 + bob, 4, 1, c.accent);
+  rect(-16, -19 + bob, 3, 2, c.body);           // pinça superior
+  px(-16, -20 + bob, c.accent);
+  rect(-15, -14 + bob, 3, 1, c.bodyD);          // queixo
 }
 function drawSereia(cx, cy, t, u, c, pose) {
   // T2 ranged — sereia ereta sobre cauda em S, ~20 alto × 26 comprido. Cacheável.
