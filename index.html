@@ -6007,6 +6007,12 @@
       <h1 class="menu-title" data-i18n="menu.title">NECROKING</h1>
       <div class="menu-buttons">
         <!-- 2026-06-15 — menu inicial mostra os 3 modos direto (Campanha/Endless/Boss Rush) -->
+        <!-- R31 (Onda 1) — ⚡ JOGAR: fast-path de 1 clique pro próximo nível da campanha
+             (auto-escolhe o save mais avançado; novato cai no Deserto nível 1) -->
+        <button class="menu-btn" data-menu-action="quick-play" id="quickPlayBtn"
+                style="border-color:#f7d96f; color:#ffe890; background:linear-gradient(180deg,#4a3410,#241804);
+                       box-shadow:0 0 14px rgba(212,166,55,0.4);"
+                data-i18n="r31.playBtn">⚡ JOGAR</button>
         <button class="menu-btn" data-menu-action="go-campaign" data-i18n="r19.campBtn">🗺️ CAMPANHA</button>
         <button class="menu-btn" data-menu-action="go-endless">♾️ ENDLESS</button>
         <button class="menu-btn" data-menu-action="start-bossrush">⚔ BOSS RUSH</button>
@@ -6442,7 +6448,7 @@
   <div id="cardPickMenu" class="menu-overlay">
     <div class="menu-wrap pick-wrap">
       <h2 class="menu-h2 font-pixel-med">ESCOLHA SUAS CARTAS</h2>
-      <div class="pick-hint font-pixel" id="pickHint" data-i18n="r19.pickHint">Arraste cartas do grimório para os slots</div>
+      <div class="pick-hint font-pixel" id="pickHint" data-i18n="r19.pickHint">Toque ou arraste as cartas do grimório</div>
 
       <!-- FEEDBACK R14 — seletor de DIFICULDADE (preferência global, vale pra todos os modos) -->
     <div class="difficulty-selector" id="difficultySelector">
@@ -10098,6 +10104,7 @@ const DEFAULT_PROGRESS = {
   upgrades: {},
   best: { time: 0, kills: 0 },
   tutorialDone: false,  // 2026-04-27 TASK O: tutorial visto?
+  necroHintDone: false, // R31 (Onda 1): já fez a 1ª necromancia? (apaga o hint-ensino)
   // 2026-04-27 TASK G: Bestiário — kills por classe (unidade vista após 1º kill)
   unitsSeen: {},        // { unitClass: killCount }
   // 2026-04-27 TASK H: Conquistas desbloqueadas
@@ -10447,7 +10454,7 @@ function _validateProgress(p) {
   // Best score
   out.best = (p.best && typeof p.best === "object") ? { time: p.best.time || 0, kills: p.best.kills || 0 } : { time: 0, kills: 0 };
   // Booleans (preserva se booleano, senão default)
-  for (const flag of ["necroKingDefeated", "tutorialDone", "holyKingUnlocked", "holyKingMode", "holyCardsUnlocked", "ngPlusUnlocked", "fxWeather", "fxDayNight", "fxReflections", "colorblindMode", "guildVillageDestroyed", "sacredCardCast", "endlessBossKilled", "voidAvatarKilled",
+  for (const flag of ["necroKingDefeated", "tutorialDone", "necroHintDone", "holyKingUnlocked", "holyKingMode", "holyCardsUnlocked", "ngPlusUnlocked", "fxWeather", "fxDayNight", "fxReflections", "colorblindMode", "guildVillageDestroyed", "sacredCardCast", "endlessBossKilled", "voidAvatarKilled",
     // COMBO 28 (Opção M) — KING SKINS unlock flags
     "plagueKingUnlocked", "frostKingUnlocked", "infernoKingUnlocked", "voidKingUnlocked",
     // 2026-06-24 FIX (auditoria): estavam sendo WIPEADOS todo load → re-toast "DESBLOQUEADA" por sessão
@@ -12677,6 +12684,26 @@ function showMobileHintIfNeeded() {
     try { localStorage.setItem("necroking_mobile_hint_seen", "1"); } catch(e) {}
   }, 6000);
 }
+
+// R31 (Onda 1) — toast-ensino da NECROMANCIA: enquanto o jogador nunca ressuscitou
+// um cadáver (progress.necroHintDone), até 3 avisos espaçados (12s) ensinam o gesto.
+// Chamado quando um cadáver inimigo aparece no chão (morte + cadáveres iniciais).
+function maybeShowNecroHintToast() {
+  if (!game._necroHintActive || game.paused || !game.runActive || game.gameOver) return;
+  if (typeof _tutorialActive !== "undefined" && _tutorialActive) return;
+  if ((game._necroHintToasts || 0) >= 3) return;
+  if (game.runTime - (game._necroHintToastAt || -99) < 12) return;
+  game._necroHintToastAt = game.runTime;
+  game._necroHintToasts = (game._necroHintToasts || 0) + 1;
+  const _mob = (typeof isMobileDevice === "function") && isMobileDevice();
+  showToast(_mob
+    ? TR("💀 CADÁVER NO CHÃO! Use o botão ⚰ perto dele pra ressuscitar como aliado",
+         "💀 CORPSE ON THE GROUND! Use the ⚰ button near it to raise it as an ally",
+         "💀 ¡CADÁVER EN EL SUELO! Usa el botón ⚰ cerca para alzarlo como aliado")
+    : TR("💀 CADÁVER NO CHÃO! Clique DIREITO perto dele pra ressuscitar como aliado",
+         "💀 CORPSE ON THE GROUND! RIGHT-CLICK near it to raise it as an ally",
+         "💀 ¡CADÁVER EN EL SUELO! Clic DERECHO cerca para alzarlo como aliado"), 3400, "magic");
+}
 window.addEventListener("keydown", (e) => {
   if (!input.keys[e.key.toLowerCase()]) input.keysOnce[e.key.toLowerCase()] = true;
   input.keys[e.key.toLowerCase()] = true;
@@ -13399,6 +13426,12 @@ function startNewRun(preselectedSpellIds, opts) {
     }, 8000);
   }
   // Reset state
+  // R31 (Onda 1) — hint de necromancia: ativo até a 1ª necromancia BEM-SUCEDIDA
+  // da conta (progress.necroHintDone persiste). Cadáveres pulsam roxo (drawCorpse)
+  // + até 3 toasts-ensino espaçados (maybeShowNecroHintToast).
+  game._necroHintActive = !(progress && progress.necroHintDone);
+  game._necroHintToasts = 0;
+  game._necroHintToastAt = -99;
   // 2026-06-12 FIX (audit): limpa fonte do último dano — death screen mostrava
   // "MORTO POR X" da run ANTERIOR quando o Rei morria por DOT/hazard sem atacante.
   game._lastDamageSource = null;
@@ -13616,6 +13649,29 @@ function startNewRun(preselectedSpellIds, opts) {
   spawnMapFeatures();
   // Zona segura do spawn + ladrilhos guiando até cada covil (Fase 14)
   spawnSafeZoneAndPaths();
+
+  // R31 (Onda 1) — CADÁVERES INICIAIS no mundo aberto: 6-10 corpos necromanciáveis
+  // ao redor do spawn. O 1º minuto do endless era frio (spawn a ~9s, nada pra fazer);
+  // agora a fantasia central — erguer o exército — começa no segundo 1.
+  if (!game.campaignLinear && !game.bossRushMode && !game.survivalMode) {
+    const _scPool = (typeof NEUTRAL_ENEMIES !== "undefined" ? NEUTRAL_ENEMIES : ["bandido", "soldado"])
+      .filter(id => CLASSES[id] && (CLASSES[id].tier || 1) <= 2 && !CLASSES[id].isBoss);
+    const _scN = 6 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < _scN && _scPool.length; i++) {
+      const a = (i / _scN) * Math.PI * 2 + Math.random() * 0.8;
+      const r = 90 + Math.random() * 120;
+      const cls = _scPool[Math.floor(Math.random() * _scPool.length)];
+      game.corpses.push({
+        x: Math.round(Math.cos(a) * r), y: Math.round(Math.sin(a) * r), faction: "enemy",
+        tier: CLASSES[cls].tier || 1, unitClass: cls, scale: 1,
+        lifetime: 600000, fade: 1, facing: Math.random() < 0.5 ? "left" : "right",
+        isBossCorpse: false, bossBiome: null,
+        _starter: true,
+      });
+    }
+    // hint da 1ª necromancia dispara já no comecinho (helper tem os guards)
+    setTimeout(() => { try { maybeShowNecroHintToast(); } catch (e) {} }, 2600);
+  }
 
   // Spawn king
   const b = game.bonuses;
@@ -15421,7 +15477,7 @@ function currentSpawnInterval() {
   // Army relief mais generoso pro early game (3.0 \u2192 1.0).
   let armyRelief;
   if (armyCount < 10) {
-    armyRelief = 2.4 - (armyCount / 10) * 1.4;  // 2.4 \u2192 1.0
+    armyRelief = 1.6 - (armyCount / 10) * 0.6;  // R31 (Onda 1): era 2.4 - minuto 1 vazio demais  // 2.4 \u2192 1.0
   } else {
     armyRelief = Math.max(0.8, 1.0 - (armyCount - 10) * 0.008);
   }
@@ -26590,6 +26646,8 @@ function onUnitDeathFinished(u) {
     isBossCorpse: !!u.isBoss,
     bossBiome: u.isBoss ? (u.biomeId || "neutro") : null,
   });
+  // R31 (Onda 1) — cadáver inimigo novo no chão → hint da 1ª necromancia
+  if (typeof maybeShowNecroHintToast === "function") maybeShowNecroHintToast();
 }
 
 // Etapa 3: dado um bioma, retorna a CLASSE T4 dele (a unidade de elite local).
@@ -29160,6 +29218,17 @@ function tryNecromance(wx, wy, rangeOverride) {
     spawnFizzleFX(wx, wy);
   } else {
     Sfx.necromance();
+    // R31 (Onda 1) — 1ª necromancia da conta: apaga o hint (glow+toasts) e persiste
+    if (game._necroHintActive) {
+      game._necroHintActive = false;
+      if (progress && !progress.necroHintDone) {
+        progress.necroHintDone = true;
+        if (typeof saveProgress === "function") saveProgress();
+      }
+      showToast(TR("💀 EXÉRCITO ERGUIDO! Todo inimigo morto é um soldado em potencial",
+                   "💀 ARMY RISEN! Every dead enemy is a potential soldier",
+                   "💀 ¡EJÉRCITO ALZADO! Todo enemigo muerto es un soldado en potencia"), 3200, "magic");
+    }
     // 2026-04-29 COMBO 31 — quest "Coletor de Almas": +N corpos ressuscitados
     if (typeof questProgressEvent === "function") {
       questProgressEvent("raiseCorpse", { count: converted });
@@ -30958,6 +31027,11 @@ function refreshCardPickMenu() {
   pickScreenState.pool = pool.map(s => s.id);
   pickScreenState.slots = [null, null, null];
   pickScreenState.maxSlots = Math.min(3, pool.length);
+  // R31 (Onda 1) — pool pequeno (jogador novo, ≤3 cartas): não há escolha a fazer,
+  // pré-preenche os slots. O jogador ainda pode tocar/arrastar de volta se quiser.
+  if (pool.length > 0 && pool.length <= 3) {
+    for (let i = 0; i < pool.length; i++) pickScreenState.slots[i] = pool[i].id;
+  }
 
   renderPickSlots();
   renderPickDeck();
@@ -31335,6 +31409,32 @@ function onPickPointerUp(e) {
   const dropSlot = getSlotAtPoint(e.clientX, e.clientY);
   clearSlotHoverHighlight();
 
+  // R31 (Onda 1) — TAP (movimento < 8px) vale como ação rápida: carta do grimório
+  // vai pro primeiro slot vazio; carta de slot volta pro grimório. O drag continua
+  // funcionando exatamente igual (isto só cobre o toque/clique parado).
+  const _tdx = (e.clientX || 0) - pickDrag.startX;
+  const _tdy = (e.clientY || 0) - pickDrag.startY;
+  if (Math.hypot(_tdx, _tdy) < 8) {
+    const drag = pickDrag;
+    drag.ghost.remove();
+    drag.el.classList.remove("dragging-src");
+    pickDrag = null;
+    if (drag.source === "deck") {
+      let placed = false;
+      for (let i = 0; i < pickScreenState.maxSlots; i++) {
+        if (!pickScreenState.slots[i]) { pickScreenState.slots[i] = drag.spellId; placed = true; break; }
+      }
+      if (placed) { if (typeof Sfx !== "undefined" && Sfx.levelUp) Sfx.levelUp(); }
+      else if (typeof Sfx !== "undefined" && Sfx.deny) Sfx.deny();
+    } else if (drag.source === "slot") {
+      pickScreenState.slots[drag.srcSlotIdx] = null;
+    }
+    repaintSlotContents();
+    renderPickDeck();
+    updatePickScreenUI();
+    return;
+  }
+
   if (dropSlot) {
     const targetIdx = Number(dropSlot.dataset.slotIdx);
     if (targetIdx >= pickScreenState.maxSlots) {
@@ -31536,7 +31636,7 @@ function updatePickScreenUI() {
     return;
   }
 
-  hint.textContent = TR("ARRASTE ATÉ ","DRAG UP TO ","ARRASTRA HASTA ") + max + TR(" CARTA"," CARD"," CARTA") + (max > 1 ? "S" : "") + TR(" DO GRIMÓRIO ("," FROM THE GRIMOIRE ("," DEL GRIMORIO (") + filled + "/" + max + ")";
+  hint.textContent = TR("TOQUE OU ARRASTE ATÉ ","TAP OR DRAG UP TO ","TOCA O ARRASTRA HASTA ") + max + TR(" CARTA"," CARD"," CARTA") + (max > 1 ? "S" : "") + TR(" DO GRIMÓRIO ("," FROM THE GRIMOIRE ("," DEL GRIMORIO (") + filled + "/" + max + ")";
   if (filled >= 1) {
     hint.classList.add("full");
     confirmBtn.classList.remove("disabled");
@@ -61355,6 +61455,21 @@ function drawCorpse(corpse, camX, camY) {
       offCtx.arc(sx, sy, 7, 0, Math.PI * 2);
       offCtx.stroke();
     }
+    // R31 (Onda 1) — hint da 1ª necromancia: TODO cadáver inimigo pulsa roxo até
+    // o jogador ressuscitar o primeiro (progress.necroHintDone). Draw-only.
+    if (game._necroHintActive && !corpse.isBossCorpse) {
+      const hp2 = 0.5 + Math.sin(game.time / 160) * 0.5;
+      offCtx.globalAlpha = (0.28 + 0.34 * hp2) * (corpse.fade || 1);
+      offCtx.strokeStyle = "#b06cf0";
+      offCtx.lineWidth = 1;
+      offCtx.beginPath();
+      offCtx.arc(sx, sy, 8 + Math.round(hp2 * 2), 0, Math.PI * 2);
+      offCtx.stroke();
+      offCtx.globalAlpha = (0.08 + 0.10 * hp2) * (corpse.fade || 1);
+      offCtx.fillStyle = "#8a48d0";
+      fillCircle(sx, sy + 1, 7);
+      offCtx.globalAlpha = 1;
+    }
   }
   // === Fase 13: BOSS CORPSE — visual distintivo (glow dourado pulsante + coroa) ===
   if (corpse.isBossCorpse) {
@@ -73386,6 +73501,9 @@ const TUTORIAL_STEPS = [
     title: "BEM-VINDO, REI!",
     body: "Mova com WASD (ou setas). Mouse ESQUERDO comanda o exército pro local clicado — sem clique, eles te seguem. Objetivo: destrua os COVIS dos biomas até despertar o NECROKING no altar central.",
     bodyMobile: "Mova com o JOYSTICK. TOQUE no mapa pra comandar o exército — sem toque, eles te seguem. Objetivo: destrua os COVIS dos biomas até despertar o NECROKING no altar central.",
+    // R31 (Onda 1) — variantes de CAMPANHA (corredor linear: estrada + portal)
+    bodyCampaign: "Mova com WASD (ou setas). Mouse ESQUERDO comanda o exército pro local clicado — sem clique, eles te seguem. Objetivo: siga a ESTRADA até o PORTAL no fim do nível.",
+    bodyCampaignMobile: "Mova com o JOYSTICK. TOQUE no mapa pra comandar o exército — sem toque, eles te seguem. Objetivo: siga a ESTRADA até o PORTAL no fim do nível.",
   },
   {
     iconKey: "bone",
@@ -73404,22 +73522,23 @@ const TUTORIAL_STEPS = [
     title: "EXPLORE E FIQUE FORTE",
     body: "Siga o MINIMAPA: baús, mercadores (tecla E por perto) e covis. Longe do centro o mundo é MAIS PERIGOSO — e o ouro, melhor. Bosses dropam ALMAS pra árvore do Legado e pros Companions. Boa caçada, Majestade.",
     bodyMobile: "Siga o MINIMAPA: baús, mercadores (aproxime-se) e covis. Longe do centro o mundo é MAIS PERIGOSO — e o ouro, melhor. Bosses dropam ALMAS pra árvore do Legado e pros Companions. Boa caçada, Majestade.",
+    bodyCampaign: "Siga a SETA e o MINIMAPA até o portal — 3 níveis liberam o COVIL do chefe da região. Baús no caminho dão moedas; o boss dropa ALMAS pra árvore do Legado e pros Companions. Boa caçada, Majestade.",
   },
 ];
 
 // R19 — i18n do tutorial (primeira impressão do jogador global). Fallback = PT do dado.
 const TUTORIAL_I18N = {
   en: [
-    { title: "WELCOME, KING!", body: "Move with WASD (or arrows). LEFT mouse commands the army to the clicked spot — with no click, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar.", bodyMobile: "Move with the JOYSTICK. TAP the map to command the army — with no tap, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar." },
+    { title: "WELCOME, KING!", body: "Move with WASD (or arrows). LEFT mouse commands the army to the clicked spot — with no click, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar.", bodyMobile: "Move with the JOYSTICK. TAP the map to command the army — with no tap, they follow you. Goal: destroy the biome LAIRS until the NECROKING awakens at the central altar.", bodyCampaign: "Move with WASD (or arrows). LEFT mouse commands the army to the clicked spot — with no click, they follow you. Goal: follow the ROAD to the PORTAL at the end of the level.", bodyCampaignMobile: "Move with the JOYSTICK. TAP the map to command the army — with no tap, they follow you. Goal: follow the ROAD to the PORTAL at the end of the level." },
     { title: "NECROMANCY", body: "RIGHT mouse near enemy corpses raises them as your allies (costs mana; higher tiers cost more). This is the heart of the game: EVERY dead enemy is a potential soldier.", bodyMobile: "The ⚰ BUTTON near enemy corpses raises them as your allies (costs mana; higher tiers cost more). This is the heart of the game: EVERY dead enemy is a potential soldier." },
     { title: "CARDS", body: "Keys 1-5 (or click the slots) arm a card; click the map to cast; ESC cancels. Unlock more cards and slots in the shop between runs.", bodyMobile: "TAP a slot to arm the card and TAP the map to cast (tap the slot again to cancel). Unlock more cards and slots in the shop between runs." },
-    { title: "EXPLORE AND GROW STRONG", body: "Follow the MINIMAP: chests, merchants (key E nearby) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty.", bodyMobile: "Follow the MINIMAP: chests, merchants (get close) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty." },
+    { title: "EXPLORE AND GROW STRONG", body: "Follow the MINIMAP: chests, merchants (key E nearby) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty.", bodyMobile: "Follow the MINIMAP: chests, merchants (get close) and lairs. Far from the center the world is MORE DANGEROUS — and the gold, better. Bosses drop SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty.", bodyCampaign: "Follow the ARROW and the MINIMAP to the portal — 3 levels unlock the region boss LAIR. Chests on the road give coins; the boss drops SOULS for the Legacy tree and Companions. Happy hunting, Your Majesty." },
   ],
   es: [
-    { title: "¡BIENVENIDO, REY!", body: "Muévete con WASD (o flechas). El clic IZQUIERDO manda al ejército al punto clicado — sin clic, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central.", bodyMobile: "Muévete con el JOYSTICK. TOCA el mapa para mandar al ejército — sin toque, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central." },
+    { title: "¡BIENVENIDO, REY!", body: "Muévete con WASD (o flechas). El clic IZQUIERDO manda al ejército al punto clicado — sin clic, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central.", bodyMobile: "Muévete con el JOYSTICK. TOCA el mapa para mandar al ejército — sin toque, te siguen. Objetivo: destruye las GUARIDAS de los biomas hasta despertar al NECROKING en el altar central.", bodyCampaign: "Muévete con WASD (o flechas). El clic IZQUIERDO manda al ejército al punto clicado — sin clic, te siguen. Objetivo: sigue el CAMINO hasta el PORTAL al final del nivel.", bodyCampaignMobile: "Muévete con el JOYSTICK. TOCA el mapa para mandar al ejército — sin toque, te siguen. Objetivo: sigue el CAMINO hasta el PORTAL al final del nivel." },
     { title: "NIGROMANCIA", body: "El clic DERECHO cerca de cadáveres enemigos los resucita como aliados (cuesta maná; tiers altos cuestan más). Es el corazón del juego: TODO enemigo muerto es un soldado en potencia.", bodyMobile: "El BOTÓN ⚰ cerca de cadáveres enemigos los resucita como aliados (cuesta maná; tiers altos cuestan más). Es el corazón del juego: TODO enemigo muerto es un soldado en potencia." },
     { title: "CARTAS", body: "Teclas 1-5 (o clic en las ranuras) arman una carta; clic en el mapa para lanzar; ESC cancela. Desbloquea más cartas y ranuras en la tienda entre partidas.", bodyMobile: "TOCA una ranura para armar la carta y TOCA el mapa para lanzar (toca de nuevo la ranura para cancelar). Desbloquea más cartas y ranuras en la tienda entre partidas." },
-    { title: "EXPLORA Y HAZTE FUERTE", body: "Sigue el MINIMAPA: cofres, mercaderes (tecla E cerca) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad.", bodyMobile: "Sigue el MINIMAPA: cofres, mercaderes (acércate) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad." },
+    { title: "EXPLORA Y HAZTE FUERTE", body: "Sigue el MINIMAPA: cofres, mercaderes (tecla E cerca) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad.", bodyMobile: "Sigue el MINIMAPA: cofres, mercaderes (acércate) y guaridas. Lejos del centro el mundo es MÁS PELIGROSO — y el oro, mejor. Los jefes sueltan ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad.", bodyCampaign: "Sigue la FLECHA y el MINIMAPA hasta el portal — 3 niveles liberan la GUARIDA del jefe de la región. Los cofres del camino dan monedas; el jefe suelta ALMAS para el árbol del Legado y los Compañeros. Buena caza, Majestad." },
   ],
 };
 function _tutTxt(idx, field, fallback) {
@@ -73462,7 +73581,14 @@ function showTutorialStep() {
   // pra todos — o jogador mobile (~60% da Poki) lia instruções de controles que não tem.
   // Usa a variante bodyMobile (controles touch) quando em dispositivo móvel.
   const _isMob = (typeof isMobileDevice === "function") && isMobileDevice();
-  document.getElementById("tutorialBody").textContent = (_isMob && step.bodyMobile) ? _tutTxt(_tutorialStepIndex, "bodyMobile", step.bodyMobile) : _tutTxt(_tutorialStepIndex, "body", step.body);
+  // R31 (Onda 1) — tutorial CONTEXTUAL: na campanha os passos 1 e 4 falam da
+  // estrada/portal (o texto genérico mandava procurar covis que não existem no corredor).
+  const _camp = !!game.campaignLinear;
+  let _bodyField = "body";
+  if (_camp && _isMob && step.bodyCampaignMobile) _bodyField = "bodyCampaignMobile";
+  else if (_camp && step.bodyCampaign) _bodyField = "bodyCampaign";
+  else if (_isMob && step.bodyMobile) _bodyField = "bodyMobile";
+  document.getElementById("tutorialBody").textContent = _tutTxt(_tutorialStepIndex, _bodyField, step[_bodyField]);
   // COMBO 11 E2 — gera dots dinâmicos (antes era hardcoded 6 no HTML)
   const dotsContainer = document.getElementById("tutorialProgressDots");
   if (dotsContainer && dotsContainer.children.length !== TUTORIAL_STEPS.length) {
@@ -73504,6 +73630,9 @@ function finishTutorial() {
   game.paused = false;
   progress.tutorialDone = true;
   if (typeof saveProgress === "function") saveProgress();
+  // R31 (Onda 1) — o toast do modificador de nível disparava DURANTE o tutorial
+  // (jogo pausado, ninguém via). Re-anuncia agora que o jogador está olhando.
+  if (game.campaignLinear && typeof announceLevelMod === "function") announceLevelMod();
 }
 
 // 2026-04-27 TASK N: loading screen entre menu e gameplay
@@ -75213,6 +75342,12 @@ function _isDevEnv() {
     return (local || param) && !onPoki;
   } catch (e) { return false; }
 }
+// R31 (Onda 1) — MODO TESTE é ferramenta de DEV: fora de localhost/?dev=1 o botão
+// some do menu principal (o case "test-mode" também ganhou guard — duplo, como dev-test).
+try {
+  const _tb = document.querySelector('#mainMenu [data-menu-action="test-mode"]');
+  if (_tb && !_isDevEnv()) _tb.style.display = "none";
+} catch (e) {}
 
 function refreshStartMenu() {
   // 2026-06-12: mostra o botão MODO TESTE só em DEV
@@ -75814,10 +75949,41 @@ document.addEventListener("click", (e) => {
         openCardPickFlow();
       }
       break;
+    // R31 (Onda 1) — ⚡ JOGAR: fast-path de 1 clique. Escolhe o slot mais avançado
+    // (ou usa o SAVE 1 zerado), pula startMenu + mapa de regiões e cai direto no
+    // card pick do PRÓXIMO nível não concluído da campanha.
+    case "quick-play": {
+      let bestSlot = 0, bestScore = -1;
+      try {
+        for (let i = 0; i < NUM_SAVE_SLOTS; i++) {
+          if (localStorage.getItem(progressKey(i)) === null) continue;
+          const p = loadProgress(i);
+          let sc = (p.campaignBiomeIndex || 0) * 1000;
+          const rp = p.regionProgress || {};
+          for (const b2 in rp) sc += Math.min(4, rp[b2].maxLevel || 0) * 10;
+          sc += Math.min(9, p.totalRuns || 0);
+          if (sc > bestScore) { bestScore = sc; bestSlot = i; }
+        }
+      } catch (e) {}
+      game.activeSaveSlot = bestSlot;
+      switchProgressToSlot(bestSlot);   // também desliga o perfil endless
+      game.ngPlusLevel = 0;
+      game.bossRushMode = false;
+      game.survivalMode = false;
+      game.dailyMode = false;
+      _pendingModeChoice = null;
+      const _qpIdx = Math.max(0, Math.min(BIOME_ORDER.length - 1, progress.campaignBiomeIndex || 0));
+      const _qpBiome = BIOME_ORDER[_qpIdx];
+      const _qpRp = (progress.regionProgress && progress.regionProgress[_qpBiome]) || {};
+      const _qpLvl = Math.max(1, Math.min(4, (_qpRp.maxLevel || 0) + 1));
+      regionPlay(_qpBiome, _qpIdx, _qpLvl);
+      break;
+    }
     // MODO TESTE (sandbox de sessão): abre a tela de pick com TODAS as cartas liberadas e
     // entra numa run estilo Endless. Mana/cooldown livres + troca de cartas grátis sob demanda
     // (botão DECK). NÃO escreve em progress — reseta ao voltar pro menu / escolher modo normal.
     case "test-mode":
+      if (!_isDevEnv()) break;   // R31 (Onda 1): guard duplo (botão já some em produção)
       _pendingCampaign = null;
       _pendingModeChoice = null;
       openCardPickFlow({ testMode: true });
@@ -75906,17 +76072,44 @@ document.addEventListener("click", (e) => {
       renderDailyMenu();
       showMenu("dailyMenu");
       break;
-    case "start-bossrush":
+    case "start-bossrush": {
       // COMBO 13 F1 — Boss Rush
-      hideAllMenus();
-      game.bossRushMode = true;
-      game.bossRushIndex = 0;
-      game.bossRushKilledCount = 0;
-      game.bossRushNextSpawnT = 0;
-      progress.bossRushAttempts = (progress.bossRushAttempts || 0) + 1;
-      saveProgress();
-      startNewRun();
+      // R31 (Onda 1) — cadeado SUAVE pra novatos: Boss Rush como 1ª experiência é
+      // uma parede (só chefes, sem rampa). Sem NENHUM boss derrotado em nenhum
+      // save (nem no do endless), confirma antes. Veterano entra direto.
+      const _goBossRush = () => {
+        hideAllMenus();
+        game.bossRushMode = true;
+        game.bossRushIndex = 0;
+        game.bossRushKilledCount = 0;
+        game.bossRushNextSpawnT = 0;
+        progress.bossRushAttempts = (progress.bossRushAttempts || 0) + 1;
+        saveProgress();
+        startNewRun();
+      };
+      let _anyBoss = false;
+      try {
+        for (let i = 0; i < NUM_SAVE_SLOTS; i++) {
+          const raw = localStorage.getItem(progressKey(i));
+          if (raw && (JSON.parse(raw).bossesDefeatedTotal || 0) > 0) { _anyBoss = true; break; }
+        }
+        if (!_anyBoss) {
+          const er = localStorage.getItem(ENDLESS_SAVE_KEY);
+          if (er && (JSON.parse(er).bossesDefeatedTotal || 0) > 0) _anyBoss = true;
+        }
+      } catch (e) { _anyBoss = true; }
+      if (!_anyBoss && typeof showConfirmModal === "function") {
+        showConfirmModal(
+          TR("BOSS RUSH é um desafio pra VETERANOS: só chefes, um atrás do outro, sem aquecimento. Recomendamos começar pela CAMPANHA. Entrar mesmo assim?",
+             "BOSS RUSH is a VETERAN challenge: bosses only, back to back, no warm-up. We recommend starting with the CAMPAIGN. Enter anyway?",
+             "BOSS RUSH es un desafío para VETERANOS: solo jefes, uno tras otro, sin calentamiento. Recomendamos empezar por la CAMPAÑA. ¿Entrar igualmente?"),
+          _goBossRush,
+          { title: "⚔ BOSS RUSH", yesLabel: TR("ENTRAR","ENTER","ENTRAR") });
+      } else {
+        _goBossRush();
+      }
       break;
+    }
     case "start-survival":
       // COMBO 13 F2 — Survival
       hideAllMenus();
@@ -76719,8 +76912,11 @@ try {
     // 2026-05-11 — Auto-deteccao via navigator.language (primeira visita).
     // Poki tem audiencia global — se browser e en/es, default pra isso em vez de pt.
     const nav = (navigator.language || navigator.userLanguage || "pt").toLowerCase();
-    if (nav.startsWith("en")) _currentLang = "en";
+    // R31 (Onda 1) — fallback global: só pt/es ficam nas suas línguas; QUALQUER
+    // outra (fr/de/ja/...) cai em INGLÊS (a Poki é mundial; antes caía em PT).
+    if (nav.startsWith("pt")) _currentLang = "pt";
     else if (nav.startsWith("es")) _currentLang = "es";
+    else _currentLang = "en";
     // Salva escolha automatica pra nao re-detectar toda visita
     try { localStorage.setItem("necroking_lang", _currentLang); } catch (e) {}
   }
@@ -76735,12 +76931,13 @@ try {
     "r19.campDesc": "Avance bioma por bioma: 3 níveis + o boss de cada bioma. Entre os níveis, melhore upgrades e compre cartas.",
     "r19.endlessDesc": "Mundo único com todos os biomas. Explore, destrua os covis e enfrente o NecroKing. (modo clássico)",
     "r19.grimoire": "GRIMÓRIO",
-    "r19.pickHint": "Arraste cartas do grimório para os slots",
+    "r19.pickHint": "Toque ou arraste as cartas do grimório",
     "r19.next": "PRÓXIMO",
     "r19.restartLevel": "⟲ REINICIAR NÍVEL",
     "r19.ctreeSub": "Árvore de Talentos — node exige o anterior do ramo; capstone exige 6 talentos",
     "r19.chooseRelic": "ESCOLHA UMA RELÍQUIA",
     "r19.intermission": "INTERMISSÃO",
+    "r31.playBtn": "⚡ JOGAR",
   });
   Object.assign(LANG_DATA.en, {
     "r19.campBtn": "🗺️ CAMPAIGN",
@@ -76748,12 +76945,13 @@ try {
     "r19.campDesc": "Advance biome by biome: 3 levels + each biome's boss. Between levels, improve upgrades and buy cards.",
     "r19.endlessDesc": "One world with every biome. Explore, destroy the lairs and face the NecroKing. (classic mode)",
     "r19.grimoire": "GRIMOIRE",
-    "r19.pickHint": "Drag cards from the grimoire to the slots",
+    "r19.pickHint": "Tap or drag grimoire cards into the slots",
     "r19.next": "NEXT",
     "r19.restartLevel": "⟲ RESTART LEVEL",
     "r19.ctreeSub": "Talent Tree — each node requires the previous in its branch; capstone requires 6 talents",
     "r19.chooseRelic": "CHOOSE A RELIC",
     "r19.intermission": "INTERMISSION",
+    "r31.playBtn": "⚡ PLAY",
   });
   Object.assign(LANG_DATA.es, {
     "r19.campBtn": "🗺️ CAMPAÑA",
@@ -76761,12 +76959,13 @@ try {
     "r19.campDesc": "Avanza bioma a bioma: 3 niveles + el jefe de cada bioma. Entre niveles, mejora upgrades y compra cartas.",
     "r19.endlessDesc": "Un mundo con todos los biomas. Explora, destruye las guaridas y enfrenta al NecroKing. (modo clásico)",
     "r19.grimoire": "GRIMORIO",
-    "r19.pickHint": "Arrastra cartas del grimorio a las ranuras",
+    "r19.pickHint": "Toca o arrastra las cartas del grimorio",
     "r19.next": "SIGUIENTE",
     "r19.restartLevel": "⟲ REINICIAR NIVEL",
     "r19.ctreeSub": "Árbol de Talentos — cada nodo exige el anterior de su rama; el capstone exige 6 talentos",
     "r19.chooseRelic": "ELIGE UNA RELIQUIA",
     "r19.intermission": "INTERMEDIO",
+    "r31.playBtn": "⚡ JUGAR",
   });
 } catch (e) {}
 function T(key, fallback) {

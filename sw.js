@@ -4,7 +4,7 @@
 // cai no cache se offline ou rede falhou.
 // Bump version quando index.html ou recursos pré-cacheados mudam significativamente.
 
-const CACHE_NAME = "necroking-v127-2026-07-30-r30-poki-qa";
+const CACHE_NAME = "necroking-v128-2026-08-01-r31-onda1";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
