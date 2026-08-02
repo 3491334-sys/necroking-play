@@ -3058,6 +3058,11 @@
   .menu-overlay::-webkit-scrollbar-track { background: rgba(20,12,30,0.6); }
   .menu-overlay::-webkit-scrollbar-thumb { background: #5a4830; border: 2px solid #2a1810; border-radius: 4px; }
   .menu-overlay::-webkit-scrollbar-thumb:hover { background: #806838; }
+  /* R32 (Onda 2) — TELA DE TÍTULO VIVA: só o menu PRINCIPAL fica translúcido
+     (a cena animada do canvas aparece atrás); os demais menus seguem 0.97. */
+  #mainMenu {
+    background: linear-gradient(180deg, rgba(6,4,12,0.30) 0%, rgba(6,4,12,0.52) 52%, rgba(8,5,14,0.78) 100%);
+  }
   /* Fix 2026-05-04: HUD da run + canvas escondidos quando ANY menu overlay está visível.
      Antes: jogador no menu via HP bars, EXÉRCITO, MAPA, MANA atrás do menu (bug visual). */
   body.menu-active #hud,
@@ -3592,6 +3597,26 @@
     margin: 0 0 14px 0;
     line-height: 1.1;
   }
+  /* R32 (Onda 2) — WORDMARK: coroa pixel flutuando + dois tons (osso + ouro) + divisor */
+  .wm-crown {
+    line-height: 0;
+    margin-bottom: -4px;
+    filter: drop-shadow(0 0 9px rgba(212,166,55,0.55));
+    animation: wmBob 3.4s ease-in-out infinite;
+  }
+  .wordmark .wm-necro { color: #e6dcc2; text-shadow: 4px 4px 0 #000, 0 0 34px #8a70c0; }
+  .wordmark .wm-king  { color: #f7d96f; text-shadow: 4px 4px 0 #000, 0 0 50px #d4a637, 0 0 100px #7a3e1a; }
+  .wordmark::after {
+    content: "";
+    display: block;
+    width: 72%;
+    height: 2px;
+    margin: 10px auto 0;
+    background: linear-gradient(90deg, transparent, #d4a637 22%, #f7d96f 50%, #d4a637 78%, transparent);
+    box-shadow: 0 0 10px rgba(212,166,55,0.45);
+  }
+  @keyframes wmBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .wm-crown { animation: none; } }
   .menu-subtitle {
     font-family: "Press Start 2P", "Silkscreen", monospace;
     font-size: 10px;
@@ -6004,7 +6029,27 @@
                      box-shadow:0 0 8px rgba(212,166,55,0.3); z-index:10;"
               onclick="cycleLanguage(); this.textContent=({pt:'🇧🇷 PT',en:'🇺🇸 EN',es:'🇪🇸 ES'})[getCurrentLanguage()] || 'PT';"
               title="Language / Idioma / Idioma">PT</button>
-      <h1 class="menu-title" data-i18n="menu.title">NECROKING</h1>
+      <!-- R32 (Onda 2) — WORDMARK: coroa pixel + dois tons. O data-i18n foi removido
+           de propósito: a marca é igual nos 3 idiomas e o applyI18nToDOM usa
+           textContent (apagaria os spans). -->
+      <div class="wm-crown" aria-hidden="true"><svg width="52" height="28" viewBox="0 0 26 14" shape-rendering="crispEdges">
+        <rect x="2" y="10" width="22" height="3" fill="#d4a637"/>
+        <rect x="2" y="10" width="22" height="1" fill="#f7d96f"/>
+        <rect x="2" y="4" width="3" height="6" fill="#d4a637"/>
+        <rect x="7" y="6" width="3" height="4" fill="#d4a637"/>
+        <rect x="12" y="2" width="3" height="8" fill="#d4a637"/>
+        <rect x="17" y="6" width="3" height="4" fill="#d4a637"/>
+        <rect x="21" y="4" width="3" height="6" fill="#d4a637"/>
+        <rect x="2" y="4" width="1" height="6" fill="#f7d96f"/>
+        <rect x="12" y="2" width="1" height="8" fill="#f7d96f"/>
+        <rect x="3" y="3" width="1" height="1" fill="#f7d96f"/>
+        <rect x="13" y="1" width="1" height="1" fill="#f7d96f"/>
+        <rect x="22" y="3" width="1" height="1" fill="#f7d96f"/>
+        <rect x="12" y="11" width="2" height="1" fill="#dc283c"/>
+        <rect x="6" y="11" width="1" height="1" fill="#dc283c"/>
+        <rect x="19" y="11" width="1" height="1" fill="#dc283c"/>
+      </svg></div>
+      <h1 class="menu-title wordmark" aria-label="NECROKING"><span class="wm-necro">NECRO</span><span class="wm-king">KING</span></h1>
       <div class="menu-buttons">
         <!-- 2026-06-15 — menu inicial mostra os 3 modos direto (Campanha/Endless/Boss Rush) -->
         <!-- R31 (Onda 1) — ⚡ JOGAR: fast-path de 1 clique pro próximo nível da campanha
@@ -34131,14 +34176,144 @@ function drawDayNightOverlay(camX, camY) {
   }
   const ov = dayNightOverlay();
   if (ov.alpha <= 0.01) { drawBrightnessOverlay(); return; }
-  // Multiply blend pra escurecer/tonificar tudo
+  // R32 (Onda 2) — NOITE COM LIGHTMAP: na banda noturna a escuridão vira um mapa
+  // multiplicativo com FUROS DE LUZ nas fontes reais (Rei, fogueiras, lava, feitiços,
+  // portal). Fases claras, perf baixa e o toggle mantêm o tint plano de sempre.
+  if (game.dayPhase >= 0.55 && ov.alpha > 0.15 && !game.perfMode && !game._autoQualityLow) {
+    drawNightLightmap(camX, camY, ov);
+  } else {
+    // Multiply blend pra escurecer/tonificar tudo (caminho original)
+    offCtx.save();
+    offCtx.globalCompositeOperation = "multiply";
+    offCtx.globalAlpha = ov.alpha;
+    offCtx.fillStyle = ov.color;
+    offCtx.fillRect(0, 0, BASE_W, BASE_H);
+    offCtx.restore();
+  }
+  drawBrightnessOverlay();
+}
+
+// ============================================================
+// R32 (Onda 2) — NIGHT LIGHTMAP
+// Base = o MESMO tint multiplicativo de antes, pré-multiplicado num fill opaco
+// (mult = cor·a + branco·(1−a)), ~15% mais fundo pra dar valor às luzes. Fontes
+// de luz são pintadas com "lighter" no mapa (empurram o fator de volta pro claro,
+// com tinta da cor da fonte) e o mapa multiplica a cena inteira de uma vez.
+// ============================================================
+const _DECO_LIGHTS = {   // type: [raio, cor, alpha, flicker]
+  campfire: [36, "#ffb050", 0.75, 1], lanternPost: [28, "#ffd070", 0.7, 1],
+  demonIdol: [22, "#ff5028", 0.6, 0], runeStone: [20, "#b070ff", 0.55, 0],
+  witchTotem: [18, "#70e8a0", 0.5, 0], mushroomHouse: [20, "#ffce80", 0.6, 0],
+  sunkenStatue: [18, "#58c8e8", 0.5, 0], lavaPool: [30, "#ff6828", 0.7, 1],
+  lavaRiver: [34, "#ff5820", 0.7, 1], emberRock: [16, "#ff8040", 0.5, 1],
+  charredTree: [12, "#ff7030", 0.45, 1], boneArch: [14, "#ff8040", 0.45, 1],
+  icePillar: [14, "#90d8ff", 0.4, 0], bigShroom: [14, "#c070f0", 0.35, 0],
+};
+const _HAZARD_LIGHTS = {
+  firePatch: [24, "#ff7030", 0.65, 1], lavaFlow: [30, "#ff5820", 0.7, 1],
+  holyGround: [26, "#ffe9a8", 0.6, 0], blessingField: [30, "#ffe9a8", 0.6, 0],
+  hellPortal: [30, "#ff7030", 0.7, 1], divineCross: [20, "#fff080", 0.6, 0],
+  frostbite: [18, "#90d8ff", 0.4, 0],
+};
+const _PROJ_LIGHTS = {
+  fireball: [14, "#ff8030", 0.7, 0], fireShard: [12, "#ff8030", 0.6, 0],
+  lightningBolt: [14, "#fff080", 0.7, 0], goldenBolt: [14, "#ffd860", 0.7, 0],
+  voidWisp: [13, "#c060ff", 0.65, 0], bonebolt: [11, "#b06cf0", 0.55, 0],
+  magicCoin: [11, "#ffd860", 0.55, 0], magma: [14, "#ff6020", 0.7, 0],
+  soulDrain: [12, "#a040d0", 0.6, 0], skullBomb: [11, "#a040d0", 0.55, 0],
+};
+const _FX_LIGHTS = {
+  lightpillar: [40, "#ffe9a8", 0.8, 0], holyPillar: [44, "#ffe9a8", 0.8, 0],
+  lightning: [30, "#fff080", 0.7, 0], graveglow: [18, "#8a48d0", 0.6, 0],
+};
+let _lmCv = null, _lmCtx = null;
+function _lmRGBA(hex, a) {
+  const v = parseInt(hex.slice(1, 7), 16);
+  return "rgba(" + ((v >> 16) & 255) + "," + ((v >> 8) & 255) + "," + (v & 255) + "," + a.toFixed(3) + ")";
+}
+function drawNightLightmap(camX, camY, ov) {
+  // R32-verify (MAJOR): BASE_W/H são DINÂMICOS (resize, rotação, troca de
+  // PIXEL_SCALE no mobile) — recriar por DIMENSÃO, senão a área nova da tela
+  // fica sem escurecimento noturno (seam retangular visível).
+  if (!_lmCv || _lmCv.width !== BASE_W || _lmCv.height !== BASE_H) {
+    if (!_lmCv) { _lmCv = document.createElement("canvas"); _lmCtx = _lmCv.getContext("2d"); }
+    _lmCv.width = BASE_W; _lmCv.height = BASE_H;
+  }
+  // R32-verify: SEM aprofundamento extra (era ×1.15) — elimina o pop de brilho
+  // quando o auto-quality flipa pro tint plano mid-noite e não empurra sprites
+  // marginais pro limiar (lição R24/R26: paleta-no-chão é o bug dominante).
+  const a = Math.min(0.55, ov.alpha);
+  const cv = parseInt(ov.color.slice(1, 7), 16);
+  const br = Math.round(((cv >> 16) & 255) * a + 255 * (1 - a));
+  const bg = Math.round(((cv >> 8) & 255) * a + 255 * (1 - a));
+  const bb = Math.round((cv & 255) * a + 255 * (1 - a));
+  _lmCtx.globalCompositeOperation = "source-over";
+  _lmCtx.globalAlpha = 1;
+  _lmCtx.fillStyle = "rgb(" + br + "," + bg + "," + bb + ")";
+  _lmCtx.fillRect(0, 0, BASE_W, BASE_H);
+  _lmCtx.globalCompositeOperation = "lighter";
+  let budget = 48;
+  const t = game.time || 0;
+  const L = (wx, wy, r, color, alpha, flicker) => {
+    if (budget <= 0) return;
+    if (flicker) r *= 0.92 + 0.08 * Math.sin(t / 95 + wx * 0.13);
+    const sx = wx - camX + BASE_W / 2, sy = wy - camY + BASE_H / 2;
+    if (sx < -r || sx > BASE_W + r || sy < -r || sy > BASE_H + r) return;
+    budget--;
+    const g = _lmCtx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    g.addColorStop(0, _lmRGBA(color, alpha));
+    g.addColorStop(0.55, _lmRGBA(color, alpha * 0.45));
+    g.addColorStop(1, _lmRGBA(color, 0));
+    _lmCtx.fillStyle = g;
+    _lmCtx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  };
+  // Rei — a luz do herói (sempre a primeira do orçamento)
+  if (game.king) L(game.king.x, game.king.y - 6, 84, "#ffe2b0", 0.85, 0);
+  for (const u of game.units) {
+    if (u.isBoss && u.hp > 0) L(u.x, u.y - 8, 46, "#ffb070", 0.5, 0);
+  }
+  if (game.levelGoal) L(game.levelGoal.x, game.levelGoal.y, 40, "#6aff8a", 0.55, 0);
+  if (game.lairs) {
+    for (const lr of game.lairs) {
+      if (lr.state === "active" || lr.state === "awakening") L(lr.x, lr.y - 6, 30, "#a050e0", 0.55, 0);
+    }
+  }
+  // R32-verify: fontes DINÂMICAS (projéteis/feitiços — as que vendem o efeito)
+  // consomem o orçamento ANTES das estáticas; numa tela densa de inferno as
+  // brasas não roubam mais a luz do fireball do jogador.
+  for (const pr of game.projectiles) {
+    const pl = _PROJ_LIGHTS[pr.type] || _PROJ_LIGHTS[pr.kind];
+    if (!pl) continue;
+    L(pr.x, pr.y, pl[0], pl[1], pl[2], pl[3]);
+    if (budget <= 0) break;
+  }
+  for (const e of game.effects) {
+    const el = _FX_LIGHTS[e.type];
+    if (!el) continue;
+    // R32-verify: "lightning" usa x1/y1/x2/y2 (sem e.x) — luz no ponto MÉDIO do raio
+    const ex = e.x !== undefined ? e.x : (e.x1 !== undefined ? (e.x1 + e.x2) / 2 : undefined);
+    const ey = e.y !== undefined ? e.y : (e.y1 !== undefined ? (e.y1 + e.y2) / 2 : undefined);
+    if (ex === undefined) continue;
+    L(ex, ey, el[0], el[1], el[2], el[3]);
+    if (budget <= 0) break;
+  }
+  for (const h of game.hazards) {
+    const hl = _HAZARD_LIGHTS[h.type];
+    if (!hl) continue;
+    L(h.x, h.y, hl[0], hl[1], hl[2], hl[3]);
+    if (budget <= 0) break;
+  }
+  for (const d of game.decorations) {
+    const dl = _DECO_LIGHTS[d.type];
+    if (!dl) continue;
+    L(d.x, d.y - 6, d.landmark ? dl[0] * 1.7 : dl[0], dl[1], dl[2], dl[3]);
+    if (budget <= 0) break;
+  }
   offCtx.save();
   offCtx.globalCompositeOperation = "multiply";
-  offCtx.globalAlpha = ov.alpha;
-  offCtx.fillStyle = ov.color;
-  offCtx.fillRect(0, 0, BASE_W, BASE_H);
+  offCtx.globalAlpha = 1;
+  offCtx.drawImage(_lmCv, 0, 0);
   offCtx.restore();
-  drawBrightnessOverlay();
 }
 // COMBO 11 E1 — brightness slider (50-150%)
 function drawBrightnessOverlay() {
@@ -38141,12 +38316,174 @@ function spawnLightningSegment(x1, y1, x2, y2) {
    RENDER
    ============================================================ */
 
+// R32 (Onda 2) — LUZ ADITIVA: estes tipos de effect SÃO luz (faísca/fogo/sagrado/
+// arcano) e desenham com composite "lighter" — o brilho soma onde acumula, dando
+// pop real aos feitiços na cena escura. Ficam FORA: sujeira/sangue/fumaça (têm tons
+// escuros que o aditivo não consegue pintar) e telegraphs de perigo (o vermelho
+// saturado é linguagem de leitura — clarear quebraria o aviso).
+// R32-verify: healCross/angelSoul/graveglow SAÍRAM da lista — os dois primeiros
+// desenham detalhes ESCUROS fixos (sombra da cruz, olhos da alminha) que o aditivo
+// apagaria; graveglow é MARCADOR DE CHÃO de gameplay (necromancia) e sumiria
+// sobre neve/mármore. (No lightmap noturno graveglow segue como fonte de luz.)
+const _ADDITIVE_FX = {
+  spark: 1, holy: 1, holyPillar: 1, fire: 1, ember: 1, magic: 1, bolt: 1,
+  lightning: 1, lightpillar: 1, ring: 1,
+  shockwave: 1, firefly: 1, emberMoth: 1, iceCharge: 1, ice: 1,
+};
+function _fxAdditiveOk(e) {
+  if (!_ADDITIVE_FX[e.type]) return false;
+  // Cores ESCURAS (fissuras do golem do R29, sparks tintados de sombra) não podem
+  // virar aditivas — "lighter" nunca escurece e o efeito sumiria. Gate por luminância.
+  const c = e.color;
+  if (typeof c === "string") {
+    // R32-verify: só hex #rrggbb é reconhecido; QUALQUER outro formato cai no
+    // blend normal (fail-safe — cor não-parseável nunca pode sumir por virar
+    // aditiva). Corte 300 (era 150): pares claro+escuro usam a camada escura
+    // como SOMBRA (#1a4868 soma 202, #3a0858 soma 154) e sombra não é luz;
+    // luz de verdade fica bem acima (fogo 399, ouro 655, arcano 591).
+    if (c.charCodeAt(0) !== 35 || c.length < 7) return false;
+    const v = parseInt(c.slice(1, 7), 16);
+    if (((v >> 16) & 255) + ((v >> 8) & 255) + (v & 255) < 300) return false;
+  }
+  return true;
+}
+
+// R32 (Onda 2) — TELA DE TÍTULO VIVA: cemitério noturno animado atrás do menu
+// principal (o CSS do #mainMenu ficou translúcido de propósito). Usa game.time,
+// que continua avançando com o jogo pausado no menu. Tudo determinístico.
+let _titleMenuEl = null;
+function drawTitleScene() {
+  const t = game.reducedMotion ? 0 : (game.time || 0);
+  // céu noturno em gradiente
+  const sky = offCtx.createLinearGradient(0, 0, 0, BASE_H);
+  sky.addColorStop(0, "#07040f");
+  sky.addColorStop(0.55, "#150c26");
+  sky.addColorStop(0.8, "#241539");
+  sky.addColorStop(1, "#0d0716");
+  offCtx.fillStyle = sky;
+  offCtx.fillRect(0, 0, BASE_W, BASE_H);
+  // estrelas cintilando (determinísticas por índice)
+  for (let i = 0; i < 54; i++) {
+    const hx = (i * 137 + 61) % BASE_W;
+    const hy = (i * 89 + 23) % 148;
+    const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t / 640 + i * 1.7));
+    offCtx.globalAlpha = tw * 0.8;
+    offCtx.fillStyle = i % 7 === 0 ? "#cfe0ff" : "#9aa8d8";
+    offCtx.fillRect(hx, hy, 1, 1);
+    if (i % 11 === 0) {
+      offCtx.globalAlpha = tw * 0.25;
+      offCtx.fillRect(hx - 1, hy, 3, 1);
+      offCtx.fillRect(hx, hy - 1, 1, 3);
+    }
+  }
+  offCtx.globalAlpha = 1;
+  // lua grande com halo e crateras
+  const mx = BASE_W - 74, my = 52, mr = 15;
+  offCtx.fillStyle = "#fffbef";
+  offCtx.globalAlpha = 0.10; fillCircle(mx, my, mr + 13);
+  offCtx.globalAlpha = 0.20; fillCircle(mx, my, mr + 6);
+  offCtx.globalAlpha = 1;    fillCircle(mx, my, mr);
+  offCtx.fillStyle = "#d8d0b8";
+  offCtx.fillRect(mx - 6, my - 4, 3, 3);
+  offCtx.fillRect(mx + 2, my - 8, 3, 2);
+  offCtx.fillRect(mx - 2, my + 4, 4, 3);
+  offCtx.fillRect(mx + 6, my + 1, 2, 2);
+  // nuvem fina derivando sobre a lua
+  const cx0 = Math.round(((t / 90) % (BASE_W + 160)) - 80);
+  offCtx.globalAlpha = 0.16;
+  offCtx.fillStyle = "#2a2040";
+  offCtx.fillRect(cx0, my - 3, 64, 4);
+  offCtx.fillRect(cx0 + 10, my + 2, 44, 3);
+  offCtx.globalAlpha = 1;
+  // chão + horizonte
+  offCtx.fillStyle = "#0d0716";
+  offCtx.fillRect(0, 168, BASE_W, BASE_H - 168);
+  // castelo em ruína (silhueta na colina esquerda) com janela acesa do necromante
+  offCtx.fillStyle = "#120b20";
+  offCtx.fillRect(30, 150, 18, 20);                    // colina/base
+  offCtx.fillRect(40, 108, 26, 62);                    // torreão
+  offCtx.fillRect(38, 104, 6, 8); offCtx.fillRect(48, 104, 6, 8); offCtx.fillRect(58, 104, 6, 8); // ameias
+  offCtx.fillRect(66, 132, 20, 38);                    // ala quebrada
+  offCtx.fillRect(84, 142, 12, 28);
+  offCtx.fillRect(70, 126, 4, 6);                      // resto de ameia
+  const winOn = 0.55 + 0.45 * Math.sin(t / 230);
+  offCtx.globalAlpha = 0.55 + winOn * 0.4;
+  offCtx.fillStyle = "#ffb050";
+  offCtx.fillRect(50, 122, 3, 4);                      // a janela do Rei
+  offCtx.globalAlpha = 1;
+  // torre menor à direita
+  offCtx.fillStyle = "#120b20";
+  offCtx.fillRect(332, 138, 14, 32);
+  offCtx.fillRect(330, 134, 4, 6); offCtx.fillRect(338, 134, 4, 6);
+  // cemitério em primeiro plano: lápides + cruzes + árvores mortas
+  const graves = [[62, 208], [118, 224], [166, 200], [210, 232], [258, 206], [306, 226], [352, 210], [396, 230]];
+  for (let i = 0; i < graves.length; i++) {
+    const gx = graves[i][0], gy = graves[i][1];
+    offCtx.fillStyle = "#191126";
+    if (i % 3 === 2) {           // cruz
+      offCtx.fillRect(gx + 2, gy - 12, 2, 12);
+      offCtx.fillRect(gx - 1, gy - 9, 8, 2);
+    } else {                     // lápide arredondada
+      offCtx.fillRect(gx, gy - 9, 7, 9);
+      offCtx.fillRect(gx + 1, gy - 11, 5, 2);
+      offCtx.fillStyle = "#241834";
+      offCtx.fillRect(gx, gy - 9, 1, 9);   // highlight do lado da lua
+    }
+  }
+  // árvores mortas (2 silhuetas retorcidas)
+  offCtx.fillStyle = "#140d22";
+  offCtx.fillRect(140, 176, 3, 30); offCtx.fillRect(137, 180, 4, 2); offCtx.fillRect(143, 172, 5, 2); offCtx.fillRect(146, 166, 2, 7);
+  offCtx.fillRect(378, 182, 3, 26); offCtx.fillRect(374, 186, 5, 2); offCtx.fillRect(381, 176, 4, 2);
+  // névoa rasteira (2 bandas derivando)
+  offCtx.globalAlpha = 0.07 + 0.03 * Math.sin(t / 1700);
+  offCtx.fillStyle = "#8a70c0";
+  const fx1 = Math.round(Math.sin(t / 2600) * 18);
+  offCtx.fillRect(fx1 - 10, 212, BASE_W + 20, 7);
+  offCtx.globalAlpha = 0.05 + 0.03 * Math.sin(t / 2100 + 2);
+  offCtx.fillRect(-fx1 - 10, 236, BASE_W + 20, 9);
+  offCtx.globalAlpha = 1;
+  // wisps necromânticos subindo (aditivos)
+  offCtx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 14; i++) {
+    const period = 5200 + (i % 5) * 900;
+    const ph = ((t + i * 997) % period) / period;
+    const wy = BASE_H - 24 - ph * (BASE_H - 84);
+    const wx = ((i * 61 + 37) % BASE_W) + Math.sin(t / 800 + i * 2.1) * 6;
+    const wa = Math.sin(ph * Math.PI) * 0.55;
+    offCtx.globalAlpha = wa * 0.4;
+    offCtx.fillStyle = "#8a48d0";
+    fillCircle(Math.round(wx), Math.round(wy), 2);
+    offCtx.globalAlpha = wa;
+    offCtx.fillStyle = "#b06cf0";
+    offCtx.fillRect(Math.round(wx), Math.round(wy), 1, 1);
+  }
+  offCtx.globalCompositeOperation = "source-over";
+  offCtx.globalAlpha = 1;
+  // olhos na escuridão (piscam perto de uma lápide)
+  const eyeCycle = t % 5600;
+  if (eyeCycle < 4200 && (eyeCycle % 900) > 140) {
+    offCtx.globalAlpha = 0.9;
+    offCtx.fillStyle = "#c888ff";
+    offCtx.fillRect(288, 215, 2, 2);
+    offCtx.fillRect(293, 215, 2, 2);
+    offCtx.globalAlpha = 1;
+  }
+  // vinheta
+  const vg = offCtx.createRadialGradient(BASE_W / 2, BASE_H / 2, 90, BASE_W / 2, BASE_H / 2, 260);
+  vg.addColorStop(0, "rgba(4,2,8,0)");
+  vg.addColorStop(1, "rgba(4,2,8,0.55)");
+  offCtx.fillStyle = vg;
+  offCtx.fillRect(0, 0, BASE_W, BASE_H);
+}
+
 function render() {
-  // Antes da primeira run (menu principal aberto), não há Rei — limpa o canvas
-  // para um tom escuro e sai. O menu cobre a tela inteira por cima de qualquer jeito.
-  if (!game.king) {
-    ctx.fillStyle = "#07040a";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // R32 (Onda 2) — TELA DE TÍTULO VIVA: no menu principal (boot OU retorno ao menu),
+  // o canvas mostra a cena animada em vez do mundo/fill chapado.
+  if (!_titleMenuEl) _titleMenuEl = document.getElementById("mainMenu");
+  if (!game.king || (_titleMenuEl && _titleMenuEl.classList.contains("show"))) {
+    drawTitleScene();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(offCanvas, 0, 0, BASE_W * PIXEL_SCALE, BASE_H * PIXEL_SCALE);
     return;
   }
   // Camera: follow king with shake, clamped
@@ -38302,7 +38639,17 @@ function render() {
       case 4: drawPOISprite(d.ref, camX, camY); break;
       case 5: drawMountain(d.ref, camX, camY); break;
       case 6: drawProjectile(d.ref, camX, camY); break;
-      case 7: drawEffect(d.ref, camX, camY); break;
+      case 7:
+        // R32 (Onda 2) — LUZ ADITIVA: FX que são luz somam brilho ("lighter").
+        // Reset EXPLÍCITO (não save/restore): drawEffect tem returns internos.
+        if (_fxAdditiveOk(d.ref)) {
+          offCtx.globalCompositeOperation = "lighter";
+          drawEffect(d.ref, camX, camY);
+          offCtx.globalCompositeOperation = "source-over";
+        } else {
+          drawEffect(d.ref, camX, camY);
+        }
+        break;
     }
   }
 
@@ -73250,7 +73597,12 @@ function loop(now) {
   // Fix (Fase pos-1080): try/catch defensivo — evita que exception em update/render
   // mate o loop. Loga no console e continua. Bug reportado: iceThorns crashava o jogo.
   try { update(dt); } catch (e) { console.error("[update]", e); }
-  try { render(); } catch (e) { console.error("[render]", e); }
+  try { render(); } catch (e) {
+    console.error("[render]", e);
+    // R32-verify: um throw no meio do render pode deixar composite/alpha sujos
+    // (ex. "lighter" do passe aditivo) — o catch-and-continue re-higieniza.
+    try { offCtx.globalCompositeOperation = "source-over"; offCtx.globalAlpha = 1; } catch (e2) {}
+  }
   requestAnimationFrame(loop);
 }
 
