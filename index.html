@@ -1,10 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <!-- R35 (Onda 5) — charset DENTRO dos primeiros 1024 bytes (estava depois do
+       wrapper do SDK, ~linha 79 — risco de mis-sniff de encoding num arquivo
+       com acentos por toda parte) + SDK ASYNC (não bloqueia mais o parse; o
+       PokiHelpers.init re-tenta até o script chegar). -->
+  <meta charset="UTF-8">
   <!-- 2026-05-10 — POKI SDK (obrigatorio pra publicacao na Poki) -->
   <!-- Carrega SDK + cria helpers globais. Em ambiente standalone (file://),
        SDK falha silenciosamente e helpers viram no-ops via try/catch. -->
-  <script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
+  <script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js" async
+          onload="try{PokiHelpers.init()}catch(e){}"></script>
   <script>
     // Wrapper seguro: se PokiSDK nao existir (rodando fora da Poki), no-op.
     window.PokiHelpers = {
@@ -14,6 +20,18 @@
       _gameplayActive: false,   // 2026-06-12 FIX: rastreia se gameplayStart disparou (pareamento + dedup)
       init() {
         try {
+          // R35 (Onda 5) — SDK carrega com async: se ainda não chegou, re-tenta
+          // por até ~10s (fora da Poki/offline desiste em silêncio — tudo no-op).
+          if (!window.PokiSDK) {
+            this._initTries = (this._initTries || 0) + 1;
+            if (this._initTries <= 40) setTimeout(() => this.init(), 250);
+            // R35-verify: se o SDK chegar DEPOIS dos 10s (rede móvel lenta), o
+            // onload da tag re-chama init() — a integração nunca morre em silêncio.
+            return;
+          }
+          // R35-verify: retry e onload podem coincidir — PokiSDK.init() só 1×
+          if (this._initStarted) return;
+          this._initStarted = true;
           if (window.PokiSDK && PokiSDK.init) {
             PokiSDK.init().then(() => {
               this._ready = true;
@@ -25,6 +43,12 @@
                 this._loadingPending = false;
                 try { PokiSDK.gameLoadingFinished(); } catch (e) {}
               }
+              // R35-verify: com SDK async a run pode COMEÇAR antes do init resolver —
+              // o gameplayStart daquele momento foi no-op; re-dispara agora (depois
+              // do loadingFinished, ordem que a Poki espera).
+              try {
+                if (typeof game !== "undefined" && game.runActive && !game.paused && !game.gameOver) this.gameplayStart();
+              } catch (e) {}
             }).catch(err => console.warn("[Poki] init failed:", err));
           }
         } catch (e) { console.warn("[Poki] init exception:", e); }
@@ -75,8 +99,10 @@
     };
     // Inicia SDK assim que script carrega (antes de tudo)
     PokiHelpers.init();
+    // R35 (Onda 5) — failsafe do boot gate: se o script principal falhar antes
+    // do boot(), reabilita os botões mesmo assim (melhor menu vivo que travado).
+    setTimeout(() => { try { document.body.classList.remove("booting"); } catch (e) {} }, 15000);
   </script>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- A11Y R17 (WCAG 1.4.4): user-scalable=no REMOVIDO — bloqueava pinch-zoom com fonte
      de 8-9px (baixa visão sem saída). O anti-double-tap-zoom que o jogo precisa já é
@@ -3063,6 +3089,13 @@
   #mainMenu {
     background: linear-gradient(180deg, rgba(6,4,12,0.30) 0%, rgba(6,4,12,0.52) 52%, rgba(8,5,14,0.78) 100%);
   }
+  /* R35 (Onda 5) — BOOT GATE: o script de 3.4MB parseia por ~0.5-3s com o menu
+     JÁ visível; cliques nesse vão eram mortos e silenciosos. body.booting
+     desarma os botões e sinaliza carregamento; boot() (fim do script) libera. */
+  body.booting .menu-buttons .menu-btn,
+  body.booting #mainMenuLangBtn { pointer-events: none; opacity: 0.5; filter: grayscale(0.4); }
+  body.booting #musicCredit { pointer-events: none; }   /* link externo não clicável no parse */
+  body.booting .menu-hint::before { content: "⏳ CARREGANDO...  "; color: #f7d96f; }
   /* Fix 2026-05-04: HUD da run + canvas escondidos quando ANY menu overlay está visível.
      Antes: jogador no menu via HP bars, EXÉRCITO, MAPA, MANA atrás do menu (bug visual). */
   body.menu-active #hud,
@@ -5683,7 +5716,7 @@
   html.is-mobile #hud { bottom: auto !important; }
 </style>
 </head>
-<body>
+<body class="booting">
   <canvas id="game" role="img" aria-label="Área de jogo do NecroKing — controle o Rei Necromante com WASD e o mouse">Seu navegador não suporta canvas.</canvas>
 
   <div id="hud">
@@ -6027,7 +6060,7 @@
                      color:#f7d96f; font-family:'Press Start 2P',monospace; font-size:9px;
                      letter-spacing:1px; cursor:pointer; border-radius:4px;
                      box-shadow:0 0 8px rgba(212,166,55,0.3); z-index:10;"
-              onclick="cycleLanguage(); this.textContent=({pt:'🇧🇷 PT',en:'🇺🇸 EN',es:'🇪🇸 ES'})[getCurrentLanguage()] || 'PT';"
+              onclick="if(typeof cycleLanguage==='function'){cycleLanguage(); this.textContent=({pt:'🇧🇷 PT',en:'🇺🇸 EN',es:'🇪🇸 ES'})[getCurrentLanguage()] || 'PT';}"
               title="Language / Idioma / Idioma">PT</button>
       <!-- R32 (Onda 2) — WORDMARK: coroa pixel + dois tons. O data-i18n foi removido
            de propósito: a marca é igual nos 3 idiomas e o applyI18nToDOM usa
@@ -10714,6 +10747,18 @@ const ENDLESS_META_KEY = "necroking_endless_meta";
 // (migração única, ninguém perde o que tinha); daí em diante o endless evolui só.
 const ENDLESS_SAVE_KEY = "necroking_endless_save";
 function buildEndlessProfile() {
+  // R35 (Onda 5) — o save próprio do endless (R22) era SILENCIOSO: o jogador não
+  // sabia que compras/almas persistem entre runs. Avisa 1×/sessão.
+  if (!window._endlessProfileToastShown) {
+    window._endlessProfileToastShown = true;
+    setTimeout(() => {
+      try {
+        showToast(TR("💾 PERFIL ENDLESS — compras e almas persistem entre runs (save próprio)",
+          "💾 ENDLESS PROFILE — purchases and souls persist between runs (own save)",
+          "💾 PERFIL ENDLESS — compras y almas persisten entre runs (guardado propio)"), 3600, "magic");
+      } catch (e) {}
+    }, 900);
+  }
   // R22 — 1º: se já existe o SAVE PRÓPRIO do endless, ele É o perfil (a união dos
   // slots vira só a semente da primeira vez).
   try {
@@ -73931,6 +73976,8 @@ let lastTime = performance.now();
 // COMBO 11 G4 — FPS tracking pra frame budget
 let _fpsAccum = 0, _fpsFrames = 0, _fpsLastT = 0;
 function loop(now) {
+  // R35 (Onda 5) — heartbeat do watchdog (re-arma o rAF se a cadeia morrer)
+  game._lastLoopBeat = performance.now();
   let dt = now - lastTime;
   lastTime = now;
   if (dt > 100) dt = 100;
@@ -73943,17 +73990,31 @@ function loop(now) {
     // Se 3 segundos seguidos de FPS<40, ativa modo low-quality.
     // Se 3 segundos seguidos de FPS>55, desativa.
     const fps = game._fpsRecent;
+    // R35 (Onda 5) — HISTERESE COM DWELL: o modo low SOBE o fps acima do limiar
+    // de saída, então o sistema oscilava low↔normal a cada ~6s (com toast a cada
+    // entrada). Agora: entrada = fps<40 por 3s; saída = fps>55 por 5s E pelo menos
+    // 20s desde a entrada; re-entrada em <60s DOBRA o dwell (20→40→80s, teto 80).
     if (!game._autoQualityLow && fps < 40) {
       game._autoQualityLowFrames++;
       if (game._autoQualityLowFrames >= 3) {
+        const _aqNow = performance.now();
+        if (game._aqExitAt && _aqNow - game._aqExitAt < 60000) {
+          game._aqDwellMs = Math.min(80000, (game._aqDwellMs || 20000) * 2);
+        } else {
+          game._aqDwellMs = 20000;
+        }
         game._autoQualityLow = true;
+        game._aqEnterAt = _aqNow;
+        game._autoQualityLowFrames = 0;
         if (typeof showToast === "function") showToast("⚙ MODO PERFORMANCE — FX reduzidos", 2500, "danger");
       }
     } else if (game._autoQualityLow && fps > 55) {
       game._autoQualityLowFrames++;
-      if (game._autoQualityLowFrames >= 3) {
+      if (game._autoQualityLowFrames >= 5
+          && performance.now() - (game._aqEnterAt || 0) >= (game._aqDwellMs || 20000)) {
         game._autoQualityLow = false;
         game._autoQualityLowFrames = 0;
+        game._aqExitAt = performance.now();
       }
     } else {
       game._autoQualityLowFrames = 0;
@@ -73970,7 +74031,10 @@ function loop(now) {
     // (ex. "lighter" do passe aditivo) — o catch-and-continue re-higieniza.
     try { offCtx.globalCompositeOperation = "source-over"; offCtx.globalAlpha = 1; } catch (e2) {}
   }
-  requestAnimationFrame(loop);
+  // R35-verify (MAJOR): handle rastreado — o watchdog CANCELA a cadeia antiga
+  // antes de re-armar (no iframe da Poki rolado pra fora, o rAF suspende com
+  // visibilityState ainda "visible" e callbacks pendentes empilhavam N cadeias).
+  game._rafId = requestAnimationFrame(loop);
 }
 
 /* ============================================================
@@ -77358,11 +77422,33 @@ setInterval(() => {
 
 // Boot: migra save legado pro slot 0 e mostra o menu principal.
 function boot() {
+  // R35 (Onda 5) — script parseado com sucesso: reabilita os botões do menu
+  // (body.booting os desarma durante o parse de ~0.5-3s do arquivo de 3.4MB)
+  try { document.body.classList.remove("booting"); } catch (e) {}
   migrateLegacySave();
   refreshStartMenu();
   showMenu("mainMenu");
   // Música inicia no primeiro gesto (unlock já trata). Nada automático.
 }
+
+// R35 (Onda 5) — WATCHDOG do rAF: se a cadeia do loop morrer (exceção exótica,
+// throttle preso) com a aba VISÍVEL, re-arma. Se dois loops coexistirem por um
+// instante, o dt por timestamp compartilhado se divide entre eles — velocidade
+// do jogo não dobra (render 2× por um frame é o pior caso).
+setInterval(() => {
+  try {
+    if (document.visibilityState !== "visible") return;
+    const _beat = game._lastLoopBeat || 0;
+    if (_beat && performance.now() - _beat > 8000) {
+      game._lastLoopBeat = performance.now();   // não re-armar de novo no próximo tick
+      console.warn("[watchdog] rAF loop parado — re-armando");
+      // R35-verify (MAJOR): mata qualquer callback pendente da cadeia antiga —
+      // pior caso volta a ser SEMPRE 1 cadeia (nunca N acumuladas).
+      try { if (game._rafId) cancelAnimationFrame(game._rafId); } catch (e2) {}
+      game._rafId = requestAnimationFrame(loop);
+    }
+  } catch (e) {}
+}, 5000);
 
 
 // =========================================================
@@ -79021,7 +79107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 boot();
-requestAnimationFrame(loop);
+game._rafId = requestAnimationFrame(loop);
 
 // 2026-05-10 — Poki: avisa SDK que loading acabou (libera "Play" da Poki)
 if (window.PokiHelpers) PokiHelpers.loadingFinished();
@@ -79072,7 +79158,9 @@ window.addEventListener("focus", () => {
 // 2026-05-10 — POKI: SW desabilitado pra evitar conflito com iframe da Poki.
 // Detectamos se estamos rodando dentro da Poki (window.PokiSDK existe) e pulamos.
 // Pra build standalone (Electron/PWA proprio), continua funcionando normal.
-const _isPokiEnv = !!(window.PokiSDK || (window.location && window.location.hostname && window.location.hostname.includes("poki")));
+// R35-verify: com o SDK async, window.PokiSDK pode não existir ainda neste ponto —
+// o sinal DETERMINÍSTICO é o hostname (mesma lógica do _isDevEnv).
+const _isPokiEnv = !!(window.location && window.location.hostname && window.location.hostname.includes("poki"));
 // R30 (Poki QA) — guidelines: dentro da Poki não pode haver botão de SAIR
 // (window.close não funciona no iframe) nem LINKS EXTERNOS clicáveis (o crédito
 // CC-BY vira texto puro — a atribuição textual continua cumprindo a licença).
