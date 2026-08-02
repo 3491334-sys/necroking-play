@@ -6061,6 +6061,8 @@
         <button class="menu-btn" data-menu-action="go-campaign" data-i18n="r19.campBtn">🗺️ CAMPANHA</button>
         <button class="menu-btn" data-menu-action="go-endless">♾️ ENDLESS</button>
         <button class="menu-btn" data-menu-action="start-bossrush">⚔ BOSS RUSH</button>
+        <!-- R34 (Onda 4) — CONTRATOS DIÁRIOS: 3 missões por dia, mesmas pra todo mundo -->
+        <button class="menu-btn" data-menu-action="open-contracts" data-i18n="r34.contractsBtn">📜 CONTRATOS</button>
         <!-- COMBO 14: Codex consolida Como Jogar + Bestiário + Itens + Conquistas + Estatísticas -->
         <button class="menu-btn" data-menu-action="open-codex" data-i18n="menu.codex">CODEX</button>
         <button class="menu-btn" data-menu-action="open-settings" data-i18n="menu.settings">CONFIGURAÇÕES</button>
@@ -13453,6 +13455,31 @@ function startNewRun(preselectedSpellIds, opts) {
     progress.totalRuns = (progress.totalRuns || 0) + 1;
     if (typeof saveProgress === "function") saveProgress();
     if (typeof checkAchievements === "function") setTimeout(checkAchievements, 100);
+    // R34 (Onda 4) — contratos: partidas iniciadas
+    if (typeof contractEvent === "function") contractEvent("runs", 1);
+    // R34 (Onda 4) — SEQUÊNCIA DE DIAS: a 1ª run do dia paga almas crescendo com o
+    // streak (10 + 5×dias, teto 45✦ no dia 7+). Estado global em necroking_streak.
+    try {
+      const _d = new Date();
+      const _today = _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0");
+      let _sk = null;
+      try { _sk = JSON.parse(localStorage.getItem("necroking_streak")); } catch (e) {}
+      if (!_sk || _sk.last !== _today) {
+        // R34-verify: ontem por CAMPOS de calendário — imune a DST (86400000 fixo
+        // quebrava a sequência na janela de 1h das viradas de horário; Poki é mundial)
+        const _y = new Date(_d.getFullYear(), _d.getMonth(), _d.getDate() - 1);
+        const _yKey = _y.getFullYear() + "-" + String(_y.getMonth() + 1).padStart(2, "0") + "-" + String(_y.getDate()).padStart(2, "0");
+        const _count = (_sk && _sk.last === _yKey) ? (_sk.count || 0) + 1 : 1;
+        try { localStorage.setItem("necroking_streak", JSON.stringify({ last: _today, count: _count })); } catch (e) {}
+        const _bonus = 10 + 5 * Math.min(7, _count);
+        progress.souls = (progress.souls || 0) + _bonus;
+        setTimeout(() => {
+          if (game.runActive && !game.gameOver) {
+            showToast("🔥 " + TR("SEQUÊNCIA: DIA ", "STREAK: DAY ", "RACHA: DÍA ") + _count + " — +" + _bonus + " ✦", 3400, "magic");
+          }
+        }, 4200);
+      }
+    } catch (e) {}
   }
   // === Fase 17 — Mobile hint na primeira run touch ===
   if (typeof showMobileHintIfNeeded === "function") {
@@ -25754,6 +25781,7 @@ function applyDamage(attacker, target, amount, opts) {
       && (game.time - (target._lastReactT === undefined ? -99999 : target._lastReactT)) > 1200) {
     if (type === "fire" && (target.frozen || 0) > 0) {
       target._lastReactT = game.time;
+      if (typeof contractEvent === "function") { contractEvent("react", 1); contractEvent("shatter", 1); }
       target.frozen = 0;
       dmg = Math.round(dmg * 1.5);
       _fxReactShatter(target.x, target.y);
@@ -25763,6 +25791,7 @@ function applyDamage(attacker, target, amount, opts) {
         "❄+🔥 AÑICOS — fuego en objetivo CONGELADO rompe el hielo: daño ×1.5"));
     } else if (type === "ice" && (target.burning || 0) > 0) {
       target._lastReactT = game.time;
+      if (typeof contractEvent === "function") contractEvent("react", 1);
       target.burning = 0;
       dmg += 8;
       if (target.isBoss) target.slowed = Math.max(target.slowed || 0, 700);
@@ -25774,6 +25803,7 @@ function applyDamage(attacker, target, amount, opts) {
         "🔥+❄ VAPOR — el hielo apaga la QUEMADURA: daño extra y congela un instante"));
     } else if (type === "fire" && (target.poisoned || 0) > 0) {
       target._lastReactT = game.time;
+      if (typeof contractEvent === "function") contractEvent("react", 1);
       target.poisoned = 0;
       dmg += 6;
       _fxReactToxic(target.x, target.y);
@@ -25980,6 +26010,11 @@ function applyDamage(attacker, target, amount, opts) {
     killUnit(target, attacker);
     if (target.faction === "enemy" && (!attacker || attacker.faction === "ally")) {
       game.killsThisRun++;
+      // R34 (Onda 4) — contratos diários: kills + elites
+      if (typeof contractEvent === "function") {
+        contractEvent("kills", 1);
+        if (target.isElite) contractEvent("elite", 1);
+      }
       // === FX 2026-05-04: Combo counter (kill streak) ===
       if (typeof bumpCombo === "function") bumpCombo();
       // 2026-04-29 COMBO 31 — quest hooks no kill de inimigo
@@ -27215,6 +27250,8 @@ function triggerNecroKingDeathCinematic(u) {
 }
 
 function onBossDefeated(u) {
+  // R34 (Onda 4) — contratos diários: chefes derrotados
+  if (typeof contractEvent === "function") contractEvent("boss", 1);
   // 2026-04-28 P-COMBO: cinemática especial pro NecroKing (rola PRIMEIRO).
   if (u && u.unitClass === "bossNecroKing") {
     triggerNecroKingDeathCinematic(u);
@@ -28250,6 +28287,8 @@ function collectCoinValue(c) {
   Sfx.coinPick();
   game.coinsThisRun += c.value;
   progress.coins += c.value;
+  // R34 (Onda 4) — contratos diários: moedas coletadas
+  if (typeof contractEvent === "function") contractEvent("coins", c.value);
   // REWORK 2026-07 — Cetro de Midas (Tirano): moedas coletadas viram +dano do exército
   if (typeof hasRelic === "function" && hasRelic("desert_scepter")) {
     const prevStep = Math.floor((game._midasCoins || 0) / 100);
@@ -28416,6 +28455,8 @@ function startOpenChest(p) {
 // direto com suas cargas iniciais. Se os 3 slots estiverem cheios, a carta vai
 // para a reserva (substituindo a reserva anterior, se houver).
 function grantChestLoot(p) {
+  // R34 (Onda 4) — contratos diários: baús abertos
+  if (typeof contractEvent === "function") contractEvent("chest", 1);
   // SISTEMA DE BAÚS POR RARIDADE 2026-04-27: dispatch por tipo de payload
   if (p.passive) {
     grantPassiveLoot(p);
@@ -28670,6 +28711,135 @@ const ACHIEVEMENTS = [
 
 // Verifica todos achievements e desbloqueia os que satisfazem condição.
 // Pode ser chamado em qualquer evento — só desbloqueia (1x cada).
+// ============================================================
+// R34 (Onda 4) — CONTRATOS DIÁRIOS: 3 missões por dia (determinísticas pela
+// DATA — mesmas pra todo mundo, como o daily), progresso em QUALQUER modo
+// (menos MODO TESTE), recompensa auto-paga no perfil ativo com toast.
+// Estado global da CONTA em localStorage (fora dos saves): necroking_contracts_v1.
+// ============================================================
+const CONTRACTS_POOL = [
+  { id: "kills",   goal: 120, coins: 220, n: ["Ceife 120 inimigos", "Reap 120 enemies", "Siega 120 enemigos"] },
+  { id: "raise",   goal: 60,  coins: 200, n: ["Ressuscite 60 cadáveres", "Raise 60 corpses", "Alza 60 cadáveres"] },
+  { id: "react",   goal: 10,  souls: 25,  n: ["Dispare 10 reações elementais", "Trigger 10 elemental reactions", "Provoca 10 reacciones elementales"] },
+  { id: "elite",   goal: 5,   souls: 30,  n: ["Mate 5 elites", "Kill 5 elites", "Mata 5 élites"] },
+  { id: "boss",    goal: 2,   souls: 35,  n: ["Derrote 2 chefes", "Defeat 2 bosses", "Derrota 2 jefes"] },
+  { id: "chest",   goal: 4,   coins: 180, n: ["Abra 4 baús", "Open 4 chests", "Abre 4 cofres"] },
+  { id: "coins",   goal: 500, coins: 250, n: ["Colete 500 moedas", "Collect 500 coins", "Recoge 500 monedas"] },
+  { id: "cast",    goal: 30,  coins: 200, n: ["Lance 30 cartas", "Cast 30 cards", "Lanza 30 cartas"] },
+  { id: "tide",    goal: 15,  souls: 25,  n: ["Ressuscite 15 cadáveres durante a Maré", "Raise 15 corpses during the Tide", "Alza 15 cadáveres durante la Marea"] },
+  { id: "level",   goal: 2,   coins: 240, n: ["Complete 2 níveis de campanha", "Complete 2 campaign levels", "Completa 2 niveles de campaña"] },
+  { id: "runs",    goal: 2,   coins: 150, n: ["Inicie 2 partidas", "Start 2 runs", "Inicia 2 partidas"] },
+  { id: "shatter", goal: 6,   souls: 25,  n: ["Estilhace 6 inimigos congelados", "Shatter 6 frozen enemies", "Haz añicos a 6 enemigos congelados"] },
+];
+let _contractsCache = null;
+let _contractsSaveT = null;
+function _contractsDateKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function _contractsToday() {
+  const dateKey = _contractsDateKey();
+  if (_contractsCache && _contractsCache.date === dateKey) return _contractsCache;
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem("necroking_contracts_v1")); } catch (e) {}
+  if (!st || st.date !== dateKey || !Array.isArray(st.items) || st.items.length !== 3) {
+    // sorteio DETERMINÍSTICO pela data — todo jogador vê os mesmos 3 contratos
+    const seedNum = (parseInt(dateKey.replace(/-/g, ""), 10) ^ 0x9e37) >>> 0;
+    const rng = mulberry32(seedNum);
+    const idx = [];
+    while (idx.length < 3) {
+      const i = Math.floor(rng() * CONTRACTS_POOL.length);
+      if (!idx.includes(i)) idx.push(i);
+    }
+    st = { date: dateKey, items: idx.map(i => ({ id: CONTRACTS_POOL[i].id, prog: 0, done: false })) };
+    try { localStorage.setItem("necroking_contracts_v1", JSON.stringify(st)); } catch (e) {}
+  }
+  _contractsCache = st;
+  return st;
+}
+function _contractsFlush() {
+  // debounce: kills chamam isto MUITO — grava no máx 1×/800ms (done grava direto)
+  if (_contractsSaveT) return;
+  _contractsSaveT = setTimeout(() => {
+    _contractsSaveT = null;
+    try { if (_contractsCache) localStorage.setItem("necroking_contracts_v1", JSON.stringify(_contractsCache)); } catch (e) {}
+  }, 800);
+}
+function _contractName(def) {
+  const li = (typeof _currentLang !== "undefined") ? ({ pt: 0, en: 1, es: 2 }[_currentLang] || 0) : 0;
+  return def.n[li];
+}
+function contractEvent(id, count) {
+  try {
+    if (!progress || (game && game._testAllCards)) return;
+    const st = _contractsToday();
+    const it = st.items.find(x => x.id === id && !x.done);
+    if (!it) return;
+    const def = CONTRACTS_POOL.find(c => c.id === id);
+    if (!def) return;
+    it.prog = Math.min(def.goal, (it.prog || 0) + (count || 1));
+    if (it.prog >= def.goal) {
+      it.done = true;
+      if (def.coins) { progress.coins = (progress.coins || 0) + def.coins; game.coinsThisRun = (game.coinsThisRun || 0) + def.coins; }
+      if (def.souls) progress.souls = (progress.souls || 0) + def.souls;
+      if (typeof saveProgress === "function") saveProgress();
+      showToast("📜 " + TR("CONTRATO CUMPRIDO: ", "CONTRACT FULFILLED: ", "CONTRATO CUMPLIDO: ") + _contractName(def)
+        + " — +" + (def.coins ? def.coins + " ◆" : def.souls + " ✦"), 3600, "magic");
+      if (typeof Sfx !== "undefined" && Sfx.levelUp) Sfx.levelUp();
+      // R34-verify: cancela flush pendente (o done grava direto — sem write duplicado)
+      if (_contractsSaveT) { clearTimeout(_contractsSaveT); _contractsSaveT = null; }
+      try { localStorage.setItem("necroking_contracts_v1", JSON.stringify(st)); } catch (e) {}
+    } else {
+      _contractsFlush();
+    }
+  } catch (e) {}
+}
+function openContractsModal() {
+  let ov = document.getElementById("contractsModal");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "contractsModal";
+    ov.style.cssText = "display:none; position:fixed; inset:0; z-index:230; background:rgba(4,2,10,0.72); align-items:center; justify-content:center;";
+    ov.innerHTML = '<div style="background:linear-gradient(180deg,#241634,#140b20); border:3px solid #d4a637; border-radius:8px; padding:22px 26px; max-width:440px; width:92%; font-family:\'Press Start 2P\',monospace; color:#e8d4a0; max-height:86vh; overflow-y:auto;">'
+      + '<h2 id="contractsTitle" style="margin:0 0 6px; font-size:13px; color:#f7d96f; letter-spacing:2px;"></h2>'
+      + '<div id="contractsSub" style="font-size:8px; color:#9a7a55; line-height:1.6; margin-bottom:14px;"></div>'
+      + '<div id="contractsList"></div>'
+      + '<button class="menu-btn" id="contractsCloseBtn" style="width:100%; margin-top:14px;"></button></div>';
+    document.body.appendChild(ov);
+    ov.querySelector("#contractsCloseBtn").addEventListener("click", () => { ov.style.display = "none"; });
+    ov.addEventListener("click", (ev) => { if (ev.target === ov) ov.style.display = "none"; });
+  }
+  renderContractsMenu();
+  ov.style.display = "flex";
+}
+function renderContractsMenu() {
+  const st = _contractsToday();
+  const list = document.getElementById("contractsList");
+  if (!list) return;
+  document.getElementById("contractsTitle").textContent = TR("📜 CONTRATOS DO DIA", "📜 DAILY CONTRACTS", "📜 CONTRATOS DEL DÍA");
+  const doneN = st.items.filter(i => i.done).length;
+  document.getElementById("contractsSub").textContent =
+    TR("Renovam à meia-noite · valem em qualquer modo (", "Reset at midnight · count in any mode (", "Se renuevan a medianoche · valen en cualquier modo (") + doneN + "/3)";
+  document.getElementById("contractsCloseBtn").textContent = TR("FECHAR", "CLOSE", "CERRAR");
+  list.innerHTML = "";
+  for (const it of st.items) {
+    const def = CONTRACTS_POOL.find(c => c.id === it.id);
+    if (!def) continue;
+    const row = document.createElement("div");
+    row.style.cssText = "margin-bottom:12px; padding:10px; border:2px solid " + (it.done ? "#3f8f4f" : "#5a4830")
+      + "; border-radius:6px; background:rgba(0,0,0,0.25);" + (it.done ? " opacity:0.75;" : "");
+    const pct = Math.round(Math.min(1, (it.prog || 0) / def.goal) * 100);
+    row.innerHTML =
+      '<div style="font-size:9px; line-height:1.5; color:' + (it.done ? "#8fe89f" : "#e8d4a0") + ';">' + (it.done ? "✔ " : "") + _contractName(def) + '</div>'
+      + '<div style="height:7px; background:#241830; border:1px solid #000; margin:7px 0 5px; border-radius:3px; overflow:hidden;">'
+      + '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#8a5cff,#d4a637);"></div></div>'
+      + '<div style="font-size:8px; color:#b09a6a; display:flex; justify-content:space-between;">'
+      + '<span>' + Math.min(it.prog || 0, def.goal) + "/" + def.goal + '</span>'
+      + '<span>' + (def.coins ? "+" + def.coins + " ◆" : "+" + def.souls + " ✦") + '</span></div>';
+    list.appendChild(row);
+  }
+}
+
 function checkAchievements(ctx) {
   if (!progress) return;
   progress.achievements = progress.achievements || {};
@@ -28689,11 +28859,13 @@ function checkAchievements(ctx) {
     try {
       if (a.check(game, ctx)) {
         progress.achievements[a.id] = Date.now();
+        // R34 (Onda 4) — conquista PAGA: +20 almas no ato (dá propósito à lista)
+        progress.souls = (progress.souls || 0) + 20;
         // Toast festivo (2026-04-30 COMBO 39: emoji removido — sufficient feedback no SFX)
         const _aName = (typeof getAchievementName === "function") ? getAchievementName(a.id) : a.name;
         const _aDesc = (typeof getAchievementDesc === "function") ? getAchievementDesc(a.id) : a.desc;
         const _aLabel = (typeof _currentLang !== "undefined" && _currentLang === "en") ? "ACHIEVEMENT: " : (_currentLang === "es" ? "LOGRO: " : "CONQUISTA: ");
-        showToast(_aLabel + _aName, 2800, "magic");
+        showToast(_aLabel + _aName + " (+20 ✦)", 2800, "magic");
         showToast(_aDesc, 2400, "magic");
         if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
         if (typeof saveProgress === "function") saveProgress();
@@ -29446,6 +29618,11 @@ function tryNecromance(wx, wy, rangeOverride) {
     // 2026-04-29 COMBO 31 — quest "Coletor de Almas": +N corpos ressuscitados
     if (typeof questProgressEvent === "function") {
       questProgressEvent("raiseCorpse", { count: converted });
+    }
+    // R34-verify: hooks de contrato FORA do guard de questProgressEvent (independentes)
+    if (typeof contractEvent === "function") {
+      contractEvent("raise", converted);
+      if (game._necroTideActive) contractEvent("tide", converted);
     }
     if (toNecro.length > converted && perCastCap <= converted) {
       // Reached the per-cast cap but had more corpses available
@@ -31990,6 +32167,7 @@ function tryCastCardInSlot(slotIdx, wx, wy) {
   // 2026-04-29 COMBO 31 — quest hooks: spell cast + spell único
   if (typeof questProgressEvent === "function") {
     questProgressEvent("spellCast", { count: 1 });
+    if (typeof contractEvent === "function") contractEvent("cast", 1);   // R34: contratos
     questProgressEvent("uniqueSpells", { spellId: spell.id });
   }
   // SPELL_ECHO: 8% chance de castar 2× (sem custo extra)
@@ -73473,6 +73651,8 @@ function markRegionLevel(biomeId, level) {
   const cur = progress.regionProgress[biomeId] || { maxLevel: 0 };
   cur.maxLevel = Math.max(cur.maxLevel || 0, level);
   progress.regionProgress[biomeId] = cur;
+  // R34 (Onda 4) — contratos diários: níveis de campanha completados (repetição conta)
+  if (typeof contractEvent === "function") contractEvent("level", 1);
   if (typeof saveProgress === "function") saveProgress();
 }
 
@@ -76491,6 +76671,10 @@ document.addEventListener("click", (e) => {
         openCardPickFlow();
       }
       break;
+    // R34 (Onda 4) — CONTRATOS DIÁRIOS: abre o modal (criado sob demanda)
+    case "open-contracts":
+      if (typeof openContractsModal === "function") openContractsModal();
+      break;
     // R31 (Onda 1) — ⚡ JOGAR: fast-path de 1 clique. Escolhe o slot mais avançado
     // (ou usa o SAVE 1 zerado), pula startMenu + mapa de regiões e cai direto no
     // card pick do PRÓXIMO nível não concluído da campanha.
@@ -77106,6 +77290,13 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
+  // R34-verify: ESC fecha o modal de CONTRATOS (mesmo gesto dos outros modais)
+  const _ctrModal = document.getElementById("contractsModal");
+  if (_ctrModal && _ctrModal.style.display === "flex") {
+    _ctrModal.style.display = "none";
+    e.preventDefault();
+    return;
+  }
   const revivalModal = document.getElementById("revivalModal");
   if (revivalModal && revivalModal.style.display === "flex") {
     e.preventDefault();
@@ -77480,6 +77671,7 @@ try {
     "r19.chooseRelic": "ESCOLHA UMA RELÍQUIA",
     "r19.intermission": "INTERMISSÃO",
     "r31.playBtn": "⚡ JOGAR",
+    "r34.contractsBtn": "📜 CONTRATOS",
   });
   Object.assign(LANG_DATA.en, {
     "r19.campBtn": "🗺️ CAMPAIGN",
@@ -77494,6 +77686,7 @@ try {
     "r19.chooseRelic": "CHOOSE A RELIC",
     "r19.intermission": "INTERMISSION",
     "r31.playBtn": "⚡ PLAY",
+    "r34.contractsBtn": "📜 CONTRACTS",
   });
   Object.assign(LANG_DATA.es, {
     "r19.campBtn": "🗺️ CAMPAÑA",
@@ -77508,6 +77701,7 @@ try {
     "r19.chooseRelic": "ELIGE UNA RELIQUIA",
     "r19.intermission": "INTERMEDIO",
     "r31.playBtn": "⚡ JUGAR",
+    "r34.contractsBtn": "📜 CONTRATOS",
   });
 } catch (e) {}
 function T(key, fallback) {
@@ -78174,7 +78368,7 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Ressuscitar corpo</b> inimigo sob o cursor (habilidade inata do Rei).",
     ctrlEsc: "<b>Pausar</b> / cancelar carta armada / fechar menu.",
     tips: "DICAS RÁPIDAS",
-    tipsBody: "<li>Mantenha seu Rei <b>atrás</b> das tropas — se ele morre, game over (a menos que tenha <b style=\"color:#ff5020\">Asas de Fogo</b>).</li><li>Limpe covis perto do spawn (tier I) antes de aventurar em biomas distantes.</li><li>Observe a <b>cor do bioma</b> no minimapa para planejar rotas.</li><li>Chefes têm 2 fases + signature attack (65% HP) + fúria final (30% HP) — afaste o Rei nos telegraphs vermelhos.</li><li>Guarde cartas poderosas para emergências — mana regenera devagar.</li><li>No <b>ENDLESS</b>, monte builds fechando um <b>arquétipo</b> de relíquias — o draft puxa mais itens das tags que você já possui.</li><li>Ataque a <b style=\"color:#d4a637\">Vila da Guilda</b> só quando estiver forte — boss secreto T5 com 23k HP / 330 ATK.</li><li>Almas são gastas em <b>Legacy</b> (entre runs) pra desbloqueios permanentes.</li>",
+    tipsBody: "<li>Mantenha seu Rei <b>atrás</b> das tropas — se ele morre, game over (a menos que tenha <b style=\"color:#ff5020\">Asas de Fogo</b>).</li><li>Limpe covis perto do spawn (tier I) antes de aventurar em biomas distantes.</li><li>Observe a <b>cor do bioma</b> no minimapa para planejar rotas.</li><li>Chefes têm 2 fases + signature attack (65% HP) + fúria final (30% HP) — afaste o Rei nos telegraphs vermelhos.</li><li>Guarde cartas poderosas para emergências — mana regenera devagar.</li><li>No <b>ENDLESS</b>, monte builds fechando um <b>arquétipo</b> de relíquias — o draft puxa mais itens das tags que você já possui.</li><li>Ataque a <b style=\"color:#d4a637\">Vila da Guilda</b> só quando estiver forte — boss secreto T5 com 23k HP / 330 ATK.</li><li>Almas são gastas em <b>Legacy</b> (entre runs) pra desbloqueios permanentes.</li><li>REAÇÕES ELEMENTAIS: fogo em alvo <b>CONGELADO</b> = dano ×1.5; gelo em <b>QUEIMANDO</b> = apaga e congela; fogo em <b>ENVENENADO</b> = explode e espalha o veneno.</li>",
     bSoldado: "ALIADO", bOgre: "INIMIGO", bBoss: "CHEFE",
     bDesert: "DESERTO", bIce: "GELO", bHell: "INFERNO", bSwamp: "PÂNTANO", bMushroom: "COGUMELO", bCathedral: "CATEDRAL",
     tierEasy: "FÁCIL", tierMedium: "MÉDIO", tierHard: "DIFÍCIL", tierVHard: "MUITO DIFÍCIL", tierBoss: "BOSS T5 (chefes finais e secretos)",
@@ -78204,7 +78398,7 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Resurrect corpse</b> under cursor (King's innate ability).",
     ctrlEsc: "<b>Pause</b> / cancel armed card / close menu.",
     tips: "QUICK TIPS",
-    tipsBody: "<li>Keep your King <b>behind</b> the troops — if he dies, game over (unless you have <b style=\"color:#ff5020\">Fire Wings</b>).</li><li>Clear lairs near spawn (tier I) before venturing into distant biomes.</li><li>Watch the <b>biome color</b> on the minimap to plan routes.</li><li>Bosses have 2 phases + signature attack (65% HP) + final fury (30% HP) — keep the King away from red telegraphs.</li><li>Save powerful cards for emergencies — mana regens slowly.</li><li>In <b>ENDLESS</b>, build around one relic <b>archetype</b> — the draft favors tags you already own.</li><li>Attack the <b style=\"color:#d4a637\">Guild Village</b> only when strong — secret T5 boss with 23k HP / 330 ATK.</li><li>Souls are spent in <b>Legacy</b> (between runs) for permanent unlocks.</li>",
+    tipsBody: "<li>Keep your King <b>behind</b> the troops — if he dies, game over (unless you have <b style=\"color:#ff5020\">Fire Wings</b>).</li><li>Clear lairs near spawn (tier I) before venturing into distant biomes.</li><li>Watch the <b>biome color</b> on the minimap to plan routes.</li><li>Bosses have 2 phases + signature attack (65% HP) + final fury (30% HP) — keep the King away from red telegraphs.</li><li>Save powerful cards for emergencies — mana regens slowly.</li><li>In <b>ENDLESS</b>, build around one relic <b>archetype</b> — the draft favors tags you already own.</li><li>Attack the <b style=\"color:#d4a637\">Guild Village</b> only when strong — secret T5 boss with 23k HP / 330 ATK.</li><li>Souls are spent in <b>Legacy</b> (between runs) for permanent unlocks.</li><li>ELEMENTAL REACTIONS: fire on a <b>FROZEN</b> target = ×1.5 damage; ice on <b>BURNING</b> = extinguishes and freezes; fire on <b>POISONED</b> = explodes and spreads the poison.</li>",
     bSoldado: "ALLY", bOgre: "ENEMY", bBoss: "BOSS",
     bDesert: "DESERT", bIce: "ICE", bHell: "INFERNO", bSwamp: "SWAMP", bMushroom: "MUSHROOM", bCathedral: "CATHEDRAL",
     tierEasy: "EASY", tierMedium: "MEDIUM", tierHard: "HARD", tierVHard: "VERY HARD", tierBoss: "BOSS T5 (final + secret bosses)",
@@ -78234,7 +78428,7 @@ const HOWTO_I18N = {
     ctrlMouseR: "<b>Resucitar cuerpo</b> enemigo bajo el cursor (habilidad innata del Rey).",
     ctrlEsc: "<b>Pausar</b> / cancelar carta armada / cerrar menú.",
     tips: "CONSEJOS RÁPIDOS",
-    tipsBody: "<li>Mantén a tu Rey <b>detrás</b> de las tropas — si muere, game over (a menos que tengas <b style=\"color:#ff5020\">Alas de Fuego</b>).</li><li>Limpia las guaridas cerca del spawn (tier I) antes de aventurarte en biomas lejanos.</li><li>Observa el <b>color del bioma</b> en el minimapa para planear rutas.</li><li>Los jefes tienen 2 fases + ataque supremo (65% HP) + furia final (30% HP) — aleja al Rey en los telégrafos rojos.</li><li>Guarda las cartas poderosas para emergencias — el maná regenera lento.</li><li>En <b>ENDLESS</b>, arma builds cerrando un <b>arquetipo</b> de reliquias — el draft favorece las tags que ya tienes.</li><li>Ataca la <b style=\"color:#d4a637\">Aldea del Gremio</b> solo cuando seas fuerte — jefe secreto T5 con 23k HP / 330 ATK.</li><li>Las almas se gastan en <b>Legacy</b> (entre runs) para desbloqueos permanentes.</li>",
+    tipsBody: "<li>Mantén a tu Rey <b>detrás</b> de las tropas — si muere, game over (a menos que tengas <b style=\"color:#ff5020\">Alas de Fuego</b>).</li><li>Limpia las guaridas cerca del spawn (tier I) antes de aventurarte en biomas lejanos.</li><li>Observa el <b>color del bioma</b> en el minimapa para planear rutas.</li><li>Los jefes tienen 2 fases + ataque supremo (65% HP) + furia final (30% HP) — aleja al Rey en los telégrafos rojos.</li><li>Guarda las cartas poderosas para emergencias — el maná regenera lento.</li><li>En <b>ENDLESS</b>, arma builds cerrando un <b>arquetipo</b> de reliquias — el draft favorece las tags que ya tienes.</li><li>Ataca la <b style=\"color:#d4a637\">Aldea del Gremio</b> solo cuando seas fuerte — jefe secreto T5 con 23k HP / 330 ATK.</li><li>Las almas se gastan en <b>Legacy</b> (entre runs) para desbloqueos permanentes.</li><li>REACCIONES ELEMENTALES: fuego en objetivo <b>CONGELADO</b> = daño ×1.5; hielo en <b>QUEMANDO</b> = apaga y congela; fuego en <b>ENVENENADO</b> = explota y esparce el veneno.</li>",
     bSoldado: "ALIADO", bOgre: "ENEMIGO", bBoss: "JEFE",
     bDesert: "DESIERTO", bIce: "HIELO", bHell: "INFIERNO", bSwamp: "PANTANO", bMushroom: "HONGO", bCathedral: "CATEDRAL",
     tierEasy: "FÁCIL", tierMedium: "MEDIO", tierHard: "DIFÍCIL", tierVHard: "MUY DIFÍCIL", tierBoss: "JEFE T5 (jefes finales y secretos)",
