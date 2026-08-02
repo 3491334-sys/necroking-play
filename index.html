@@ -13477,6 +13477,11 @@ function startNewRun(preselectedSpellIds, opts) {
   game._necroHintActive = !(progress && progress.necroHintDone);
   game._necroHintToasts = 0;
   game._necroHintToastAt = -99;
+  // R33 (Onda 3) — timers dos eventos recorrentes + reações ensinadas resetam por run
+  game._nextTimedDraftAt = undefined;
+  game._necroTideAt = undefined;
+  game._necroTideActive = false;
+  game._reactionsTaught = {};
   // 2026-06-12 FIX (audit): limpa fonte do último dano — death screen mostrava
   // "MORTO POR X" da run ANTERIOR quando o Rei morria por DOT/hazard sem atacante.
   game._lastDamageSource = null;
@@ -22838,6 +22843,60 @@ function updateWaveSystem(dt) {
     }
     game.spawnTimer = Math.min(game.spawnTimer, 1800);
   }
+
+  // R33 (Onda 3) — EVENTOS RECORRENTES do mundo aberto (fora de Boss Rush/Survival,
+  // que são leaderboards temporais; a campanha já saiu no early-return acima).
+  if (!game.bossRushMode && !game.survivalMode) {
+    // DRAFT RECORRENTE: a cada ~4min uma escolha 1-de-3 mantém a build evoluindo a
+    // run INTEIRA (a 1ª relíquia vem do draft inicial de ~8s). Raridade sobe com o tempo.
+    if (game._nextTimedDraftAt === undefined) game._nextTimedDraftAt = 240;
+    if (game.runTime >= game._nextTimedDraftAt) {
+      game._nextTimedDraftAt = game.runTime + 240;
+      // Draft já aberto/na fila? pula ESTA janela (a próxima vem em 4min) — nunca empilha.
+      // R33-verify: catálogo ESGOTADO (todas as 22 draftáveis na prateleira, ~min
+      // 25-40 de run funda) → para de agendar de vez — sem toast hype seguido de
+      // "+120◆ de consolação" a cada 4min até o fim da run.
+      let _poolLeft = true;
+      try {
+        _poolLeft = false;
+        for (const _rid in RELICS) {
+          if (!RELICS[_rid].noDraft && !(game.activeRelics || []).includes(_rid)) { _poolLeft = true; break; }
+        }
+      } catch (e) { _poolLeft = true; }
+      if (!_poolLeft) {
+        game._nextTimedDraftAt = Infinity;
+      } else if (!_relicDraftState && _draftQueue.length === 0 && typeof queueRelicDraft === "function") {
+        const _m = game.runTime / 60;
+        const _roll = _m < 8 ? { rarities: ["incomum", "raro"], weights: [65, 35] }
+                    : _m < 13 ? { rarities: ["raro", "epico"], weights: [70, 30] }
+                    : { rarities: ["raro", "epico", "lendario"], weights: [45, 40, 15] };
+        showToast(TR("🎁 O TEMPO FORJA RELÍQUIAS — escolha uma", "🎁 TIME FORGES RELICS — choose one", "🎁 EL TIEMPO FORJA RELIQUIAS — elige una"), 2400, "magic");
+        queueRelicDraft("relic", _roll);
+      }
+    }
+    // MARÉ NECROMÂNTICA (janela de SNOWBALL): 22s de necromancia PELA METADE e
+    // cadáveres SEM decair, a cada ~3min. O jogador aprende a SEGURAR cadáveres
+    // pra maré — e o exército dá saltos visíveis (o pico de poder tem hora marcada).
+    if (game._necroTideAt === undefined) game._necroTideAt = 170;
+    if (!game._necroTideActive && game.runTime >= game._necroTideAt) {
+      game._necroTideActive = true;
+      game._necroTideEnd = game.runTime + 22;
+      // R33-verify: T1 custa 1 e ceil(1/2)=1 — o desconto real é dos tiers altos.
+      // O toast lidera com o ganho UNIVERSAL (cadáveres não decaem — erga tudo).
+      showToast(TR("🌊 MARÉ NECROMÂNTICA — 22s: cadáveres NÃO decaem e tiers altos custam METADE. Erga tudo!",
+        "🌊 NECROMANTIC TIDE — 22s: corpses DON'T decay and high tiers cost HALF. Raise everything!",
+        "🌊 MAREA NIGROMÁNTICA — 22s: los cadáveres NO decaen y los tiers altos cuestan MITAD. ¡Álzalo todo!"), 3600, "magic");
+      if (typeof Sfx !== "undefined" && Sfx.necromance) Sfx.necromance();
+      if (game.king) {
+        game.effects.push({ type: "shockwave", x: game.king.x, y: game.king.y, maxR: 74, color: "#7ef0d0", lifetime: 700, maxLifetime: 700, update() {} });
+        game.effects.push({ type: "shockwave", x: game.king.x, y: game.king.y, maxR: 46, color: "#b06cf0", lifetime: 520, maxLifetime: 520, update() {} });
+      }
+    } else if (game._necroTideActive && game.runTime >= game._necroTideEnd) {
+      game._necroTideActive = false;
+      game._necroTideAt = game.runTime + 175;
+      showToast(TR("🌊 A maré recuou", "🌊 The tide receded", "🌊 La marea bajó"), 1600, "magic");
+    }
+  }
 }
 
 function spawnEnemyAt(x, y, classId) {
@@ -24493,8 +24552,10 @@ function update(dt) {
   // pra evitar shake "infinito" quando o jogo pausa (cutscene/gameover).
 
   // Corpses
+  // R33 (Onda 3) — Maré Necromântica: durante a janela os cadáveres NÃO decaem
+  const _tideHold = !!game._necroTideActive;
   for (const c of game.corpses) {
-    c.lifetime -= dt;
+    if (!_tideHold) c.lifetime -= dt;
     c.fade = c.lifetime < 3000 ? c.lifetime / 3000 : 1;
   }
   // 2026-04-30 COMBO 38 PERF — in-place compact
@@ -25275,6 +25336,57 @@ function _spawnHitShockwave(target, type, crit) {
   }
 }
 
+// R33 (Onda 3) — REAÇÕES ELEMENTAIS: helpers de FX/feedback. O hook vive no
+// applyDamage, logo antes do desconto de HP (cada reação CONSOME o status que
+// a alimenta — auto-limitada, sem cooldown externo). Só a favor do jogador
+// (alvo inimigo) e só em HIT DIRETO ("fire"/"ice" — tick de DoT usa "burn"/"poison").
+function _reactionLabel(target, txt, color) {
+  game.damageNums.push({
+    x: target.x + (Math.random() - 0.5) * 4, y: target.y - 16, vy: -30,
+    amount: txt, lifetime: 750, maxLifetime: 750, alpha: 1, color, type: "ward", crit: false,
+  });
+}
+function _teachReaction(id, msg) {
+  if (!game._reactionsTaught) game._reactionsTaught = {};
+  if (game._reactionsTaught[id]) return;
+  game._reactionsTaught[id] = true;
+  showToast(msg, 3400, "magic");
+}
+function _fxReactShatter(x, y) {
+  const low = !!(game.reducedMotion || game.perfMode || game._autoQualityLow);
+  game.effects.push({ type: "ring", x, y, radius: 4, lifetime: 380, maxLifetime: 380, color: "#bfeaff", update(dt) { this.radius += dt * 0.045; } });
+  const nS = low ? 5 : 10;
+  for (let i = 0; i < nS; i++) {
+    const a = (i / nS) * Math.PI * 2 + Math.random() * 0.5;
+    const sp = 70 + Math.random() * 60;
+    game.effects.push({ type: "spark", color: i % 2 ? "#bfeaff" : "#88dcff", x, y: y - 4,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, lifetime: 340 + Math.random() * 160, maxLifetime: 500, size: 1,
+      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy += 140 * dt / 1000; } });
+  }
+  if (typeof Sfx !== "undefined" && Sfx.iceCast) Sfx.iceCast();
+}
+function _fxReactSteam(x, y) {
+  const nP = (game.reducedMotion || game.perfMode || game._autoQualityLow) ? 3 : 7;
+  for (let i = 0; i < nP; i++) {
+    game.effects.push({ type: "spark", color: i % 2 ? "#eef6ff" : "#cfe0ea", x: x + (Math.random() - 0.5) * 8, y: y - 6,
+      vx: (Math.random() - 0.5) * 16, vy: -34 - Math.random() * 22, lifetime: 480 + Math.random() * 220, maxLifetime: 700, size: 2,
+      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vy *= 0.97; } });
+  }
+}
+function _fxReactToxic(x, y) {
+  const low = !!(game.reducedMotion || game.perfMode || game._autoQualityLow);
+  game.effects.push({ type: "ring", x, y, radius: 5, lifetime: 420, maxLifetime: 420, color: "#a8ff70", update(dt) { this.radius += dt * 0.05; } });
+  const nS = low ? 5 : 9;
+  for (let i = 0; i < nS; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 40 + Math.random() * 50;
+    game.effects.push({ type: "spark", color: i % 2 ? "#a8ff70" : "#7ed058", x, y: y - 4,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 24, lifetime: 400 + Math.random() * 180, maxLifetime: 580, size: 1,
+      update(dt) { this.x += this.vx * dt / 1000; this.y += this.vy * dt / 1000; this.vx *= 0.94; this.vy *= 0.94; } });
+  }
+  if (typeof Sfx !== "undefined" && Sfx.poisonCast) Sfx.poisonCast();
+}
+
 function applyDamage(attacker, target, amount, opts) {
   opts = opts || {};
   // 2026-05-02 COMBO 50 BUGFIX C3: guard early-return se target já morrendo/morto/removido.
@@ -25626,6 +25738,58 @@ function applyDamage(attacker, target, amount, opts) {
       dmg = Math.max(1, dmg - target.armor);
     }
     dmg = Math.max(1, dmg);
+  }
+  // R33 (Onda 3) — REAÇÕES ELEMENTAIS (ver helpers acima do applyDamage):
+  // ❄+🔥 ESTILHAÇAR · 🔥+❄ VAPOR · ☠+🔥 COMBUSTÃO TÓXICA. Aliados necromanciados
+  // com armas elementais (xamã de gelo, cultista...) participam das combos.
+  // R33-verify (MAJOR): exige ATACANTE ALIADO — ticks de terreno (lakeLava tem
+  // attacker null, type "fire", a cada 250ms) comiam o freeze pago com mana e o
+  // lakePoison re-semeava a combustão em loop. Fogo/gelo ambiental não reage.
+  // + cooldown de 1.2s por alvo (defesa extra contra loops re-semeados: firePatch
+  // aliado sobre poça de veneno). NOTA: ice_crown (+20% vs frozen) soma com o
+  // ×1.5 do estilhaço no mesmo hit (×1.8) — sinergia INTENCIONAL da rotação
+  // gelo→fogo (payoff legível; o frozen é consumido, uptime limita).
+  if (target.faction === "enemy" && dmg > 0 && !opts._fromReaction
+      && attacker && attacker.faction === "ally"
+      && (game.time - (target._lastReactT === undefined ? -99999 : target._lastReactT)) > 1200) {
+    if (type === "fire" && (target.frozen || 0) > 0) {
+      target._lastReactT = game.time;
+      target.frozen = 0;
+      dmg = Math.round(dmg * 1.5);
+      _fxReactShatter(target.x, target.y);
+      _reactionLabel(target, TR("ESTILHAÇO!", "SHATTER!", "¡AÑICOS!"), "#bfeaff");
+      _teachReaction("shatter", TR("❄+🔥 ESTILHAÇAR — fogo em alvo CONGELADO quebra o gelo: dano ×1.5",
+        "❄+🔥 SHATTER — fire on a FROZEN target breaks the ice: ×1.5 damage",
+        "❄+🔥 AÑICOS — fuego en objetivo CONGELADO rompe el hielo: daño ×1.5"));
+    } else if (type === "ice" && (target.burning || 0) > 0) {
+      target._lastReactT = game.time;
+      target.burning = 0;
+      dmg += 8;
+      if (target.isBoss) target.slowed = Math.max(target.slowed || 0, 700);
+      else target.frozen = Math.max(target.frozen || 0, 500);
+      _fxReactSteam(target.x, target.y);
+      _reactionLabel(target, TR("VAPOR!", "STEAM!", "¡VAPOR!"), "#eef6ff");
+      _teachReaction("steam", TR("🔥+❄ VAPOR — gelo apaga a QUEIMADURA: +dano e congela por um instante",
+        "🔥+❄ STEAM — ice puts out the BURN: bonus damage and a brief freeze",
+        "🔥+❄ VAPOR — el hielo apaga la QUEMADURA: daño extra y congela un instante"));
+    } else if (type === "fire" && (target.poisoned || 0) > 0) {
+      target._lastReactT = game.time;
+      target.poisoned = 0;
+      dmg += 6;
+      _fxReactToxic(target.x, target.y);
+      _reactionLabel(target, TR("COMBUSTÃO!", "COMBUSTION!", "¡COMBUSTIÓN!"), "#a8ff70");
+      _teachReaction("toxic", TR("☠+🔥 COMBUSTÃO TÓXICA — fogo em ENVENENADO explode e ESPALHA o veneno",
+        "☠+🔥 TOXIC COMBUSTION — fire on a POISONED target explodes and SPREADS the poison",
+        "☠+🔥 COMBUSTIÓN TÓXICA — fuego en ENVENENADO explota y ESPARCE el veneno"));
+      // espalha veneno + rescaldo nos inimigos próximos (_fromReaction evita re-reagir)
+      for (const _n of game.units) {
+        // R33-verify: carroça fora do spread (convenção de todos os AoE do arquivo)
+        if (_n === target || _n.faction !== "enemy" || !isAlive(_n) || _n.isWagon) continue;
+        if (Math.hypot(_n.x - target.x, _n.y - target.y) > 44) continue;
+        _n.poisoned = Math.max(_n.poisoned || 0, 2600);
+        applyDamage(attacker, _n, 8, { type: "poison", _fromReaction: true, noHitStop: true });
+      }
+    }
   }
   target.hp -= dmg;
   // 2026-05-11 — Track ultimo atacante do Rei (pra "Killed by X" no death screen)
@@ -29082,7 +29246,10 @@ function necromanceCostForTier(tier) {
   const disc = (game.bonuses && game.bonuses.necroCostReduction) || 0;
   // R27 — Mana Avarenta (NG+4): +25% de custo (antes do desconto)
   const mult = (typeof ngAsc === "function") ? ngAsc("necroCostMult") : 1;
-  return Math.max(1, Math.round(raw * mult) - disc);
+  let cost = Math.max(1, Math.round(raw * mult) - disc);
+  // R33 (Onda 3) — Maré Necromântica: metade do custo (teto pra cima, piso 1)
+  if (game._necroTideActive) cost = Math.max(1, Math.ceil(cost / 2));
+  return cost;
 }
 
 // 2026-06-16 — REWORK V3 TAREFA 5: VFX refinados (necromancia, impacto, recompensa). Replica
@@ -29182,6 +29349,8 @@ function tryNecromance(wx, wy, rangeOverride) {
         continue;
       }
       cost = Math.round(BOSS_CORPSE_NECRO_COST * ((typeof ngAsc === "function") ? ngAsc("necroCostMult") : 1));
+      // R33 (Onda 3) — a maré também barateia o rito de boss corpse
+      if (game._necroTideActive) cost = Math.max(1, Math.ceil(cost / 2));
       isBossRevive = true;
     } else {
       cost = necromanceCostForTier(c.tier);
@@ -61802,6 +61971,17 @@ function drawCorpse(corpse, camX, camY) {
       offCtx.arc(sx, sy, 7, 0, Math.PI * 2);
       offCtx.stroke();
     }
+    // R33 (Onda 3) — Maré Necromântica: cadáveres cintilam verde-mar na janela
+    if (game._necroTideActive && !corpse.isBossCorpse) {
+      const tp = 0.5 + Math.sin(game.time / 130 + corpse.x * 0.05) * 0.5;
+      offCtx.globalAlpha = (0.22 + 0.30 * tp) * (corpse.fade || 1);
+      offCtx.strokeStyle = "#7ef0d0";
+      offCtx.lineWidth = 1;
+      offCtx.beginPath();
+      offCtx.arc(sx, sy, 7 + Math.round(tp), 0, Math.PI * 2);
+      offCtx.stroke();
+      offCtx.globalAlpha = 1;
+    }
     // R31 (Onda 1) — hint da 1ª necromancia: TODO cadáver inimigo pulsa roxo até
     // o jogador ressuscitar o primeiro (progress.necroHintDone). Draw-only.
     if (game._necroHintActive && !corpse.isBossCorpse) {
@@ -67938,6 +68118,13 @@ function collectQuestRewards() {
 }
 
 function showGameOver() {
+  // R33-verify: draft de relíquia ABERTO no frame da morte (o timer abre mid-tick e
+  // projéteis/hazards ainda processam depois) ficava órfão por cima da death screen
+  // e travava todos os drafts futuros da sessão (_relicDraftState preso).
+  try {
+    if (typeof _relicDraftState !== "undefined" && _relicDraftState && typeof closeRelicDraft === "function") closeRelicDraft();
+    if (typeof _draftQueue !== "undefined") _draftQueue.length = 0;
+  } catch (e) {}
   // 2026-06-14 — CAMPANHA: morrer abre a INTERMISSION (compra + tentar o bioma de novo),
   // em vez da tela de game over padrão. (Concluir bioma NÃO passa por aqui — não é morte.)
   if (game.campaignMode && !game._campaignBiomeCleared) {
@@ -74030,6 +74217,9 @@ function showLoadingScreen(onReady) {
 // Inicia nova run e aplica um snapshot salvo por cima (se vier).
 // Etapa Z3: agora restaura posição do Rei, câmera, aliados vivos e POIs.
 function startRunFromSnapshot(snap) {
+  // ⚠ R33: se este resume voltar a ser usado, REBASEAR os timers dos eventos
+  // recorrentes após restaurar runTime (senão draft/maré disparam na hora):
+  // game._nextTimedDraftAt = game.runTime + 240; game._necroTideAt = game.runTime + 170;
   // REWORK 2026-07 (Endless V2): se o snapshot gravou o seed do mundo, restaura o
   // MESMO layout (covis/POIs/estradas salvos apontam pra posições desse mundo).
   // Snapshot legado sem worldSeed cai no mundo canônico 42 — melhor que aleatório.
