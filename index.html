@@ -10021,31 +10021,10 @@ const UPGRADES = [
     category: "habilidade", icon: "mirror",
     cost: () => 660,
     apply: lvl => ({ spell_manaMirror: lvl > 0 }) },
-  // 2026-04-30 COMBO 36 — 5 cartas de invocação (compra na loja)
-  // 2026-04-30 COMBO 43 — Prefixo ✦ NOVO + custos reduzidos pra acesso early-mid game
-  { id: "summonGolem", name: "✦ Golem de Pedra", desc: "INVOCAÇÃO · 1 golem tank por 25s · 60 mana", max: 1,
-    category: "habilidade", icon: "cardGolem",
-    cost: () => 450,
-    apply: lvl => ({ spell_summonGolem: lvl > 0 }) },
-  { id: "summonScarabs", name: "✦ Enxame de Escaravelhos", desc: "INVOCAÇÃO · 12 escaravelhos rápidos por 14s · 50 mana (escala com Maestria)", max: 1,
-    category: "habilidade", icon: "cardScarabs",
-    cost: () => 350,
-    apply: lvl => ({ spell_summonScarabs: lvl > 0 }) },
-  { id: "summonSpider", name: "✦ Aranha Necromante", desc: "INVOCAÇÃO · 3 aranhas + ressuscita 1 corpo grátis · 18s · 45 mana (escala com Maestria)", max: 1,
-    category: "habilidade", icon: "cardSpider",
-    cost: () => 420,
-    apply: lvl => ({ spell_summonSpider: lvl > 0 }) },  { id: "summonAngel", name: "✦ Anjo Vingador", desc: "INVOCAÇÃO · 1 anjo voador alto-dano por 15s · 70 mana", max: 1,
-    category: "habilidade", icon: "cardAngel",
-    cost: () => 520,
-    apply: lvl => ({ spell_summonAngel: lvl > 0 }) },
-  // 2026-06-12 (audit): upgrade que estava referenciado em 8 pontos das cartas de invocação
-  // (upgradeLvl("summonPower")) mas NUNCA existia no array — todo o scaling era código morto.
-  // Cada nível: +invocações por carta, mas +custo de mana (trade-off). Cap 5 (casa com o
-  // Math.min(5,...) dos spells). Só faz sentido com pelo menos 1 carta de invocação comprada.
-  { id: "summonPower", name: "✦ Maestria de Invocação", desc: "+1 criatura por carta de invocação por nível (escaravelhos +2/nível) · custo de mana sobe junto · MÁX 5", max: 5,
-    category: "habilidade", icon: "aura",
-    cost: (lvl) => 400 + lvl * 300,
-    apply: lvl => ({ summonPowerLevel: lvl }) },
+  // R36 — as 5 entradas de INVOCAÇÃO da loja (golem/escaravelhos/aranha/anjo +
+  // maestria) foram APOSENTADAS a pedido do dono. Compras antigas são
+  // reembolsadas 1× no load (_r36RetireSummons). Tabelas de render/i18n órfãs
+  // (CARD_NAMES/CLASSES/ícones/Sfx/fx de cast) ficam como código morto seguro.
   // Fase 18: slots extras de carta. Base são 3 slots; comprar estes sobe pra 4 e 5.
   // Cartas novas caem de caravana mas só entram se tiver espaço disponível.
   { id: "cardSlot4", name: "Bolso Secreto", desc: "+1 slot de carta (total 4)", max: 1,
@@ -10432,6 +10411,38 @@ function _migrateCompanionTrack(p) {
   return p;
 }
 
+// R36 — CARTAS DE INVOCAÇÃO APOSENTADAS: reembolsa compras antigas (golem 450 /
+// escaravelhos 350 / aranha 420 / anjo 520 / maestria 400+300i por nível) e limpa
+// as chaves. Flag _r36SummonsRetired + WRITE-BACK imediato nos call sites — sem
+// isso, recarregar sem salvar re-lia o RAW e o reembolso virava farm infinito.
+function _r36RetireSummons(p) {
+  if (!p || !p.upgrades || p._r36SummonsRetired) return 0;
+  const flat = { summonGolem: 450, summonScarabs: 350, summonSpider: 420, summonAngel: 520 };
+  let refund = 0;
+  for (const k in flat) {
+    if ((p.upgrades[k] || 0) > 0) refund += flat[k];
+    delete p.upgrades[k];
+  }
+  const spLvl = p.upgrades.summonPower || 0;
+  for (let i = 0; i < spLvl; i++) refund += 400 + i * 300;
+  delete p.upgrades.summonPower;
+  if (refund > 0) p.coins = (p.coins || 0) + refund;
+  p._r36SummonsRetired = true;
+  return refund;
+}
+let _r36ToastShown = false;
+function _r36QueueToast(amount) {
+  if (_r36ToastShown) return;
+  _r36ToastShown = true;
+  setTimeout(() => {
+    try {
+      showToast(TR("✦ Cartas de INVOCAÇÃO aposentadas — compras reembolsadas: +" + amount + " ◆",
+        "✦ SUMMON cards retired — purchases refunded: +" + amount + " ◆",
+        "✦ Cartas de INVOCACIÓN retiradas — compras reembolsadas: +" + amount + " ◆"), 4200, "magic");
+    } catch (e) {}
+  }, 1500);
+}
+
 function loadProgress(slotIdx) {
   const slot = slotIdx != null ? slotIdx : (game && game.activeSaveSlot) || 0;
   try {
@@ -10469,6 +10480,12 @@ function loadProgress(slotIdx) {
     // dentro de _validateProgress — buildEndlessProfile e a recuperação de backup liam
     // os slots CRUS e pulavam a migração (companion pré-R8 caía no fallback BASE).
     _migrateCompanionTrack(result);
+    // R36 — reembolso das invocações com write-back imediato (anti-farm)
+    const _r36 = _r36RetireSummons(result);
+    if (_r36 > 0) {
+      try { localStorage.setItem(progressKey(slot), JSON.stringify(result)); } catch (e3) {}
+      _r36QueueToast(_r36);
+    }
     return result;
   } catch (err) {
     // COMBO 11 G3 — JSON parse failure: tenta recuperar de backup
@@ -10534,7 +10551,7 @@ function _validateProgress(p) {
   // Best score
   out.best = (p.best && typeof p.best === "object") ? { time: p.best.time || 0, kills: p.best.kills || 0 } : { time: 0, kills: 0 };
   // Booleans (preserva se booleano, senão default)
-  for (const flag of ["necroKingDefeated", "tutorialDone", "necroHintDone", "holyKingUnlocked", "holyKingMode", "holyCardsUnlocked", "ngPlusUnlocked", "fxWeather", "fxDayNight", "fxReflections", "colorblindMode", "guildVillageDestroyed", "sacredCardCast", "endlessBossKilled", "voidAvatarKilled",
+  for (const flag of ["necroKingDefeated", "tutorialDone", "necroHintDone", "_r36SummonsRetired", "holyKingUnlocked", "holyKingMode", "holyCardsUnlocked", "ngPlusUnlocked", "fxWeather", "fxDayNight", "fxReflections", "colorblindMode", "guildVillageDestroyed", "sacredCardCast", "endlessBossKilled", "voidAvatarKilled",
     // COMBO 28 (Opção M) — KING SKINS unlock flags
     "plagueKingUnlocked", "frostKingUnlocked", "infernoKingUnlocked", "voidKingUnlocked",
     // 2026-06-24 FIX (auditoria): estavam sendo WIPEADOS todo load → re-toast "DESBLOQUEADA" por sessão
@@ -10763,7 +10780,16 @@ function buildEndlessProfile() {
   // slots vira só a semente da primeira vez).
   try {
     const raw = localStorage.getItem(ENDLESS_SAVE_KEY);
-    if (raw) return _validateProgress(JSON.parse(raw));
+    if (raw) {
+      const _ep = _validateProgress(JSON.parse(raw));
+      // R36 — reembolso também no save próprio do endless (com write-back)
+      const _r36e = _r36RetireSummons(_ep);
+      if (_r36e > 0) {
+        try { localStorage.setItem(ENDLESS_SAVE_KEY, JSON.stringify(_ep)); } catch (e2) {}
+        _r36QueueToast(_r36e);
+      }
+      return _ep;
+    }
   } catch (e) {}
   const slots = [];
   for (let s = 0; s < _PROGRESS_NUM_SLOTS; s++) {
@@ -25471,6 +25497,7 @@ function applyDamage(attacker, target, amount, opts) {
   // COMBO 3 K — ESCUDO SAGRADO: Rei totalmente invulnerável enquanto timer > 0.
   // Mostra "BLOQUEADO!" em ouro e não consome HP.
   if (target === game.king && (target.sacredShieldTimer || 0) > 0) {
+    game._shieldBlocked = (game._shieldBlocked || 0) + 1;   // R36 — carrega a REPULSA
     game.damageNums.push({
       x: target.x + (Math.random() - 0.5) * 6, y: target.y - 12, vy: -34,
       amount: "✨", lifetime: 500, maxLifetime: 500,
@@ -30622,6 +30649,20 @@ const SPELL_DATA = [
                        || u.isUndead;
         const mult = isUndead ? undeadMult : 1.0;
         applyDamage(game.king, u, baseDmg * mult, { type: "holy" });
+        // R36 (rework) — REVELAÇÃO: não-boss atingidos ficam PRESOS no lugar 0.8s
+        if (!u.isBoss && isAlive(u)) {
+          u.rooted = Math.max(u.rooted || 0, 800);
+          u.slowed = Math.max(u.slowed || 0, 800);
+        }
+      }
+      // R36 (rework) — BÊNÇÃO PROFANA: a luz UNGE o exército — aliados no raio
+      // ganham +20% de dano por 6s (reusa _sacredBuffT da aura do Paladino
+      // Coroado, já wireada no applyDamage — zero fiação nova).
+      for (const a2 of game.units) {
+        if (a2.faction !== "ally" || a2.type === "king" || !isAlive(a2)) continue;
+        if (Math.hypot(a2.x - wx, a2.y - wy) > radius) continue;
+        a2._sacredBuffT = Math.max(a2._sacredBuffT || 0, 6000);
+        game.effects.push({ type: "healCross", x: a2.x, y: a2.y - 12, vx: 0, vy: -18, lifetime: 600, maxLifetime: 600, size: 1, update(dt2) { this.y += this.vy * dt2 / 1000; } });
       }
     },
   },
@@ -30667,6 +30708,38 @@ const SPELL_DATA = [
       if (!k) return;
       const dur = 3000;
       k.sacredShieldTimer = Math.max(k.sacredShieldTimer || 0, dur);
+      // R36 (rework) — REPULSA SAGRADA: cada golpe BLOQUEADO carrega o escudo;
+      // ao expirar, DETONA (20 + 12/golpe, teto 140) com empurrão radial 90px.
+      game._shieldBlocked = 0;
+      game.effects.push({
+        type: "spark", color: "#fffad8", x: k.x, y: k.y - 40, vx: 0, vy: 0, size: 0,
+        lifetime: dur, maxLifetime: dur,
+        update(dt2) {
+          const kk = game.king;
+          if (kk) { this.x = kk.x; this.y = kk.y - 40; }
+          if (this.lifetime <= 40 && !this._boom) {
+            this._boom = true;
+            if (!kk || kk.hp <= 0) return;
+            const hits = Math.min(10, game._shieldBlocked || 0);
+            const dmg2 = 20 + hits * 12;
+            game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 90, color: "#fff0a0", lifetime: 500, maxLifetime: 500, update() {} });
+            game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 56, color: "#ffffff", lifetime: 380, maxLifetime: 380, update() {} });
+            for (const e2 of game.units) {
+              if (e2.faction !== "enemy" || !isAlive(e2)) continue;
+              const dd = Math.hypot(e2.x - kk.x, e2.y - kk.y);
+              if (dd > 90) continue;
+              applyDamage(kk, e2, dmg2, { type: "holy" });
+              if (!e2.isBoss) {
+                const inv = 1 / (dd || 1);
+                e2.x += (e2.x - kk.x) * inv * 26;
+                e2.y += (e2.y - kk.y) * inv * 26;
+              }
+            }
+            if (typeof doShake === "function") doShake(4, 260);
+            if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
+          }
+        },
+      });
       // Anel de luz inicial
       for (let i = 0; i < 24; i++) {
         const ang = (i / 24) * Math.PI * 2;
@@ -30768,138 +30841,8 @@ const SPELL_DATA = [
       if (typeof flashScreen === "function") flashScreen(0.16, 200, "#a0e0ff");
     },
   },
-  // ============================================================
-  // 2026-04-30 COMBO 36 — 5 CARTAS DE INVOCAÇÃO
-  // ============================================================
-  // Criaturas TEMPORÁRIAS (somem após X seg). Não contam pro maxAllies.
-  // Stats fixos. Compradas na loja de upgrades (cost ◈).
-  {
-    id: "summonGolem",
-    name: "GUARDIÃO DE GRANITO",
-    icon: "🗿",
-    iconKey: "shield",
-    key: "",
-    cost: 60,
-    cd: 14000,
-    unlocked: b => !!b.spell_summonGolem,
-    cast(wx, wy) {
-      // 2026-05-01 COMBO 45 — SFX + FX próprios
-      Sfx.summonGolemSfx && Sfx.summonGolemSfx();
-      if (typeof fxGolemCast === "function") fxGolemCast(wx, wy);
-      // Reusa compGolemAncestral. Tank com taunt + alto HP.
-      spawnSummonCreature(wx, wy, "compGolemAncestral", {
-        duration: 25000, hpMult: 1.4, atkMult: 0.9, taunts: true,
-        fxColor: "#a89878",
-      });
-      if (typeof showToast === "function") showToast(TR("GUARDIÃO DE GRANITO (25s)","GRANITE GUARDIAN (25s)","GUARDIÁN DE GRANITO (25s)"), 1500, "magic");
-    },
-  },
-  {
-    id: "summonScarabs",
-    name: "PRAGA DAS PIRÂMIDES",
-    icon: "🪲",
-    iconKey: "fang",
-    key: "",
-    // 2026-05-04 BALANCE: cost escala 50→100 conforme tier (+10 por tier do upgrade summonPower)
-    get cost() { return 50 + Math.min(5, upgradeLvl("summonPower") || 0) * 10; },
-    cd: 10000,
-    unlocked: b => !!b.spell_summonScarabs,
-    cast(wx, wy) {
-      Sfx.summonScarabsSfx && Sfx.summonScarabsSfx();
-      if (typeof fxScarabsCast === "function") fxScarabsCast(wx, wy);
-      // 2026-05-04 BALANCE: 8 → 12 escaravelhos base (+ 2 por tier upgrade)
-      const bonus = Math.min(8, (upgradeLvl("summonPower") || 0) * 2);
-      spawnSummonGroup(wx, wy, "escorpiao", 12 + bonus, {
-        duration: 14000, hpMult: 0.7, atkMult: 0.8, speedMult: 1.4,
-        fxColor: "#80c060",
-      });
-      if (typeof showToast === "function") showToast("PRAGA: " + (12+bonus) + " ESCARAVELHOS", 1500, "magic");
-    },
-  },
-  {
-    id: "summonSpider",
-    name: "VIÚVA DAS ALMAS",
-    icon: "🕷",
-    iconKey: "skull",
-    key: "",
-    // 2026-05-04 BALANCE: cost escala 45→95 conforme tier
-    get cost() { return 45 + Math.min(5, upgradeLvl("summonPower") || 0) * 10; },
-    cd: 12000,
-    unlocked: b => !!b.spell_summonSpider,
-    cast(wx, wy) {
-      Sfx.summonSpiderSfx && Sfx.summonSpiderSfx();
-      if (typeof fxSpiderCast === "function") fxSpiderCast(wx, wy);
-      // 2026-05-04 BALANCE: 1 → 3 aranhas base (+ 1 por tier upgrade)
-      const bonus = Math.min(4, (upgradeLvl("summonPower") || 0));
-      const spiders = spawnSummonGroup(wx, wy, "necroSpider", 3 + bonus, {
-        duration: 18000, fxColor: "#a040d0",
-      });
-      const spider = spiders[0];
-      // Bonus: tenta ressuscitar 1 corpo próximo gratis ao spawnar
-      if (spider) {
-        const RANGE = 80;
-        let nearestCorpse = null, nearestD = RANGE;
-        for (const c of game.corpses) {
-          if (c.faction !== "enemy") continue;
-          const d = Math.hypot(c.x - wx, c.y - wy);
-          if (d < nearestD) { nearestD = d; nearestCorpse = c; }
-        }
-        if (nearestCorpse) {
-          // Spawn ally do corpo + remove corpse (mesma lógica do necromance manual)
-          const reviveClass = nearestCorpse.unitClass || "soldado";
-          const ally = makeAlly(nearestCorpse.x, nearestCorpse.y, reviveClass);
-          ally.hp += (nearestCorpse.tier || 0) * 8;
-          ally.maxHp = ally.hp;
-          game.units.push(ally);
-          if (typeof spawnNecroFX === "function") spawnNecroFX(nearestCorpse.x, nearestCorpse.y);
-          game.corpses = game.corpses.filter(x => x !== nearestCorpse);
-        }
-      }
-      if (typeof showToast === "function") showToast(TR("VIÚVA DAS ALMAS (18s)","SOUL WIDOW (18s)","VIUDA DE LAS ALMAS (18s)"), 1500, "magic");
-    },
-  },
-  {
-    id: "summonAngel",
-    name: "SERAFIM VINGADOR",
-    icon: "👼",
-    iconKey: "star",
-    key: "",
-    // 2026-05-04 BALANCE: cost escala 70→170 (+20 por tier — exponencial — anjos são fortes)
-    get cost() { return 70 + Math.min(5, upgradeLvl("summonPower") || 0) * 20; },
-    cd: 16000,
-    unlocked: b => !!b.spell_summonAngel,
-    cast(wx, wy) {
-      Sfx.summonAngelSfx && Sfx.summonAngelSfx();
-      if (typeof fxAngelCast === "function") fxAngelCast(wx, wy);
-      // 2026-05-04 BALANCE: 1 → 2 querubins base (+1 por tier upgrade) — quer ver céu chovendo anjos!
-      const count = 2 + Math.min(3, (upgradeLvl("summonPower") || 0));
-      for (let i = 0; i < count; i++) {
-        const ang = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-        const r = 14 + Math.random() * 8;
-        const sx = wx + Math.cos(ang) * r;
-        const sy = wy + Math.sin(ang) * r;
-        const angel = spawnSummonCreature(sx, sy, "cherubim", {
-          duration: 15000, hpMult: 2.5, atkMult: 1.8, speedMult: 1.2,
-          flying: true, fxColor: "#fff080",
-        });
-        if (angel) angel.scale = (angel.scale || 0.85) * 1.4;
-      }
-      if (typeof showToast === "function") showToast("SERAFIM: " + count + " ANJOS", 1500, "magic");
-      // Burst extra de penas (mantido pra reforçar visual final do spawn)
-      for (let i = 0; i < 18; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const sp = 50 + Math.random() * 40;
-        game.effects.push({
-          type: "spark", color: i % 2 === 0 ? "#fff080" : "#ffffff",
-          x: wx, y: wy,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30,
-          lifetime: 700, maxLifetime: 700, size: 1 + Math.floor(Math.random() * 2),
-          update(dt) { this.x += this.vx*dt/1000; this.y += this.vy*dt/1000; this.vx *= 0.94; this.vy += 30*dt/1000; },
-        });
-      }
-      if (typeof flashScreen === "function") flashScreen(0.20, 280, "#fff080");
-    },
-  },
+  // R36 — as 4 cartas de INVOCAÇÃO saíram do SPELL_DATA (aposentadas a pedido
+  // do dono). spawnSummonCreature FICA (eventos/POIs/companions usam).
 ];
 
 function unlockedSpells() {
@@ -31371,7 +31314,7 @@ const SPELL_LORE = {
     typeBg: "#fff080",
     cardClass: "type-holy",
     flavor: "Explosão de luz divina — purifica os mortos e queima os ímpios.",
-    effectFn: _ => `Pulso radial 80px · 60 dmg sagrado · purifica veneno/queima.`,
+    effectFn: _ => `Pulso 80px · 50 dmg (×4 em mortos-vivos) · prende não-boss 0.8s · aliados no raio +20% dano/6s.`,
     origin: "DESBLOQUEADO COM HOLY KING",
     tags: ["AOE", "DANO SAGRADO", "PURIFICA"],
   },
@@ -31381,7 +31324,7 @@ const SPELL_LORE = {
     typeBg: "#fff080",
     cardClass: "type-holy",
     flavor: "Bênção coletiva — todos os aliados próximos sentem o toque celestial.",
-    effectFn: _ => `Campo de cura 150px · ~18% HP/s nas TROPAS por 6s · NÃO cura o Rei · CD 32s.`,
+    effectFn: _ => `Campo 150px/6s · cura ~18%/s das TROPAS · ERGUE 1 cadáver/s grátis (máx 4) · nunca o Rei.`,
     origin: "DESBLOQUEADO COM HOLY KING",
     tags: ["AOE", "CURA", "ALIADOS"],
   },
@@ -31391,7 +31334,7 @@ const SPELL_LORE = {
     typeBg: "#fff080",
     cardClass: "type-holy",
     flavor: "Manto sagrado envolve o Rei — invulnerável por instantes.",
-    effectFn: _ => `Rei INVULNERÁVEL por 3s (qualquer dano vira sparkle).`,
+    effectFn: _ => `Rei INVULNERÁVEL 3s · golpes bloqueados CARREGAM a REPULSA: explosão 20+12/golpe ao expirar.`,
     origin: "DESBLOQUEADO COM HOLY KING",
     tags: ["BUFF", "INVULNERÁVEL", "REI"],
   },
@@ -35687,6 +35630,36 @@ function updateHazards(dt) {
     }
     // 2026-06-15 — BÊNÇÃO DIVINA: campo que cura SÓ as tropas (nunca o Rei), forte e por segundo.
     if (h.type === "blessingField") {
+      // R36 (rework) — RESSURREIÇÃO SANTA: além de curar, o campo ergue 1
+      // cadáver POR SEGUNDO como aliado GRÁTIS (máx 4 por bênção; respeita o
+      // teto do exército; boss corpse fica de fora — esse é rito pago).
+      h._revTimer = (h._revTimer || 0) - dt;
+      if (h._revTimer <= 0 && (h._revives || 0) < 4) {
+        h._revTimer = 1000;
+        let _allies = 0;
+        for (const u2 of game.units) {
+          if (u2 && u2.faction === "ally" && u2.type !== "king" && isAlive(u2)) _allies++;
+        }
+        const _maxA = 50 + ((game.bonuses && game.bonuses.maxAlliesBonus) || 0);
+        if (_allies < _maxA) {
+          for (const c2 of game.corpses) {
+            if (c2.faction !== "enemy" || c2.isBossCorpse) continue;
+            if (Math.hypot(c2.x - h.x, c2.y - h.y) > h.radius) continue;
+            h._revives = (h._revives || 0) + 1;
+            c2._consumed = true;
+            const _ally = makeAlly(c2.x, c2.y, c2.unitClass || "warrior");
+            _ally.hp += (c2.tier || 0) * 8;
+            _ally.maxHp = _ally.hp;
+            _ally.atk += (c2.tier || 0) * 1;
+            _ally.risen = true;
+            game.units.push(_ally);
+            game.corpses = game.corpses.filter(x => !x._consumed);
+            if (typeof spawnNecroFX === "function") spawnNecroFX(c2.x, c2.y, false);
+            if (typeof contractEvent === "function") contractEvent("raise", 1);
+            break;
+          }
+        }
+      }
       h.tickTimer -= dt;
       if (h.tickTimer <= 0) {
         h.tickTimer = 250;
@@ -67486,9 +67459,9 @@ const CARD_DESCRIPTIONS = {
   sporeChain:   "Detona esporos no cursor; cada inimigo atingido explode em CADEIA, propagando pela horda. Devastador contra grupos densos.",
   holyJudgment: "Pilar de luz sagrada (2x em mortos-vivos) + escudo divino breve no Rei. Burst em coluna + proteção.",
   abyssalMaelstrom: "Redemoinho que SUGA inimigos pro centro e os esmaga; colapsa num maremoto implosivo. Controle de horda total.",
-  lightBurst:  "Pulso radial dourado SAGRADO. Dano massivo (60) em todos enemies no raio 100px + flash. Anti-horda.",
-  massHeal:    "Campo sagrado GRANDE (raio 150) que cura ~18% HP/s das TROPAS por 6s. NÃO cura o Rei. CD alto (32s).",
-  sacredShield:"Buff dourado no Rei: -70% dano recebido por 6s. Use em emergências contra boss.",
+  lightBurst:  "Pulso SAGRADO: 50 de dano (×4 em mortos-vivos) no raio 80 + não-boss PRESOS 0.8s. A luz UNGE seu exército: aliados no raio +20% dano por 6s.",
+  massHeal:    "Campo sagrado (raio 150, 6s): cura ~18%/s das TROPAS e ERGUE 1 cadáver/s como aliado grátis (máx 4). Nunca cura o Rei. CD 32s.",
+  sacredShield:"Rei INVULNERÁVEL por 3s. Cada golpe bloqueado CARREGA o escudo — ao expirar, REPULSA: explosão sagrada (20 +12/golpe) com empurrão.",
   timeSlow:    "Devagar global: enemies em -50% velocidade por 4s. Não congela — apenas atrasa.",
   manaMirror:  "Escudo refletor: próximos hits no Rei viram MANA em vez de dano. Dura 3s. Sustain de mana.",
   summonGolem: "Invoca 1 GUARDIÃO de pedra (200 HP, melee pesado). Dura toda a run. Tank pessoal do Rei.",
@@ -77093,7 +77066,7 @@ document.addEventListener("click", (e) => {
         // cartas base + QoL
         fireball: 1, iceblast: 1, lightning: 1, poison: 1, spores: 1, timeSlow: 1, manaMirror: 1,
         // INVOCAÇÕES + maestria nova (testa o scaling do summonPower)
-        summonGolem: 1, summonScarabs: 1, summonSpider: 1, summonAngel: 1, summonPower: 5,
+        // R36 — invocações aposentadas (linha de grants removida do modo teste)
         // potência/duração maxeada
         fireballPow: 5, iceDur: 4, poisonDur: 4, sporesDur: 4,
         // necro + slots de carta (até 5 pra usar todas)
@@ -77839,9 +77812,9 @@ const CARD_I18N = {
     hellPortal:  { name: "PORTAL",    desc: "Opens demonic portal summoning 4 imps for 6s. Each imp attacks nearby enemies. Summoning AOE." },
     iceThorns:   { name: "THORNS",    desc: "Long-range ice thorn cone. Dmg + slow + pierces multiple targets. Great vs rows." },
     desertTornado:{ name: "TORNADO",  desc: "Mobile sand tornado that follows the King. Continuous radius dmg + push enemies. Lasts 5s." },
-    lightBurst:  { name: "LIGHT",     desc: "HOLY golden radial pulse. Massive dmg (60) to all enemies in 100px + flash. Anti-horde." },
-    massHeal:    { name: "BLESSING",  desc: "Heals all allies AND King in 120px for 60% max HP. Saves runs in long fights." },
-    sacredShield:{ name: "SHIELD",    desc: "Golden King buff: -70% dmg taken for 6s. Use in boss emergencies." },
+    lightBurst:  { name: "LIGHT",     desc: "HOLY pulse: 50 dmg (×4 vs undead) in 80px + non-bosses ROOTED 0.8s. The light ANOINTS your army: allies in range +20% dmg for 6s." },
+    massHeal:    { name: "BLESSING",  desc: "Sacred field (150px, 6s): heals ~18%/s of TROOPS and RAISES 1 corpse/s as a free ally (max 4). Never heals the King. 32s CD." },
+    sacredShield:{ name: "SHIELD",    desc: "King INVULNERABLE for 3s. Every blocked hit CHARGES the shield — on expiry, REPULSE: holy blast (20 +12/hit) with knockback." },
     timeSlow:    { name: "TIME",      desc: "Global slow: enemies at -50% speed for 4s. Doesn't freeze — just delays." },
     manaMirror:  { name: "MIRROR",    desc: "Reflective shield: next hits on King turn into MANA instead of damage. Lasts 3s." },
     summonGolem: { name: "GOLEM",     desc: "Summons 1 stone GUARDIAN (200 HP, heavy melee). Lasts whole run. King's personal tank." },
@@ -77858,9 +77831,9 @@ const CARD_I18N = {
     hellPortal:  { name: "PORTAL",     desc: "Abre portal demoníaco invocando 4 diablillos por 6s. Cada uno ataca enemigos cercanos. AOE de invocación." },
     iceThorns:   { name: "ESPINAS",    desc: "Cono de espinas de hielo (largo alcance). Daño + ralentiza + atraviesa múltiples blancos. Ideal vs líneas." },
     desertTornado:{ name: "TORNADO",   desc: "Tornado de arena móvil que sigue al Rey. Daño continuo en radio + empuja enemigos. Dura 5s." },
-    lightBurst:  { name: "LUZ",        desc: "Pulso radial dorado SAGRADO. Daño masivo (60) a todos los enemigos en 100px + flash. Anti-horda." },
-    massHeal:    { name: "BENDICIÓN",  desc: "Cura a todos los aliados Y al Rey en 120px por 60% del HP máx. Salva runs en peleas largas." },
-    sacredShield:{ name: "ESCUDO",     desc: "Buff dorado en el Rey: -70% daño recibido por 6s. Úsalo en emergencias contra jefes." },
+    lightBurst:  { name: "LUZ",        desc: "Pulso SAGRADO: 50 de daño (×4 a no-muertos) en 80px + no-jefes CLAVADOS 0.8s. La luz UNGE a tu ejército: aliados en el radio +20% daño por 6s." },
+    massHeal:    { name: "BENDICIÓN",  desc: "Campo sagrado (150px, 6s): cura ~18%/s a las TROPAS y ALZA 1 cadáver/s como aliado gratis (máx 4). Nunca cura al Rey. CD 32s." },
+    sacredShield:{ name: "ESCUDO",     desc: "Rey INVULNERABLE por 3s. Cada golpe bloqueado CARGA el escudo — al expirar, REPULSA: explosión sagrada (20 +12/golpe) con empujón." },
     timeSlow:    { name: "TIEMPO",     desc: "Lentitud global: enemigos a -50% velocidad por 4s. No congela — solo retrasa." },
     manaMirror:  { name: "ESPEJO",     desc: "Escudo reflectante: próximos golpes al Rey se convierten en MANÁ en vez de daño. Dura 3s." },
     summonGolem: { name: "GÓLEM",      desc: "Invoca 1 GUARDIÁN de piedra (200 HP, melee pesado). Dura toda la run. Tanque personal del Rey." },
@@ -78392,9 +78365,9 @@ const SPELL_LORE_I18N = {
     summonGolem: { type: "SUMMONER · STONE", flavor: "Cornerstone rises from the ground — mossy immortal guardian.", tags: ["SUMMON", "TANK", "TAUNT"], effect: _ => `Summons 1 tank GOLEM for 25s (HP +40%, taunts nearby enemies).` },
     summonScarabs:{ type: "SUMMONER · SAND", flavor: "The pyramids' plague obeys the King — scarabs swarm the enemy.", tags: ["SUMMON", "SWARM", "SPEED"], effect: _ => `Swarm of 8 fast SCARABS (speed +40%) for 12s.` },
     summonSpider:{ type: "SUMMONER · NECRO", flavor: "The Necromancer Widow weaves souls in her web — revives a body free.", tags: ["SUMMON", "NECRO", "POISON"], effect: _ => `Spider 18s + RESURRECTS 1 nearby corpse for free.` },    summonAngel: { type: "SUMMONER · LIGHT", flavor: "A seraph descends from the heavens in golden flames — the King's winged vengeance.", tags: ["SUMMON", "FLYING", "ELITE"], effect: _ => `1 flying SERAPH for 15s (HP 2.5×, ATK 1.8×, flies).` },
-    lightBurst:  { type: "SACRED", flavor: "Burst of divine light — purifies the dead and burns the impious.", tags: ["AOE", "SACRED DMG", "PURIFY"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `Radial pulse 80px · 60 sacred dmg · purifies poison/burn.` },
-    massHeal:    { type: "SACRED", flavor: "Collective blessing — all nearby allies feel the heavenly touch.", tags: ["AOE", "HEAL", "ALLIES"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `Heals 60% max HP to all allies + King in 120px radius.` },
-    sacredShield:{ type: "SACRED", flavor: "Sacred mantle envelops the King — invulnerable for moments.", tags: ["BUFF", "INVULNERABLE", "KING"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `King INVULNERABLE for 3s (any damage becomes sparkle).` },
+    lightBurst:  { type: "SACRED", flavor: "Burst of divine light — purifies the dead and burns the impious.", tags: ["AOE", "SACRED DMG", "PURIFY"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `Pulse 80px · 50 dmg (×4 vs undead) · roots non-bosses 0.8s · allies in range +20% dmg/6s.` },
+    massHeal:    { type: "SACRED", flavor: "Collective blessing — all nearby allies feel the heavenly touch.", tags: ["AOE", "HEAL", "ALLIES"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `Field 150px/6s · heals ~18%/s of TROOPS · RAISES 1 corpse/s free (max 4) · never the King.` },
+    sacredShield:{ type: "SACRED", flavor: "Sacred mantle envelops the King — invulnerable for moments.", tags: ["BUFF", "INVULNERABLE", "KING"], origin: "UNLOCKED WITH HOLY KING", effect: _ => `King INVULNERABLE 3s · blocked hits CHARGE the REPULSE: 20+12/hit blast on expiry.` },
     timeSlow:    { type: "ARCANE", flavor: "Time bends around — enemies drag as if through honey.", tags: ["BUFF", "SLOW", "GLOBAL"], effect: _ => `Slow 50% on ALL on-screen enemies for 4s.` },
     manaMirror:  { type: "ARCANE", flavor: "Arcane mirror reflects projectiles — and converts damage to mana.", tags: ["BUFF", "REFLECT", "MANA"], effect: _ => `Reflects projectiles + converts damage to mana for 3s.` },
   },
@@ -78411,9 +78384,9 @@ const SPELL_LORE_I18N = {
     summonGolem: { type: "INVOCADOR · PIEDRA", flavor: "Piedra angular surge del suelo — guardián musgoso e inmortal.", tags: ["INVOCACIÓN", "TANQUE", "TAUNT"], effect: _ => `Invoca 1 GÓLEM tanque por 25s (HP +40%, atrae enemigos cercanos).` },
     summonScarabs:{ type: "INVOCADOR · ARENA", flavor: "La plaga de las pirámides obedece al Rey — escarabajos enjambran.", tags: ["INVOCACIÓN", "ENJAMBRE", "VELOCIDAD"], effect: _ => `Enjambre de 8 ESCARABAJOS rápidos (vel +40%) por 12s.` },
     summonSpider:{ type: "INVOCADOR · NECRO", flavor: "La Viuda Nigromante teje almas en su tela — resucita un cuerpo gratis.", tags: ["INVOCACIÓN", "NECRO", "VENENO"], effect: _ => `Araña 18s + RESUCITA 1 cuerpo cercano gratis.` },    summonAngel: { type: "INVOCADOR · LUZ", flavor: "Un serafín desciende de los cielos en llamas doradas — venganza alada del Rey.", tags: ["INVOCACIÓN", "VOLADOR", "ÉLITE"], effect: _ => `1 SERAFÍN volador por 15s (HP 2.5×, ATK 1.8×, vuela).` },
-    lightBurst:  { type: "SAGRADO", flavor: "Explosión de luz divina — purifica a los muertos y quema a los impíos.", tags: ["AOE", "DAÑO SAGRADO", "PURIFICA"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Pulso radial 80px · 60 daño sagrado · purifica veneno/quemadura.` },
-    massHeal:    { type: "SAGRADO", flavor: "Bendición colectiva — todos los aliados cercanos sienten el toque celestial.", tags: ["AOE", "CURA", "ALIADOS"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Cura 60% HP máx a todos los aliados + Rey en radio 120px.` },
-    sacredShield:{ type: "SAGRADO", flavor: "Manto sagrado envuelve al Rey — invulnerable por instantes.", tags: ["BUFF", "INVULNERABLE", "REY"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Rey INVULNERABLE por 3s (cualquier daño se vuelve destello).` },
+    lightBurst:  { type: "SAGRADO", flavor: "Explosión de luz divina — purifica a los muertos y quema a los impíos.", tags: ["AOE", "DAÑO SAGRADO", "PURIFICA"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Pulso 80px · 50 daño (×4 a no-muertos) · clava no-jefes 0.8s · aliados en el radio +20% daño/6s.` },
+    massHeal:    { type: "SAGRADO", flavor: "Bendición colectiva — todos los aliados cercanos sienten el toque celestial.", tags: ["AOE", "CURA", "ALIADOS"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Campo 150px/6s · cura ~18%/s a las TROPAS · ALZA 1 cadáver/s gratis (máx 4) · nunca al Rey.` },
+    sacredShield:{ type: "SAGRADO", flavor: "Manto sagrado envuelve al Rey — invulnerable por instantes.", tags: ["BUFF", "INVULNERABLE", "REY"], origin: "DESBLOQUEADO CON HOLY KING", effect: _ => `Rey INVULNERABLE 3s · golpes bloqueados CARGAN la REPULSA: explosión 20+12/golpe al expirar.` },
     timeSlow:    { type: "ARCANO", flavor: "El tiempo se dobla alrededor — los enemigos se arrastran como en miel.", tags: ["BUFF", "RALENTÍ", "GLOBAL"], effect: _ => `Ralentí 50% a TODOS los enemigos en pantalla por 4s.` },
     manaMirror:  { type: "ARCANO", flavor: "Espejo arcano refleja proyectiles — y convierte el daño en maná.", tags: ["BUFF", "REFLEJO", "MANÁ"], effect: _ => `Refleja proyectiles + convierte daño en maná por 3s.` },
   },
