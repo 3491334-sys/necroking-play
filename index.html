@@ -10497,6 +10497,12 @@ function loadProgress(slotIdx) {
         showToast("⚠ Save corrompido — recuperado do backup", 4000, "danger");
         const recovered = cloneDefaultProgress();
         Object.assign(recovered, _validateProgress(bp));
+        // R37-QA: backup pré-R36 com summons também reembolsa (espelha o caminho normal)
+        const _r36b = _r36RetireSummons(recovered);
+        if (_r36b > 0) {
+          try { localStorage.setItem(progressKey(slot), JSON.stringify(recovered)); } catch (e3) {}
+          _r36QueueToast(_r36b);
+        }
         return recovered;
       } catch (e2) { /* backup also corrupt */ }
     }
@@ -10795,7 +10801,13 @@ function buildEndlessProfile() {
   for (let s = 0; s < _PROGRESS_NUM_SLOTS; s++) {
     try {
       const raw = localStorage.getItem(progressKey(s));
-      if (raw) slots.push(_validateProgress(JSON.parse(raw)));
+      if (raw) {
+        const _sp2 = _validateProgress(JSON.parse(raw));
+        // R37-QA: a UNIÃO da 1ª migração também reembolsa (o slot cru reembolsa
+        // no próprio loadProgress — economias separadas, sem dupla contagem)
+        _r36RetireSummons(_sp2);
+        slots.push(_sp2);
+      }
     } catch (e) {}
   }
   const base = cloneDefaultProgress();
@@ -13580,6 +13592,7 @@ function startNewRun(preselectedSpellIds, opts) {
   game._necroTideAt = undefined;
   game._necroTideActive = false;
   game._reactionsTaught = {};
+  game._repulsaArmed = false;   // R37-QA: repulsa não vaza entre runs
   // 2026-06-12 FIX (audit): limpa fonte do último dano — death screen mostrava
   // "MORTO POR X" da run ANTERIOR quando o Rei morria por DOT/hazard sem atacante.
   game._lastDamageSource = null;
@@ -25044,7 +25057,15 @@ function updateKingControl(dt) {
   // COMBO 3 K — Decai timer do Escudo Sagrado
   if (k.sacredShieldTimer && k.sacredShieldTimer > 0) {
     k.sacredShieldTimer -= dt;
-    if (k.sacredShieldTimer < 0) k.sacredShieldTimer = 0;
+    if (k.sacredShieldTimer <= 0) {
+      k.sacredShieldTimer = 0;
+      // R37-QA — REPULSA SAGRADA dispara AQUI (o tracker-effect da R36 podia ser
+      // descartado pelo cap FIFO de 600 effects em combate denso — medido)
+      if (game._repulsaArmed && typeof _fireSacredRepulsa === "function") {
+        game._repulsaArmed = false;
+        _fireSacredRepulsa(k);
+      }
+    }
   }
   // COMBO 8 A2 — Decai timer do Espelho de Mana
   if (k.manaMirrorTimer && k.manaMirrorTimer > 0) {
@@ -25438,6 +25459,29 @@ function _spawnHitShockwave(target, type, crit) {
 // applyDamage, logo antes do desconto de HP (cada reação CONSOME o status que
 // a alimenta — auto-limitada, sem cooldown externo). Só a favor do jogador
 // (alvo inimigo) e só em HIT DIRETO ("fire"/"ice" — tick de DoT usa "burn"/"poison").
+// R37-QA — REPULSA SAGRADA (chamada no decremento do sacredShieldTimer)
+function _fireSacredRepulsa(kk) {
+  if (!kk || kk.hp <= 0) return;
+  const hits = Math.min(10, game._shieldBlocked || 0);
+  game._shieldBlocked = 0;
+  const dmg2 = 20 + hits * 12;
+  game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 90, color: "#fff0a0", lifetime: 500, maxLifetime: 500, update() {} });
+  game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 56, color: "#ffffff", lifetime: 380, maxLifetime: 380, update() {} });
+  for (const e2 of game.units) {
+    if (e2.faction !== "enemy" || !isAlive(e2)) continue;
+    const dd = Math.hypot(e2.x - kk.x, e2.y - kk.y);
+    if (dd > 90) continue;
+    applyDamage(kk, e2, dmg2, { type: "holy" });
+    if (!e2.isBoss) {
+      const inv = 1 / (dd || 1);
+      e2.x += (e2.x - kk.x) * inv * 26;
+      e2.y += (e2.y - kk.y) * inv * 26;
+    }
+  }
+  if (typeof doShake === "function") doShake(4, 260);
+  if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
+}
+
 function _reactionLabel(target, txt, color) {
   game.damageNums.push({
     x: target.x + (Math.random() - 0.5) * 4, y: target.y - 16, vy: -30,
@@ -30710,36 +30754,12 @@ const SPELL_DATA = [
       k.sacredShieldTimer = Math.max(k.sacredShieldTimer || 0, dur);
       // R36 (rework) — REPULSA SAGRADA: cada golpe BLOQUEADO carrega o escudo;
       // ao expirar, DETONA (20 + 12/golpe, teto 140) com empurrão radial 90px.
+      // R37-QA: a detonação vive no decremento do timer (_fireSacredRepulsa) —
+      // um effect-tracker aqui era descartável pelo cap FIFO de 600.
+      // Só a CARTA arma a repulsa: o ward do Julgamento Celestial e o perk
+      // Untouchable também concedem sacredShieldTimer e NÃO devem detonar.
       game._shieldBlocked = 0;
-      game.effects.push({
-        type: "spark", color: "#fffad8", x: k.x, y: k.y - 40, vx: 0, vy: 0, size: 0,
-        lifetime: dur, maxLifetime: dur,
-        update(dt2) {
-          const kk = game.king;
-          if (kk) { this.x = kk.x; this.y = kk.y - 40; }
-          if (this.lifetime <= 40 && !this._boom) {
-            this._boom = true;
-            if (!kk || kk.hp <= 0) return;
-            const hits = Math.min(10, game._shieldBlocked || 0);
-            const dmg2 = 20 + hits * 12;
-            game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 90, color: "#fff0a0", lifetime: 500, maxLifetime: 500, update() {} });
-            game.effects.push({ type: "shockwave", x: kk.x, y: kk.y, maxR: 56, color: "#ffffff", lifetime: 380, maxLifetime: 380, update() {} });
-            for (const e2 of game.units) {
-              if (e2.faction !== "enemy" || !isAlive(e2)) continue;
-              const dd = Math.hypot(e2.x - kk.x, e2.y - kk.y);
-              if (dd > 90) continue;
-              applyDamage(kk, e2, dmg2, { type: "holy" });
-              if (!e2.isBoss) {
-                const inv = 1 / (dd || 1);
-                e2.x += (e2.x - kk.x) * inv * 26;
-                e2.y += (e2.y - kk.y) * inv * 26;
-              }
-            }
-            if (typeof doShake === "function") doShake(4, 260);
-            if (typeof Sfx !== "undefined" && Sfx.waveStart) Sfx.waveStart();
-          }
-        },
-      });
+      game._repulsaArmed = true;
       // Anel de luz inicial
       for (let i = 0; i < 24; i++) {
         const ang = (i / 24) * Math.PI * 2;
@@ -35652,10 +35672,16 @@ function updateHazards(dt) {
             _ally.maxHp = _ally.hp;
             _ally.atk += (c2.tier || 0) * 1;
             _ally.risen = true;
+            // R37-QA: Linhagem Imortal (Legado army_5) vale pra TODO ressuscitado
+            if (game.bonuses && game.bonuses.legacyReviveFullHp) {
+              _ally.maxHp = Math.round(_ally.maxHp * 1.25);
+              _ally.hp = _ally.maxHp;
+            }
             game.units.push(_ally);
             game.corpses = game.corpses.filter(x => !x._consumed);
             if (typeof spawnNecroFX === "function") spawnNecroFX(c2.x, c2.y, false);
             if (typeof contractEvent === "function") contractEvent("raise", 1);
+            if (typeof questProgressEvent === "function") questProgressEvent("raiseCorpse", { count: 1 });
             break;
           }
         }
